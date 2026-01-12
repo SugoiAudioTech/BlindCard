@@ -6,10 +6,40 @@ BlindCardProcessor::BlindCardProcessor()
                       .withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
                       .withOutput ("Output", juce::AudioChannelSet::stereo(), true))
 {
+    // 嘗試從 DAW 取得軌道名稱
+    juce::String trackName = getName();
+
+    cardId = manager->registerInstance (this, trackName);
+
+    if (cardId >= 0)
+        manager->addChangeListener (this);
 }
 
 BlindCardProcessor::~BlindCardProcessor()
 {
+    if (cardId >= 0)
+    {
+        manager->removeChangeListener (this);
+        manager->unregisterInstance (this);
+    }
+}
+
+void BlindCardProcessor::changeListenerCallback (juce::ChangeBroadcaster*)
+{
+    // 更新靜音狀態
+    auto phase = manager->getPhase();
+    int selectedId = manager->getSelectedCardId();
+
+    if (phase == blindcard::GamePhase::BlindTesting && selectedId >= 0)
+    {
+        // 有選中卡牌時，只有被選中的發聲
+        shouldMute = (cardId != selectedId);
+    }
+    else
+    {
+        // Setup/Revealed 階段或沒有選中卡牌時，全部發聲
+        shouldMute = false;
+    }
 }
 
 const juce::String BlindCardProcessor::getName() const
@@ -48,7 +78,12 @@ void BlindCardProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 {
     juce::ScopedNoDenormals noDenormals;
 
-    // 目前先直接 pass-through，之後加入獨奏邏輯
+    // 獨奏邏輯：如果應該靜音，清空 buffer
+    if (shouldMute.load())
+    {
+        buffer.clear();
+    }
+    // 否則 pass-through（不做任何處理）
 }
 
 bool BlindCardProcessor::hasEditor() const { return true; }

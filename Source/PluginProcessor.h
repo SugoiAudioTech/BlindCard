@@ -1,8 +1,10 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include "Core/BlindCardManager.h"
 
-class BlindCardProcessor final : public juce::AudioProcessor
+class BlindCardProcessor final : public juce::AudioProcessor,
+                                  public juce::ChangeListener
 {
 public:
     BlindCardProcessor();
@@ -32,6 +34,18 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
+    // ChangeListener
+    void changeListenerCallback (juce::ChangeBroadcaster* source) override;
+
+    // 公開給 Editor 使用
+    blindcard::BlindCardManager& getManager() { return *manager; }
+    int getCardId() const { return cardId; }
+    bool isRegistered() const { return cardId >= 0; }
+
 private:
+    blindcard::SharedBlindCardManager manager;
+    int cardId = -1;
+    std::atomic<bool> shouldMute { false };
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BlindCardProcessor)
 };
