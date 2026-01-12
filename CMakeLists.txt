@@ -5,7 +5,7 @@ project(BlindCard VERSION 1.0.0)
 add_subdirectory(/Users/Mac/JUCE ${CMAKE_BINARY_DIR}/JUCE)
 
 juce_add_plugin(BlindCard
-    COMPANY_NAME "SugoiMusicTech"
+    COMPANY_NAME "Sugoi"
     PLUGIN_MANUFACTURER_CODE Sugo
     PLUGIN_CODE Blcd
     FORMATS AU VST3 Standalone
