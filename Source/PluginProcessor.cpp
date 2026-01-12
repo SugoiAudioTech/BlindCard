@@ -6,13 +6,7 @@ BlindCardProcessor::BlindCardProcessor()
                       .withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
                       .withOutput ("Output", juce::AudioChannelSet::stereo(), true))
 {
-    // 嘗試從 DAW 取得軌道名稱
-    juce::String trackName = getName();
-
-    cardId = manager->registerInstance (this, trackName);
-
-    if (cardId >= 0)
-        manager->addChangeListener (this);
+    // 延遲註冊到 prepareToPlay，避免 AU validation 問題
 }
 
 BlindCardProcessor::~BlindCardProcessor()
@@ -58,7 +52,18 @@ void BlindCardProcessor::setCurrentProgram (int) {}
 const juce::String BlindCardProcessor::getProgramName (int) { return {}; }
 void BlindCardProcessor::changeProgramName (int, const juce::String&) {}
 
-void BlindCardProcessor::prepareToPlay (double, int) {}
+void BlindCardProcessor::prepareToPlay (double, int)
+{
+    // 只在第一次 prepareToPlay 時註冊
+    if (cardId < 0)
+    {
+        juce::String trackName = getName();
+        cardId = manager->registerInstance (this, trackName);
+
+        if (cardId >= 0)
+            manager->addChangeListener (this);
+    }
+}
 void BlindCardProcessor::releaseResources() {}
 
 bool BlindCardProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
