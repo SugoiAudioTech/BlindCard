@@ -270,8 +270,9 @@ bool BlindCardManager::isCardSelected (int cardId) const
     return state.selectedCardId == cardId;
 }
 
-const juce::Array<CardSlot>& BlindCardManager::getCards() const
+juce::Array<CardSlot> BlindCardManager::getCards() const
 {
+    juce::ScopedLock sl (lock);
     return state.cards;
 }
 
