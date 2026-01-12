@@ -71,7 +71,12 @@ BlindCardEditor::~BlindCardEditor()
 void BlindCardEditor::changeListenerCallback (juce::ChangeBroadcaster*)
 {
     // 確保在 message thread 更新 UI
-    juce::MessageManager::callAsync ([this]() { updateUI(); });
+    juce::Component::SafePointer<BlindCardEditor> safeThis (this);
+    juce::MessageManager::callAsync ([safeThis]()
+    {
+        if (safeThis != nullptr)
+            safeThis->updateUI();
+    });
 }
 
 void BlindCardEditor::updateUI()
