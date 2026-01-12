@@ -39,7 +39,7 @@ public:
     int getTotalRounds() const;
     int getSelectedCardId() const;
     bool isCardSelected (int cardId) const;
-    const juce::Array<CardSlot>& getCards() const;
+    juce::Array<CardSlot> getCards() const;
     int getRegisteredCount() const;
     bool canJoinGame() const;
 
