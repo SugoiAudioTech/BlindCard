@@ -16,7 +16,9 @@ target_sources(BlindCard
     PRIVATE
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp
-        Source/Core/Types.h)
+        Source/Core/Types.h
+        Source/Core/BlindCardManager.h
+        Source/Core/BlindCardManager.cpp)
 
 target_compile_definitions(BlindCard
     PUBLIC
