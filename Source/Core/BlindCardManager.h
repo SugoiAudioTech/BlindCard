@@ -4,10 +4,10 @@
 #include <juce_events/juce_events.h>
 #include <juce_audio_processors/juce_audio_processors.h>
 
+class BlindCardProcessor; // forward declaration (global namespace)
+
 namespace blindcard
 {
-
-class BlindCardProcessor; // forward declaration
 
 class BlindCardManager final : public juce::ChangeBroadcaster
 {
