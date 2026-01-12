@@ -16,228 +16,296 @@ BlindCardManager::~BlindCardManager()
 
 int BlindCardManager::registerInstance (BlindCardProcessor* instance, const juce::String& trackName)
 {
-    juce::ScopedLock sl (lock);
+    int resultCardId = -1;
+    bool shouldNotify = false;
+    {
+        juce::ScopedLock sl (lock);
 
-    // 盲測中不允許新實例加入
-    if (state.phase == GamePhase::BlindTesting)
-        return -1;
+        // 盲測中不允許新實例加入
+        if (state.phase == GamePhase::BlindTesting)
+            return -1;
 
-    // 最多 8 個實例
-    if (instances.size() >= GameState::MaxCards)
-        return -1;
+        // 最多 8 個實例
+        if (instances.size() >= GameState::MaxCards)
+            return -1;
 
-    instances.add (instance);
+        instances.add (instance);
 
-    // 建立對應的卡牌
-    CardSlot card;
-    card.id = static_cast<int> (state.cards.size());
-    card.realTrackName = trackName.isEmpty()
-        ? "Track " + juce::String (card.id + 1)
-        : trackName;
-    card.displayPosition = card.id;
-    state.cards.add (card);
+        // 建立對應的卡牌
+        CardSlot card;
+        card.id = static_cast<int> (state.cards.size());
+        card.realTrackName = trackName.isEmpty()
+            ? "Track " + juce::String (card.id + 1)
+            : trackName;
+        card.displayPosition = card.id;
+        state.cards.add (card);
 
-    notifyListeners();
-    return card.id;
+        resultCardId = card.id;
+        shouldNotify = true;
+    }
+    if (shouldNotify)
+        sendChangeMessage();
+    return resultCardId;
 }
 
 void BlindCardManager::unregisterInstance (BlindCardProcessor* instance)
 {
-    juce::ScopedLock sl (lock);
-
-    int index = instances.indexOf (instance);
-    if (index < 0)
-        return;
-
-    instances.remove (index);
-
-    // 如果在盲測中，標記卡牌為已移除而非刪除
-    if (state.phase == GamePhase::BlindTesting && index < state.cards.size())
+    bool shouldNotify = false;
     {
-        state.cards.getReference (index).isRemoved = true;
-    }
-    else if (state.phase == GamePhase::Setup && index < state.cards.size())
-    {
-        state.cards.remove (index);
-        // 重新編號
-        for (int i = 0; i < state.cards.size(); ++i)
+        juce::ScopedLock sl (lock);
+
+        int index = instances.indexOf (instance);
+        if (index < 0)
+            return;
+
+        if (state.phase == GamePhase::BlindTesting)
         {
-            state.cards.getReference (i).id = i;
-            state.cards.getReference (i).displayPosition = i;
+            // During blind testing, mark card as removed but keep both arrays in sync
+            if (index < state.cards.size())
+                state.cards.getReference (index).isRemoved = true;
+            // Don't remove from instances to maintain correspondence
+            // Just set to nullptr to indicate it's gone
+            instances.set (index, nullptr);
         }
-    }
+        else
+        {
+            instances.remove (index);
+            if (index < state.cards.size())
+            {
+                state.cards.remove (index);
+                // 重新編號
+                for (int i = 0; i < state.cards.size(); ++i)
+                {
+                    state.cards.getReference (i).id = i;
+                    state.cards.getReference (i).displayPosition = i;
+                }
+            }
+        }
 
-    notifyListeners();
+        shouldNotify = true;
+    }
+    if (shouldNotify)
+        sendChangeMessage();
 }
 
 void BlindCardManager::setTotalRounds (int rounds)
 {
-    juce::ScopedLock sl (lock);
-    if (state.phase == GamePhase::Setup)
+    bool shouldNotify = false;
     {
-        state.totalRounds = juce::jlimit (1, 10, rounds);
-        notifyListeners();
+        juce::ScopedLock sl (lock);
+        if (state.phase == GamePhase::Setup)
+        {
+            state.totalRounds = juce::jlimit (1, 10, rounds);
+            shouldNotify = true;
+        }
     }
+    if (shouldNotify)
+        sendChangeMessage();
 }
 
 void BlindCardManager::shuffle()
 {
-    juce::ScopedLock sl (lock);
-
-    if (state.phase != GamePhase::Setup)
-        return;
-
-    if (state.cards.isEmpty())
-        return;
-
-    // 初始化每張卡牌的輪次資料
-    for (auto& card : state.cards)
+    bool shouldNotify = false;
     {
-        card.rounds.clear();
-        for (int i = 0; i < state.totalRounds; ++i)
-            card.rounds.add (RoundData{});
+        juce::ScopedLock sl (lock);
+
+        if (state.phase != GamePhase::Setup)
+            return;
+
+        if (state.cards.isEmpty())
+            return;
+
+        // 初始化每張卡牌的輪次資料
+        for (auto& card : state.cards)
+        {
+            card.rounds.clear();
+            for (int i = 0; i < state.totalRounds; ++i)
+                card.rounds.add (RoundData{});
+        }
+
+        // 隨機打亂 displayPosition
+        std::random_device rd;
+        std::mt19937 gen (rd());
+
+        juce::Array<int> positions;
+        for (int i = 0; i < state.cards.size(); ++i)
+            positions.add (i);
+
+        for (int i = positions.size() - 1; i > 0; --i)
+        {
+            std::uniform_int_distribution<> dis (0, i);
+            int j = dis (gen);
+            positions.swap (i, j);
+        }
+
+        for (int i = 0; i < state.cards.size(); ++i)
+            state.cards.getReference (i).displayPosition = positions[i];
+
+        state.phase = GamePhase::BlindTesting;
+        state.currentRound = 0;
+        state.selectedCardId = -1;
+
+        shouldNotify = true;
     }
-
-    // 隨機打亂 displayPosition
-    std::random_device rd;
-    std::mt19937 gen (rd());
-
-    juce::Array<int> positions;
-    for (int i = 0; i < state.cards.size(); ++i)
-        positions.add (i);
-
-    for (int i = positions.size() - 1; i > 0; --i)
-    {
-        std::uniform_int_distribution<> dis (0, i);
-        int j = dis (gen);
-        positions.swap (i, j);
-    }
-
-    for (int i = 0; i < state.cards.size(); ++i)
-        state.cards.getReference (i).displayPosition = positions[i];
-
-    state.phase = GamePhase::BlindTesting;
-    state.currentRound = 0;
-    state.selectedCardId = -1;
-
-    notifyListeners();
+    if (shouldNotify)
+        sendChangeMessage();
 }
 
 void BlindCardManager::nextRound()
 {
-    juce::ScopedLock sl (lock);
-
-    if (state.phase != GamePhase::BlindTesting)
-        return;
-
-    if (state.currentRound < state.totalRounds - 1)
+    bool shouldNotify = false;
     {
-        state.currentRound++;
-        state.selectedCardId = -1;
-        notifyListeners();
+        juce::ScopedLock sl (lock);
+
+        if (state.phase != GamePhase::BlindTesting)
+            return;
+
+        if (state.currentRound < state.totalRounds - 1)
+        {
+            state.currentRound++;
+            state.selectedCardId = -1;
+            shouldNotify = true;
+        }
     }
+    if (shouldNotify)
+        sendChangeMessage();
 }
 
 void BlindCardManager::reveal()
 {
-    juce::ScopedLock sl (lock);
+    bool shouldNotify = false;
+    {
+        juce::ScopedLock sl (lock);
 
-    if (state.phase != GamePhase::BlindTesting)
-        return;
+        if (state.phase != GamePhase::BlindTesting)
+            return;
 
-    state.phase = GamePhase::Revealed;
-    state.selectedCardId = -1;
-    notifyListeners();
+        state.phase = GamePhase::Revealed;
+        state.selectedCardId = -1;
+        shouldNotify = true;
+    }
+    if (shouldNotify)
+        sendChangeMessage();
 }
 
 void BlindCardManager::reset()
 {
-    juce::ScopedLock sl (lock);
-
-    state.phase = GamePhase::Setup;
-    state.currentRound = 0;
-    state.selectedCardId = -1;
-
-    // 清除評分資料但保留卡牌
-    for (auto& card : state.cards)
+    bool shouldNotify = false;
     {
-        card.rounds.clear();
-        card.displayPosition = card.id;
-        card.isRemoved = false;
-    }
+        juce::ScopedLock sl (lock);
 
-    notifyListeners();
+        state.phase = GamePhase::Setup;
+        state.currentRound = 0;
+        state.selectedCardId = -1;
+
+        // 清除評分資料但保留卡牌
+        for (auto& card : state.cards)
+        {
+            card.rounds.clear();
+            card.displayPosition = card.id;
+            card.isRemoved = false;
+        }
+
+        shouldNotify = true;
+    }
+    if (shouldNotify)
+        sendChangeMessage();
 }
 
 void BlindCardManager::selectCard (int cardId)
 {
-    juce::ScopedLock sl (lock);
-
-    if (state.phase != GamePhase::BlindTesting)
-        return;
-
-    if (cardId >= 0 && cardId < state.cards.size())
+    bool shouldNotify = false;
     {
-        state.selectedCardId = cardId;
-        notifyListeners();
+        juce::ScopedLock sl (lock);
+
+        if (state.phase != GamePhase::BlindTesting)
+            return;
+
+        if (cardId >= 0 && cardId < state.cards.size() && !state.cards[cardId].isRemoved)
+        {
+            state.selectedCardId = cardId;
+            shouldNotify = true;
+        }
     }
+    if (shouldNotify)
+        sendChangeMessage();
 }
 
 void BlindCardManager::deselectCard()
 {
-    juce::ScopedLock sl (lock);
-    state.selectedCardId = -1;
-    notifyListeners();
+    bool shouldNotify = false;
+    {
+        juce::ScopedLock sl (lock);
+        state.selectedCardId = -1;
+        shouldNotify = true;
+    }
+    if (shouldNotify)
+        sendChangeMessage();
 }
 
 void BlindCardManager::rateCard (int cardId, int stars)
 {
-    juce::ScopedLock sl (lock);
-
-    if (state.phase != GamePhase::BlindTesting)
-        return;
-
-    if (cardId >= 0 && cardId < state.cards.size())
+    bool shouldNotify = false;
     {
-        auto& card = state.cards.getReference (cardId);
-        if (state.currentRound < card.rounds.size())
+        juce::ScopedLock sl (lock);
+
+        if (state.phase != GamePhase::BlindTesting)
+            return;
+
+        if (cardId >= 0 && cardId < state.cards.size() && !state.cards[cardId].isRemoved)
         {
-            card.rounds.getReference (state.currentRound).rating = juce::jlimit (0, 5, stars);
-            notifyListeners();
+            auto& card = state.cards.getReference (cardId);
+            if (state.currentRound < card.rounds.size())
+            {
+                card.rounds.getReference (state.currentRound).rating = juce::jlimit (0, 5, stars);
+                shouldNotify = true;
+            }
         }
     }
+    if (shouldNotify)
+        sendChangeMessage();
 }
 
 void BlindCardManager::setNote (int cardId, const juce::String& note)
 {
-    juce::ScopedLock sl (lock);
-
-    if (state.phase != GamePhase::BlindTesting)
-        return;
-
-    if (cardId >= 0 && cardId < state.cards.size())
+    bool shouldNotify = false;
     {
-        auto& card = state.cards.getReference (cardId);
-        if (state.currentRound < card.rounds.size())
+        juce::ScopedLock sl (lock);
+
+        if (state.phase != GamePhase::BlindTesting)
+            return;
+
+        if (cardId >= 0 && cardId < state.cards.size() && !state.cards[cardId].isRemoved)
         {
-            card.rounds.getReference (state.currentRound).note = note;
-            notifyListeners();
+            auto& card = state.cards.getReference (cardId);
+            if (state.currentRound < card.rounds.size())
+            {
+                card.rounds.getReference (state.currentRound).note = note;
+                shouldNotify = true;
+            }
         }
     }
+    if (shouldNotify)
+        sendChangeMessage();
 }
 
 void BlindCardManager::setTrackName (int cardId, const juce::String& name)
 {
-    juce::ScopedLock sl (lock);
-
-    if (state.phase != GamePhase::Setup)
-        return;
-
-    if (cardId >= 0 && cardId < state.cards.size())
+    bool shouldNotify = false;
     {
-        state.cards.getReference (cardId).realTrackName = name;
-        notifyListeners();
+        juce::ScopedLock sl (lock);
+
+        if (state.phase != GamePhase::Setup)
+            return;
+
+        if (cardId >= 0 && cardId < state.cards.size())
+        {
+            state.cards.getReference (cardId).realTrackName = name;
+            shouldNotify = true;
+        }
     }
+    if (shouldNotify)
+        sendChangeMessage();
 }
 
 GamePhase BlindCardManager::getPhase() const
