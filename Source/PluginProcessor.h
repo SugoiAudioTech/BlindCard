@@ -34,6 +34,9 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
+    // TrackProperties - 從 DAW 取得軌道名稱
+    void updateTrackProperties (const TrackProperties& properties) override;
+
     // ChangeListener
     void changeListenerCallback (juce::ChangeBroadcaster* source) override;
 
@@ -42,10 +45,24 @@ public:
     int getCardId() const { return cardId; }
     bool isRegistered() const { return cardId >= 0; }
 
+    // Level Matching
+    void startMeasurement (float durationSeconds = 5.0f);
+    void stopMeasurement();
+    bool isMeasuring() const { return measuring.load(); }
+    float getMeasurementProgress() const;
+
 private:
     blindcard::SharedBlindCardManager manager;
     int cardId = -1;
     std::atomic<bool> shouldMute { false };
+
+    // Level Matching
+    std::atomic<bool> measuring { false };
+    std::atomic<float> currentGainLinear { 1.0f };
+    double sampleRate = 44100.0;
+    double sumSquared = 0.0;
+    int64_t sampleCount = 0;
+    int64_t targetSampleCount = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BlindCardProcessor)
 };
