@@ -48,6 +48,8 @@ CardComponent::CardComponent()
         if (onNoteChanged && hasCard)
             onNoteChanged (cardData.id, noteEditor.getText());
     };
+    // 讓空白鍵不被 TextEditor 攔截，傳遞給 DAW 播放/暫停
+    noteEditor.addKeyListener (this);
     addAndMakeVisible (noteEditor);
 
     // 猜測下拉選單
@@ -702,6 +704,17 @@ bool CardComponent::keyPressed (const juce::KeyPress& key)
     }
 
     return Component::keyPressed (key);
+}
+
+bool CardComponent::keyPressed (const juce::KeyPress& key, juce::Component* /*originatingComponent*/)
+{
+    // 攔截空白鍵，不讓 TextEditor 處理，讓 DAW 可以播放/暫停
+    if (key.getKeyCode() == juce::KeyPress::spaceKey)
+    {
+        return true;  // 返回 true 表示已處理，阻止 TextEditor 輸入空格
+    }
+
+    return false;  // 其他按鍵讓 TextEditor 正常處理
 }
 
 void CardComponent::setMultiCardConfig (const MultiCardConfig& config)

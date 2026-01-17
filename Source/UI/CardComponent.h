@@ -30,7 +30,8 @@ enum class FlipState
 };
 
 class CardComponent final : public juce::Component,
-                            public juce::Timer
+                            public juce::Timer,
+                            public juce::KeyListener
 {
 public:
     CardComponent();
@@ -64,6 +65,9 @@ public:
     void resized() override;
     void mouseDown (const juce::MouseEvent&) override;
     bool keyPressed (const juce::KeyPress& key) override;
+
+    // KeyListener - 攔截 TextEditor 的空白鍵，讓 DAW 可以播放/暫停
+    bool keyPressed (const juce::KeyPress& key, juce::Component* originatingComponent) override;
 
     // Timer callback 用於動畫更新
     void timerCallback() override;

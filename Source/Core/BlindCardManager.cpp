@@ -118,7 +118,8 @@ void BlindCardManager::shuffle()
         if (state.phase != GamePhase::Setup)
             return;
 
-        if (state.cards.isEmpty())
+        // 檢查卡牌數量下限
+        if (state.cards.size() < GameState::MinCards)
             return;
 
         // 初始化每張卡牌的輪次資料

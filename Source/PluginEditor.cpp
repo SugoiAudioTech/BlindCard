@@ -332,7 +332,9 @@ void BlindCardEditor::updateUI()
     roundsSlider.setEnabled (phase == blindcard::GamePhase::Setup);
     roundsSlider.setValue (totalRounds, juce::dontSendNotification);
 
-    shuffleButton.setEnabled (phase == blindcard::GamePhase::Setup && !cards.isEmpty());
+    // Shuffle 按鈕需要至少 MinCards 張卡牌才能啟用
+    bool hasEnoughCards = cards.size() >= blindcard::GameState::MinCards;
+    shuffleButton.setEnabled (phase == blindcard::GamePhase::Setup && hasEnoughCards);
     nextRoundButton.setEnabled (phase == blindcard::GamePhase::BlindTesting && currentRound < totalRounds - 1);
     revealButton.setEnabled (phase == blindcard::GamePhase::BlindTesting);
     resetButton.setEnabled (phase != blindcard::GamePhase::Setup);
@@ -355,7 +357,11 @@ void BlindCardEditor::updateUI()
     switch (phase)
     {
         case blindcard::GamePhase::Setup:
-            statusText = "Setup - " + juce::String (cards.size()) + " tracks registered";
+            statusText = "Setup - " + juce::String (cards.size()) + "/" + juce::String (blindcard::GameState::MaxCards) + " tracks";
+            if (cards.size() < blindcard::GameState::MinCards)
+                statusText += " (need at least " + juce::String (blindcard::GameState::MinCards) + ")";
+            else if (cards.size() >= blindcard::GameState::MaxCards)
+                statusText += " (max reached)";
             break;
         case blindcard::GamePhase::BlindTesting:
             statusText = "Round " + juce::String (currentRound + 1) + " / " + juce::String (totalRounds);

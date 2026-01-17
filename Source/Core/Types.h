@@ -123,7 +123,8 @@ struct GameState
     juce::Array<CardSlot> cards;              // 最多 8 張卡牌
     QAState qaState;                          // Q&A 模式狀態
 
-    static constexpr int MaxCards = 8;
+    static constexpr int MinCards = 2;        // 最少卡牌數（盲測需要對照組）
+    static constexpr int MaxCards = 8;        // 最多卡牌數（雙排 4+4 佈局上限）
 };
 
 } // namespace blindcard
