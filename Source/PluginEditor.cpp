@@ -601,29 +601,51 @@ void BlindCardEditor::resized()
         bounds.removeFromBottom (5);
     }
 
-    // 卡牌區域
+    // 卡牌區域 - 固定 4+4 雙排佈局，統一靠左對齊
     auto cardArea = bounds;
     const auto& cards = manager.getCards();
-    int numCards = juce::jmax (1, static_cast<int> (cards.size()));
+    int numCards = static_cast<int> (cards.size());
 
     // 取得多卡場景配置
     auto multiCardConfig = blindcard::CardComponent::getMultiCardConfig (numCards);
 
-    // 基礎間距 10 像素，根據卡牌數量縮放
-    int baseSpacing = 10;
-    int scaledSpacing = static_cast<int> (baseSpacing * multiCardConfig.spacingScale);
+    // 固定佈局參數
+    int hSpacing = 10;  // 水平間距
+    int vSpacing = 16;  // 垂直間距（行間）- 會議決議從 8px 改為 16px
+    int cardsPerRow = 4;
 
-    int cardWidth = (cardArea.getWidth() - (numCards - 1) * scaledSpacing) / numCards;
+    int rowHeight = (cardArea.getHeight() - vSpacing) / 2;
+    auto topRow = cardArea.removeFromTop (rowHeight);
+    cardArea.removeFromTop (vSpacing);
+    auto bottomRow = cardArea;
+
+    int cardWidth = (topRow.getWidth() - (cardsPerRow - 1) * hSpacing) / cardsPerRow;
     cardWidth = juce::jmin (cardWidth, 150);
 
+    // 統一靠左對齊（會議決議：移除置中邏輯）
     for (int i = 0; i < cardComponents.size(); ++i)
     {
-        if (i < static_cast<int> (cards.size()))
+        if (i < numCards)
         {
-            // 套用多卡配置到每張卡牌
             cardComponents[i]->setMultiCardConfig (multiCardConfig);
-            cardComponents[i]->setBounds (cardArea.removeFromLeft (cardWidth));
-            cardArea.removeFromLeft (scaledSpacing);
+            cardComponents[i]->setVisible (true);
+
+            if (i < cardsPerRow)
+            {
+                // 上排 (0-3)
+                int x = i * (cardWidth + hSpacing);
+                cardComponents[i]->setBounds (topRow.getX() + x, topRow.getY(), cardWidth, rowHeight);
+            }
+            else
+            {
+                // 下排 (4-7)
+                int x = (i - cardsPerRow) * (cardWidth + hSpacing);
+                cardComponents[i]->setBounds (bottomRow.getX() + x, bottomRow.getY(), cardWidth, rowHeight);
+            }
+        }
+        else
+        {
+            cardComponents[i]->setVisible (false);
         }
     }
 
