@@ -247,12 +247,15 @@ void ControlPanel::drawInfoRow(juce::Graphics& g, juce::Rectangle<float> bounds)
 {
     auto& tm = ThemeManager::getInstance();
 
+    // Use system sans-serif font for clean modern look
+    auto sansSerif = juce::Font::getDefaultSansSerifFontName();
+
     // Left section: Current Tracks
     auto leftSection = bounds.removeFromLeft(bounds.getWidth() * 0.35f);
 
     // Music note icon
     g.setColour(tm.getColour(ColourId::Primary));
-    g.setFont(juce::FontOptions(16.0f));
+    g.setFont(juce::Font(sansSerif, 16.0f, juce::Font::plain));
     auto iconBounds = leftSection.removeFromLeft(24.0f);
     g.drawText(juce::String::fromUTF8("♪"), iconBounds, juce::Justification::centred);
 
@@ -260,7 +263,7 @@ void ControlPanel::drawInfoRow(juce::Graphics& g, juce::Rectangle<float> bounds)
 
     // "Current Tracks" label
     g.setColour(tm.getColour(ColourId::TextSecondary));
-    g.setFont(juce::FontOptions(13.0f));
+    g.setFont(juce::Font(sansSerif, 13.0f, juce::Font::plain));
     auto labelBounds = leftSection.removeFromLeft(100.0f);
     g.drawText("Current Tracks", labelBounds, juce::Justification::centredLeft);
 
@@ -272,7 +275,7 @@ void ControlPanel::drawInfoRow(juce::Graphics& g, juce::Rectangle<float> bounds)
     g.setColour(tm.getColour(ColourId::Accent));
     g.fillEllipse(countBounds);
     g.setColour(juce::Colours::black);
-    g.setFont(juce::FontOptions(12.0f).withStyle("Bold"));
+    g.setFont(juce::Font(sansSerif, 12.0f, juce::Font::bold));
     g.drawText(juce::String(trackCount), countBounds, juce::Justification::centred);
 
     bounds.removeFromLeft(24.0f);  // Gap
@@ -280,14 +283,14 @@ void ControlPanel::drawInfoRow(juce::Graphics& g, juce::Rectangle<float> bounds)
     // Right section: Rounds
     // Hash icon
     g.setColour(tm.getColour(ColourId::TextSecondary));
-    g.setFont(juce::FontOptions(14.0f).withStyle("Bold"));
+    g.setFont(juce::Font(sansSerif, 14.0f, juce::Font::bold));
     auto hashBounds = bounds.removeFromLeft(20.0f);
     g.drawText("#", hashBounds, juce::Justification::centred);
 
     bounds.removeFromLeft(4.0f);  // Gap
 
     // "Rounds" label
-    g.setFont(juce::FontOptions(13.0f));
+    g.setFont(juce::Font(sansSerif, 13.0f, juce::Font::plain));
     auto roundsLabelBounds = bounds.removeFromLeft(50.0f);
     g.drawText("Rounds", roundsLabelBounds, juce::Justification::centredLeft);
 
@@ -298,7 +301,7 @@ void ControlPanel::drawInfoRow(juce::Graphics& g, juce::Rectangle<float> bounds)
     int currentRound = 1;  // This would come from manager
     int totalRounds = static_cast<int>(roundsSlider->getValue());
     g.setColour(tm.getColour(ColourId::TextPrimary));
-    g.setFont(juce::FontOptions(13.0f));
+    g.setFont(juce::Font(sansSerif, 13.0f, juce::Font::plain));
     g.drawText(juce::String(currentRound) + "/" + juce::String(totalRounds),
                bounds, juce::Justification::centredRight);
 }
@@ -306,6 +309,9 @@ void ControlPanel::drawInfoRow(juce::Graphics& g, juce::Rectangle<float> bounds)
 void ControlPanel::drawAutoGainRow(juce::Graphics& g, juce::Rectangle<float> bounds)
 {
     auto& tm = ThemeManager::getInstance();
+
+    // Use system sans-serif font
+    auto sansSerif = juce::Font::getDefaultSansSerifFontName();
 
     // Background bar
     g.setColour(tm.getColour(ColourId::SurfaceAlt));
@@ -315,7 +321,7 @@ void ControlPanel::drawAutoGainRow(juce::Graphics& g, juce::Rectangle<float> bou
 
     // Speaker icon
     g.setColour(tm.getColour(ColourId::TextSecondary));
-    g.setFont(juce::FontOptions(16.0f));
+    g.setFont(juce::Font(sansSerif, 16.0f, juce::Font::plain));
     auto iconBounds = contentBounds.removeFromLeft(24.0f);
     g.drawText(juce::String::fromUTF8("🔊"), iconBounds, juce::Justification::centred);
 
@@ -323,7 +329,7 @@ void ControlPanel::drawAutoGainRow(juce::Graphics& g, juce::Rectangle<float> bou
 
     // "Auto Gain" label
     g.setColour(tm.getColour(ColourId::TextPrimary));
-    g.setFont(juce::FontOptions(14.0f));
+    g.setFont(juce::Font(sansSerif, 14.0f, juce::Font::plain));
     g.drawText("Auto Gain", contentBounds, juce::Justification::centredLeft);
 
     // Toggle is handled in resized()

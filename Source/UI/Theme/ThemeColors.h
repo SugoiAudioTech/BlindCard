@@ -42,8 +42,8 @@ namespace Dark
     inline const juce::Colour TextMuted         { 0xFF6B7280 };
 
     // Poker Table (Casino green felt design)
-    inline const juce::Colour TableFelt         { 0xFF0D5C4A };  // Deep emerald green felt (edge)
-    inline const juce::Colour TableFeltCenter   { 0xFF1B8B6A };  // Brighter emerald center
+    inline const juce::Colour TableFelt         { 0xFF1A7A5A };  // Emerald green felt (edge)
+    inline const juce::Colour TableFeltCenter   { 0xFF2AAA7A };  // Brighter emerald center
     inline const juce::Colour TableFrameOuter   { 0xFFE8A07A };  // Salmon/coral frame outer
     inline const juce::Colour TableFrameInner   { 0xFFD4907A };  // Salmon/coral frame inner
     inline const juce::Colour TableRail         { 0xFFC08060 };  // Darker coral rail
