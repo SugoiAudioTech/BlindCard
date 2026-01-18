@@ -41,13 +41,13 @@ namespace Dark
     inline const juce::Colour TextSecondary     { 0xFF9CA3AF };
     inline const juce::Colour TextMuted         { 0xFF6B7280 };
 
-    // Poker Table
-    inline const juce::Colour TableFelt         { 0xFF1B8B6A };
-    inline const juce::Colour TableFeltCenter   { 0xFF22A77D };
-    inline const juce::Colour TableWoodLight    { 0xFFD4A574 };
-    inline const juce::Colour TableWoodDark     { 0xFF6B4F38 };
-    inline const juce::Colour TableRail         { 0xFF8B5A3C };
-    inline const juce::Colour NeonRed           { 0xFFFF3B4E };
+    // Poker Table (Dark elegant design with dark felt)
+    inline const juce::Colour TableFelt         { 0xFF1A1A1A };  // Dark charcoal felt
+    inline const juce::Colour TableFeltCenter   { 0xFF252525 };  // Slightly lighter center
+    inline const juce::Colour TableFrameOuter   { 0xFF2A2A2A };  // Dark padded frame outer
+    inline const juce::Colour TableFrameInner   { 0xFF1F1F1F };  // Dark padded frame inner
+    inline const juce::Colour TableRail         { 0xFF333333 };  // Dark rail
+    inline const juce::Colour NeonRed           { 0xFFFF3B4E };  // Bright red neon glow
 
     // Status
     inline const juce::Colour Success           { 0xFF22C55E };
@@ -85,13 +85,13 @@ namespace Light
     inline const juce::Colour TextSecondary     { 0xFF6B7280 };
     inline const juce::Colour TextMuted         { 0xFF9CA3AF };
 
-    // Poker Table
-    inline const juce::Colour TableFelt         { 0xFF2D9B7A };
-    inline const juce::Colour TableFeltCenter   { 0xFF3DAB8A };
-    inline const juce::Colour TableWoodLight    { 0xFFE4B584 };
-    inline const juce::Colour TableWoodDark     { 0xFF7B5F48 };
-    inline const juce::Colour TableRail         { 0xFF9B6A4C };
-    inline const juce::Colour NeonRed           { 0xFFC41E3A };
+    // Poker Table (Light theme - slightly lighter dark design)
+    inline const juce::Colour TableFelt         { 0xFF2A2A2A };  // Dark charcoal felt
+    inline const juce::Colour TableFeltCenter   { 0xFF353535 };  // Slightly lighter center
+    inline const juce::Colour TableFrameOuter   { 0xFF3A3A3A };  // Dark padded frame outer
+    inline const juce::Colour TableFrameInner   { 0xFF2F2F2F };  // Dark padded frame inner
+    inline const juce::Colour TableRail         { 0xFF444444 };  // Dark rail
+    inline const juce::Colour NeonRed           { 0xFFC41E3A };  // Darker red neon glow
 
     // Status
     inline const juce::Colour Success           { 0xFF16A34A };

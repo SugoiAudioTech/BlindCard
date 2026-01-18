@@ -46,8 +46,8 @@ enum class ColourId
     // Poker Table
     TableFelt,
     TableFeltCenter,
-    TableWoodLight,
-    TableWoodDark,
+    TableFrameOuter,
+    TableFrameInner,
     TableRail,
     NeonRed,
 

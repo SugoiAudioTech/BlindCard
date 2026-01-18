@@ -32,10 +32,10 @@ namespace BlindCard
  * PokerTable displays the main game area with poker-style visual design.
  *
  * Visual Structure (outside to inside):
- * 1. Wood frame (gradient brown)
- * 2. Table rail (darker brown edge)
- * 3. Neon red border (with glow)
- * 4. Green felt surface (radial gradient)
+ * 1. Dark padded frame (gradient dark gray)
+ * 2. Table rail (dark padding)
+ * 3. Neon red border (with glow effect)
+ * 4. Dark felt surface (radial gradient)
  * 5. Decorative chip stacks (left and right sides)
  * 6. Card positions arranged in rows
  *
