@@ -107,11 +107,6 @@ public:
     /** Returns the colour for the given ColourId based on current theme */
     juce::Colour getColour(ColourId id) const;
 
-    //==========================================================================
-    // Prevent copying
-    ThemeManager(const ThemeManager&) = delete;
-    ThemeManager& operator=(const ThemeManager&) = delete;
-
 private:
     //==========================================================================
     ThemeManager() = default;

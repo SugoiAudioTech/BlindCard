@@ -1,5 +1,5 @@
 #include "PluginProcessor.h"
-#include "PluginEditor.h"
+#include "UI/BlindCardEditor.h"
 #include <cmath>
 
 BlindCardProcessor::BlindCardProcessor()
@@ -145,7 +145,7 @@ bool BlindCardProcessor::hasEditor() const { return true; }
 
 juce::AudioProcessorEditor* BlindCardProcessor::createEditor()
 {
-    return new BlindCardEditor (*this);
+    return new BlindCard::BlindCardEditor(*this);
 }
 
 void BlindCardProcessor::getStateInformation (juce::MemoryBlock&) {}

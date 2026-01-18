@@ -41,48 +41,52 @@ void ThemeManager::toggleTheme()
 //==============================================================================
 juce::Colour ThemeManager::getColour(ColourId id) const
 {
+    // Use namespace aliases to avoid collision with ThemeManager::Theme enum
+    namespace DarkTheme = ::BlindCard::Theme::Dark;
+    namespace LightTheme = ::BlindCard::Theme::Light;
+
     if (currentTheme == Theme::Dark)
     {
         switch (id)
         {
             // Backgrounds
-            case ColourId::Background:      return Theme::Dark::Background;
-            case ColourId::Surface:         return Theme::Dark::Surface;
-            case ColourId::SurfaceAlt:      return Theme::Dark::SurfaceAlt;
+            case ColourId::Background:      return DarkTheme::Background;
+            case ColourId::Surface:         return DarkTheme::Surface;
+            case ColourId::SurfaceAlt:      return DarkTheme::SurfaceAlt;
 
             // Primary Colors
-            case ColourId::Primary:         return Theme::Dark::Primary;
-            case ColourId::PrimaryHover:    return Theme::Dark::PrimaryHover;
-            case ColourId::Accent:          return Theme::Dark::Accent;
-            case ColourId::AccentMuted:     return Theme::Dark::AccentMuted;
+            case ColourId::Primary:         return DarkTheme::Primary;
+            case ColourId::PrimaryHover:    return DarkTheme::PrimaryHover;
+            case ColourId::Accent:          return DarkTheme::Accent;
+            case ColourId::AccentMuted:     return DarkTheme::AccentMuted;
 
             // Text
-            case ColourId::TextPrimary:     return Theme::Dark::TextPrimary;
-            case ColourId::TextSecondary:   return Theme::Dark::TextSecondary;
-            case ColourId::TextMuted:       return Theme::Dark::TextMuted;
+            case ColourId::TextPrimary:     return DarkTheme::TextPrimary;
+            case ColourId::TextSecondary:   return DarkTheme::TextSecondary;
+            case ColourId::TextMuted:       return DarkTheme::TextMuted;
 
             // Poker Table
-            case ColourId::TableFelt:       return Theme::Dark::TableFelt;
-            case ColourId::TableFeltCenter: return Theme::Dark::TableFeltCenter;
-            case ColourId::TableWoodLight:  return Theme::Dark::TableWoodLight;
-            case ColourId::TableWoodDark:   return Theme::Dark::TableWoodDark;
-            case ColourId::TableRail:       return Theme::Dark::TableRail;
-            case ColourId::NeonRed:         return Theme::Dark::NeonRed;
+            case ColourId::TableFelt:       return DarkTheme::TableFelt;
+            case ColourId::TableFeltCenter: return DarkTheme::TableFeltCenter;
+            case ColourId::TableWoodLight:  return DarkTheme::TableWoodLight;
+            case ColourId::TableWoodDark:   return DarkTheme::TableWoodDark;
+            case ColourId::TableRail:       return DarkTheme::TableRail;
+            case ColourId::NeonRed:         return DarkTheme::NeonRed;
 
             // Status
-            case ColourId::Success:         return Theme::Dark::Success;
-            case ColourId::Error:           return Theme::Dark::Error;
+            case ColourId::Success:         return DarkTheme::Success;
+            case ColourId::Error:           return DarkTheme::Error;
 
             // Components
-            case ColourId::SliderTrack:     return Theme::Dark::SliderTrack;
-            case ColourId::SliderFill:      return Theme::Dark::SliderFill;
-            case ColourId::ToggleOff:       return Theme::Dark::ToggleOff;
-            case ColourId::ToggleOn:        return Theme::Dark::ToggleOn;
-            case ColourId::CardFront:       return Theme::Dark::CardFront;
-            case ColourId::StarEmpty:       return Theme::Dark::StarEmpty;
-            case ColourId::StarFilled:      return Theme::Dark::StarFilled;
+            case ColourId::SliderTrack:     return DarkTheme::SliderTrack;
+            case ColourId::SliderFill:      return DarkTheme::SliderFill;
+            case ColourId::ToggleOff:       return DarkTheme::ToggleOff;
+            case ColourId::ToggleOn:        return DarkTheme::ToggleOn;
+            case ColourId::CardFront:       return DarkTheme::CardFront;
+            case ColourId::StarEmpty:       return DarkTheme::StarEmpty;
+            case ColourId::StarFilled:      return DarkTheme::StarFilled;
 
-            default:                        return Theme::Dark::Background;
+            default:                        return DarkTheme::Background;
         }
     }
     else // Light theme
@@ -90,43 +94,43 @@ juce::Colour ThemeManager::getColour(ColourId id) const
         switch (id)
         {
             // Backgrounds
-            case ColourId::Background:      return Theme::Light::Background;
-            case ColourId::Surface:         return Theme::Light::Surface;
-            case ColourId::SurfaceAlt:      return Theme::Light::SurfaceAlt;
+            case ColourId::Background:      return LightTheme::Background;
+            case ColourId::Surface:         return LightTheme::Surface;
+            case ColourId::SurfaceAlt:      return LightTheme::SurfaceAlt;
 
             // Primary Colors
-            case ColourId::Primary:         return Theme::Light::Primary;
-            case ColourId::PrimaryHover:    return Theme::Light::PrimaryHover;
-            case ColourId::Accent:          return Theme::Light::Accent;
-            case ColourId::AccentMuted:     return Theme::Light::AccentMuted;
+            case ColourId::Primary:         return LightTheme::Primary;
+            case ColourId::PrimaryHover:    return LightTheme::PrimaryHover;
+            case ColourId::Accent:          return LightTheme::Accent;
+            case ColourId::AccentMuted:     return LightTheme::AccentMuted;
 
             // Text
-            case ColourId::TextPrimary:     return Theme::Light::TextPrimary;
-            case ColourId::TextSecondary:   return Theme::Light::TextSecondary;
-            case ColourId::TextMuted:       return Theme::Light::TextMuted;
+            case ColourId::TextPrimary:     return LightTheme::TextPrimary;
+            case ColourId::TextSecondary:   return LightTheme::TextSecondary;
+            case ColourId::TextMuted:       return LightTheme::TextMuted;
 
             // Poker Table
-            case ColourId::TableFelt:       return Theme::Light::TableFelt;
-            case ColourId::TableFeltCenter: return Theme::Light::TableFeltCenter;
-            case ColourId::TableWoodLight:  return Theme::Light::TableWoodLight;
-            case ColourId::TableWoodDark:   return Theme::Light::TableWoodDark;
-            case ColourId::TableRail:       return Theme::Light::TableRail;
-            case ColourId::NeonRed:         return Theme::Light::NeonRed;
+            case ColourId::TableFelt:       return LightTheme::TableFelt;
+            case ColourId::TableFeltCenter: return LightTheme::TableFeltCenter;
+            case ColourId::TableWoodLight:  return LightTheme::TableWoodLight;
+            case ColourId::TableWoodDark:   return LightTheme::TableWoodDark;
+            case ColourId::TableRail:       return LightTheme::TableRail;
+            case ColourId::NeonRed:         return LightTheme::NeonRed;
 
             // Status
-            case ColourId::Success:         return Theme::Light::Success;
-            case ColourId::Error:           return Theme::Light::Error;
+            case ColourId::Success:         return LightTheme::Success;
+            case ColourId::Error:           return LightTheme::Error;
 
             // Components
-            case ColourId::SliderTrack:     return Theme::Light::SliderTrack;
-            case ColourId::SliderFill:      return Theme::Light::SliderFill;
-            case ColourId::ToggleOff:       return Theme::Light::ToggleOff;
-            case ColourId::ToggleOn:        return Theme::Light::ToggleOn;
-            case ColourId::CardFront:       return Theme::Light::CardFront;
-            case ColourId::StarEmpty:       return Theme::Light::StarEmpty;
-            case ColourId::StarFilled:      return Theme::Light::StarFilled;
+            case ColourId::SliderTrack:     return LightTheme::SliderTrack;
+            case ColourId::SliderFill:      return LightTheme::SliderFill;
+            case ColourId::ToggleOff:       return LightTheme::ToggleOff;
+            case ColourId::ToggleOn:        return LightTheme::ToggleOn;
+            case ColourId::CardFront:       return LightTheme::CardFront;
+            case ColourId::StarEmpty:       return LightTheme::StarEmpty;
+            case ColourId::StarFilled:      return LightTheme::StarFilled;
 
-            default:                        return Theme::Light::Background;
+            default:                        return LightTheme::Background;
         }
     }
 }
