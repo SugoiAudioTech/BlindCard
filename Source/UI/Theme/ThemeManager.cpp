@@ -68,8 +68,8 @@ juce::Colour ThemeManager::getColour(ColourId id) const
             // Poker Table
             case ColourId::TableFelt:       return DarkTheme::TableFelt;
             case ColourId::TableFeltCenter: return DarkTheme::TableFeltCenter;
-            case ColourId::TableWoodLight:  return DarkTheme::TableWoodLight;
-            case ColourId::TableWoodDark:   return DarkTheme::TableWoodDark;
+            case ColourId::TableFrameOuter: return DarkTheme::TableFrameOuter;
+            case ColourId::TableFrameInner: return DarkTheme::TableFrameInner;
             case ColourId::TableRail:       return DarkTheme::TableRail;
             case ColourId::NeonRed:         return DarkTheme::NeonRed;
 
@@ -112,8 +112,8 @@ juce::Colour ThemeManager::getColour(ColourId id) const
             // Poker Table
             case ColourId::TableFelt:       return LightTheme::TableFelt;
             case ColourId::TableFeltCenter: return LightTheme::TableFeltCenter;
-            case ColourId::TableWoodLight:  return LightTheme::TableWoodLight;
-            case ColourId::TableWoodDark:   return LightTheme::TableWoodDark;
+            case ColourId::TableFrameOuter: return LightTheme::TableFrameOuter;
+            case ColourId::TableFrameInner: return LightTheme::TableFrameInner;
             case ColourId::TableRail:       return LightTheme::TableRail;
             case ColourId::NeonRed:         return LightTheme::NeonRed;
 

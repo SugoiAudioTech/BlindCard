@@ -185,37 +185,38 @@ void PokerTable::drawWoodFrame(juce::Graphics& g, juce::Rectangle<float> bounds)
 {
     auto& tm = ThemeManager::getInstance();
 
-    // Wood gradient from light to dark
-    juce::ColourGradient woodGradient(
-        tm.getColour(ColourId::TableWoodLight),
+    // Dark padded frame with subtle gradient for depth
+    juce::ColourGradient frameGradient(
+        tm.getColour(ColourId::TableFrameOuter),
         bounds.getTopLeft(),
-        tm.getColour(ColourId::TableWoodDark),
+        tm.getColour(ColourId::TableFrameInner),
         bounds.getBottomRight(),
-        true
+        false
     );
 
-    g.setGradientFill(woodGradient);
-    g.fillRoundedRectangle(bounds, 12.0f);
+    g.setGradientFill(frameGradient);
+    g.fillRoundedRectangle(bounds, 16.0f);
+
+    // Subtle highlight on top edge for 3D effect
+    g.setColour(juce::Colours::white.withAlpha(0.05f));
+    g.drawRoundedRectangle(bounds.reduced(1.0f), 15.0f, 1.0f);
 
     // Inner shadow for depth
-    g.setColour(juce::Colours::black.withAlpha(0.3f));
-    g.drawRoundedRectangle(bounds.reduced(kFrameThickness - 2), 8.0f, 2.0f);
+    g.setColour(juce::Colours::black.withAlpha(0.4f));
+    g.drawRoundedRectangle(bounds.reduced(kFrameThickness - 2), 12.0f, 2.0f);
 }
 
 void PokerTable::drawTableRail(juce::Graphics& g, juce::Rectangle<float> bounds)
 {
     auto& tm = ThemeManager::getInstance();
 
-    // Darker rail edge
+    // Dark rail/padding area
     g.setColour(tm.getColour(ColourId::TableRail));
-    g.fillRoundedRectangle(bounds, 8.0f);
+    g.fillRoundedRectangle(bounds, 12.0f);
 
-    // Subtle highlight on top edge
-    g.setColour(juce::Colours::white.withAlpha(0.1f));
-    auto highlightArea = bounds.removeFromTop(2.0f);
-    g.fillRoundedRectangle(highlightArea.withWidth(bounds.getWidth() * 0.6f)
-                                        .withX(bounds.getCentreX() - bounds.getWidth() * 0.3f),
-                          1.0f);
+    // Subtle inner shadow for depth
+    g.setColour(juce::Colours::black.withAlpha(0.3f));
+    g.drawRoundedRectangle(bounds.reduced(2.0f), 10.0f, 1.5f);
 }
 
 void PokerTable::drawNeonBorder(juce::Graphics& g, juce::Rectangle<float> bounds)
@@ -223,29 +224,33 @@ void PokerTable::drawNeonBorder(juce::Graphics& g, juce::Rectangle<float> bounds
     auto& tm = ThemeManager::getInstance();
     auto neonColor = tm.getColour(ColourId::NeonRed);
 
-    // Outer glow (multiple passes for blur effect)
-    for (int i = 4; i >= 1; --i)
+    // Outer glow (multiple passes for blur effect) - more pronounced
+    for (int i = 6; i >= 1; --i)
     {
-        float alpha = 0.1f + (4 - i) * 0.05f;
-        float expand = static_cast<float>(i * 2);
+        float alpha = 0.05f + (6 - i) * 0.03f;
+        float expand = static_cast<float>(i * 3);
         g.setColour(neonColor.withAlpha(alpha));
-        g.drawRoundedRectangle(bounds.expanded(expand), 6.0f + expand, 2.0f);
+        g.drawRoundedRectangle(bounds.expanded(expand), 10.0f + expand * 0.5f, 3.0f);
     }
 
-    // Main neon line
+    // Main neon line - thicker and brighter
     g.setColour(neonColor);
-    g.drawRoundedRectangle(bounds, 6.0f, static_cast<float>(kNeonBorderWidth));
+    g.drawRoundedRectangle(bounds, 10.0f, static_cast<float>(kNeonBorderWidth) + 1.0f);
 
-    // Inner highlight (brighter center)
-    g.setColour(neonColor.brighter(0.3f).withAlpha(0.8f));
-    g.drawRoundedRectangle(bounds.reduced(1.0f), 5.0f, 1.0f);
+    // Inner highlight (brighter center for glow effect)
+    g.setColour(neonColor.brighter(0.5f).withAlpha(0.9f));
+    g.drawRoundedRectangle(bounds.reduced(1.0f), 9.0f, 1.5f);
+
+    // Core highlight (white center for intensity)
+    g.setColour(juce::Colours::white.withAlpha(0.3f));
+    g.drawRoundedRectangle(bounds.reduced(1.5f), 8.5f, 0.5f);
 }
 
 void PokerTable::drawFeltSurface(juce::Graphics& g, juce::Rectangle<float> bounds)
 {
     auto& tm = ThemeManager::getInstance();
 
-    // Radial gradient for felt (lighter in center)
+    // Dark radial gradient for felt (slightly lighter in center)
     juce::ColourGradient feltGradient(
         tm.getColour(ColourId::TableFeltCenter),
         bounds.getCentre(),
@@ -255,30 +260,34 @@ void PokerTable::drawFeltSurface(juce::Graphics& g, juce::Rectangle<float> bound
     );
 
     g.setGradientFill(feltGradient);
-    g.fillRoundedRectangle(bounds, 4.0f);
+    g.fillRoundedRectangle(bounds, 8.0f);
 
-    // Subtle texture overlay (noise-like pattern)
+    // Subtle texture overlay (fine grain pattern for felt texture)
     juce::Random random(42);  // Fixed seed for consistent pattern
-    g.setColour(juce::Colours::black.withAlpha(0.02f));
+    g.setColour(juce::Colours::white.withAlpha(0.008f));
 
-    for (int i = 0; i < 200; ++i)
+    for (int i = 0; i < 400; ++i)
     {
         float x = bounds.getX() + random.nextFloat() * bounds.getWidth();
         float y = bounds.getY() + random.nextFloat() * bounds.getHeight();
-        float size = 1.0f + random.nextFloat() * 2.0f;
+        float size = 0.5f + random.nextFloat() * 1.5f;
         g.fillEllipse(x, y, size, size);
     }
 
-    // Vignette effect (darker edges)
+    // Vignette effect (darker edges) - more subtle
     juce::ColourGradient vignetteGradient(
         juce::Colours::transparentBlack,
         bounds.getCentre(),
-        juce::Colours::black.withAlpha(0.15f),
+        juce::Colours::black.withAlpha(0.25f),
         bounds.getTopLeft(),
         true  // radial
     );
     g.setGradientFill(vignetteGradient);
-    g.fillRoundedRectangle(bounds, 4.0f);
+    g.fillRoundedRectangle(bounds, 8.0f);
+
+    // Inner border for definition
+    g.setColour(juce::Colours::black.withAlpha(0.3f));
+    g.drawRoundedRectangle(bounds.reduced(1.0f), 7.0f, 1.0f);
 }
 
 //==============================================================================
