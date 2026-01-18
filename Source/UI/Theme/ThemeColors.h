@@ -41,12 +41,12 @@ namespace Dark
     inline const juce::Colour TextSecondary     { 0xFF9CA3AF };
     inline const juce::Colour TextMuted         { 0xFF6B7280 };
 
-    // Poker Table (Dark elegant design with dark felt)
-    inline const juce::Colour TableFelt         { 0xFF1A1A1A };  // Dark charcoal felt
-    inline const juce::Colour TableFeltCenter   { 0xFF252525 };  // Slightly lighter center
-    inline const juce::Colour TableFrameOuter   { 0xFF2A2A2A };  // Dark padded frame outer
-    inline const juce::Colour TableFrameInner   { 0xFF1F1F1F };  // Dark padded frame inner
-    inline const juce::Colour TableRail         { 0xFF333333 };  // Dark rail
+    // Poker Table (Casino green felt design)
+    inline const juce::Colour TableFelt         { 0xFF0D5C4A };  // Deep emerald green felt (edge)
+    inline const juce::Colour TableFeltCenter   { 0xFF1B8B6A };  // Brighter emerald center
+    inline const juce::Colour TableFrameOuter   { 0xFFE8A07A };  // Salmon/coral frame outer
+    inline const juce::Colour TableFrameInner   { 0xFFD4907A };  // Salmon/coral frame inner
+    inline const juce::Colour TableRail         { 0xFFC08060 };  // Darker coral rail
     inline const juce::Colour NeonRed           { 0xFFFF3B4E };  // Bright red neon glow
 
     // Status
@@ -85,12 +85,12 @@ namespace Light
     inline const juce::Colour TextSecondary     { 0xFF6B7280 };
     inline const juce::Colour TextMuted         { 0xFF9CA3AF };
 
-    // Poker Table (Light theme - slightly lighter dark design)
-    inline const juce::Colour TableFelt         { 0xFF2A2A2A };  // Dark charcoal felt
-    inline const juce::Colour TableFeltCenter   { 0xFF353535 };  // Slightly lighter center
-    inline const juce::Colour TableFrameOuter   { 0xFF3A3A3A };  // Dark padded frame outer
-    inline const juce::Colour TableFrameInner   { 0xFF2F2F2F };  // Dark padded frame inner
-    inline const juce::Colour TableRail         { 0xFF444444 };  // Dark rail
+    // Poker Table (Light theme - similar green felt)
+    inline const juce::Colour TableFelt         { 0xFF1A7A5A };  // Emerald green felt (edge)
+    inline const juce::Colour TableFeltCenter   { 0xFF2D9B7A };  // Brighter emerald center
+    inline const juce::Colour TableFrameOuter   { 0xFFF0B090 };  // Lighter salmon frame outer
+    inline const juce::Colour TableFrameInner   { 0xFFE0A080 };  // Lighter salmon frame inner
+    inline const juce::Colour TableRail         { 0xFFD09070 };  // Lighter coral rail
     inline const juce::Colour NeonRed           { 0xFFC41E3A };  // Darker red neon glow
 
     // Status

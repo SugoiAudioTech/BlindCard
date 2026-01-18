@@ -185,7 +185,10 @@ void PokerTable::drawWoodFrame(juce::Graphics& g, juce::Rectangle<float> bounds)
 {
     auto& tm = ThemeManager::getInstance();
 
-    // Dark padded frame with subtle gradient for depth
+    // Stadium/pill shape - corner radius is half the height for full rounded ends
+    float stadiumRadius = bounds.getHeight() / 2.0f;
+
+    // Salmon/coral padded frame with subtle gradient for depth
     juce::ColourGradient frameGradient(
         tm.getColour(ColourId::TableFrameOuter),
         bounds.getTopLeft(),
@@ -195,28 +198,35 @@ void PokerTable::drawWoodFrame(juce::Graphics& g, juce::Rectangle<float> bounds)
     );
 
     g.setGradientFill(frameGradient);
-    g.fillRoundedRectangle(bounds, 16.0f);
+    g.fillRoundedRectangle(bounds, stadiumRadius);
 
     // Subtle highlight on top edge for 3D effect
-    g.setColour(juce::Colours::white.withAlpha(0.05f));
-    g.drawRoundedRectangle(bounds.reduced(1.0f), 15.0f, 1.0f);
+    g.setColour(juce::Colours::white.withAlpha(0.15f));
+    g.drawRoundedRectangle(bounds.reduced(1.0f), stadiumRadius - 1.0f, 1.5f);
 
     // Inner shadow for depth
-    g.setColour(juce::Colours::black.withAlpha(0.4f));
-    g.drawRoundedRectangle(bounds.reduced(kFrameThickness - 2), 12.0f, 2.0f);
+    auto innerBounds = bounds.reduced(kFrameThickness - 2);
+    float innerRadius = innerBounds.getHeight() / 2.0f;
+    g.setColour(juce::Colours::black.withAlpha(0.3f));
+    g.drawRoundedRectangle(innerBounds, innerRadius, 2.0f);
 }
 
 void PokerTable::drawTableRail(juce::Graphics& g, juce::Rectangle<float> bounds)
 {
     auto& tm = ThemeManager::getInstance();
 
-    // Dark rail/padding area
+    // Stadium shape for rail
+    float stadiumRadius = bounds.getHeight() / 2.0f;
+
+    // Darker coral rail/padding area
     g.setColour(tm.getColour(ColourId::TableRail));
-    g.fillRoundedRectangle(bounds, 12.0f);
+    g.fillRoundedRectangle(bounds, stadiumRadius);
 
     // Subtle inner shadow for depth
-    g.setColour(juce::Colours::black.withAlpha(0.3f));
-    g.drawRoundedRectangle(bounds.reduced(2.0f), 10.0f, 1.5f);
+    auto innerBounds = bounds.reduced(2.0f);
+    float innerRadius = innerBounds.getHeight() / 2.0f;
+    g.setColour(juce::Colours::black.withAlpha(0.2f));
+    g.drawRoundedRectangle(innerBounds, innerRadius, 1.5f);
 }
 
 void PokerTable::drawNeonBorder(juce::Graphics& g, juce::Rectangle<float> bounds)
@@ -224,33 +234,45 @@ void PokerTable::drawNeonBorder(juce::Graphics& g, juce::Rectangle<float> bounds
     auto& tm = ThemeManager::getInstance();
     auto neonColor = tm.getColour(ColourId::NeonRed);
 
+    // Stadium shape radius
+    float stadiumRadius = bounds.getHeight() / 2.0f;
+
     // Outer glow (multiple passes for blur effect) - more pronounced
     for (int i = 6; i >= 1; --i)
     {
         float alpha = 0.05f + (6 - i) * 0.03f;
         float expand = static_cast<float>(i * 3);
+        auto expandedBounds = bounds.expanded(expand);
+        float expandedRadius = expandedBounds.getHeight() / 2.0f;
         g.setColour(neonColor.withAlpha(alpha));
-        g.drawRoundedRectangle(bounds.expanded(expand), 10.0f + expand * 0.5f, 3.0f);
+        g.drawRoundedRectangle(expandedBounds, expandedRadius, 3.0f);
     }
 
     // Main neon line - thicker and brighter
     g.setColour(neonColor);
-    g.drawRoundedRectangle(bounds, 10.0f, static_cast<float>(kNeonBorderWidth) + 1.0f);
+    g.drawRoundedRectangle(bounds, stadiumRadius, static_cast<float>(kNeonBorderWidth) + 1.0f);
 
     // Inner highlight (brighter center for glow effect)
+    auto innerBounds1 = bounds.reduced(1.0f);
+    float innerRadius1 = innerBounds1.getHeight() / 2.0f;
     g.setColour(neonColor.brighter(0.5f).withAlpha(0.9f));
-    g.drawRoundedRectangle(bounds.reduced(1.0f), 9.0f, 1.5f);
+    g.drawRoundedRectangle(innerBounds1, innerRadius1, 1.5f);
 
     // Core highlight (white center for intensity)
+    auto innerBounds2 = bounds.reduced(1.5f);
+    float innerRadius2 = innerBounds2.getHeight() / 2.0f;
     g.setColour(juce::Colours::white.withAlpha(0.3f));
-    g.drawRoundedRectangle(bounds.reduced(1.5f), 8.5f, 0.5f);
+    g.drawRoundedRectangle(innerBounds2, innerRadius2, 0.5f);
 }
 
 void PokerTable::drawFeltSurface(juce::Graphics& g, juce::Rectangle<float> bounds)
 {
     auto& tm = ThemeManager::getInstance();
 
-    // Dark radial gradient for felt (slightly lighter in center)
+    // Stadium shape radius
+    float stadiumRadius = bounds.getHeight() / 2.0f;
+
+    // Green radial gradient for felt (lighter in center, darker at edges)
     juce::ColourGradient feltGradient(
         tm.getColour(ColourId::TableFeltCenter),
         bounds.getCentre(),
@@ -260,34 +282,36 @@ void PokerTable::drawFeltSurface(juce::Graphics& g, juce::Rectangle<float> bound
     );
 
     g.setGradientFill(feltGradient);
-    g.fillRoundedRectangle(bounds, 8.0f);
+    g.fillRoundedRectangle(bounds, stadiumRadius);
 
     // Subtle texture overlay (fine grain pattern for felt texture)
     juce::Random random(42);  // Fixed seed for consistent pattern
-    g.setColour(juce::Colours::white.withAlpha(0.008f));
+    g.setColour(juce::Colours::black.withAlpha(0.015f));
 
-    for (int i = 0; i < 400; ++i)
+    for (int i = 0; i < 600; ++i)
     {
         float x = bounds.getX() + random.nextFloat() * bounds.getWidth();
         float y = bounds.getY() + random.nextFloat() * bounds.getHeight();
-        float size = 0.5f + random.nextFloat() * 1.5f;
+        float size = 0.5f + random.nextFloat() * 1.0f;
         g.fillEllipse(x, y, size, size);
     }
 
-    // Vignette effect (darker edges) - more subtle
+    // Vignette effect (darker edges) - more pronounced for depth
     juce::ColourGradient vignetteGradient(
         juce::Colours::transparentBlack,
         bounds.getCentre(),
-        juce::Colours::black.withAlpha(0.25f),
+        juce::Colours::black.withAlpha(0.4f),
         bounds.getTopLeft(),
         true  // radial
     );
     g.setGradientFill(vignetteGradient);
-    g.fillRoundedRectangle(bounds, 8.0f);
+    g.fillRoundedRectangle(bounds, stadiumRadius);
 
     // Inner border for definition
-    g.setColour(juce::Colours::black.withAlpha(0.3f));
-    g.drawRoundedRectangle(bounds.reduced(1.0f), 7.0f, 1.0f);
+    auto innerBounds = bounds.reduced(1.0f);
+    float innerRadius = innerBounds.getHeight() / 2.0f;
+    g.setColour(juce::Colours::black.withAlpha(0.2f));
+    g.drawRoundedRectangle(innerBounds, innerRadius, 1.0f);
 }
 
 //==============================================================================
