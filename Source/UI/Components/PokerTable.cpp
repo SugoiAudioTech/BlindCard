@@ -296,22 +296,16 @@ void PokerTable::drawFeltSurface(juce::Graphics& g, juce::Rectangle<float> bound
         g.fillEllipse(x, y, size, size);
     }
 
-    // Vignette effect (darker edges) - more pronounced for depth
+    // Vignette effect (subtle darker edges)
     juce::ColourGradient vignetteGradient(
         juce::Colours::transparentBlack,
         bounds.getCentre(),
-        juce::Colours::black.withAlpha(0.4f),
+        juce::Colours::black.withAlpha(0.15f),
         bounds.getTopLeft(),
         true  // radial
     );
     g.setGradientFill(vignetteGradient);
     g.fillRoundedRectangle(bounds, stadiumRadius);
-
-    // Inner border for definition
-    auto innerBounds = bounds.reduced(1.0f);
-    float innerRadius = innerBounds.getHeight() / 2.0f;
-    g.setColour(juce::Colours::black.withAlpha(0.2f));
-    g.drawRoundedRectangle(innerBounds, innerRadius, 1.0f);
 }
 
 //==============================================================================
