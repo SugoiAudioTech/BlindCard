@@ -118,8 +118,8 @@ void ChipButton::setEnabled(bool shouldBeEnabled)
         {
             isHovered = false;
             isPressed = false;
-            hoverProgress.setTarget(0.0f, ChipLayout::kAnimationDurationMs);
-            pressProgress.setTarget(0.0f, ChipLayout::kAnimationDurationMs);
+            hoverProgress.setTarget(0.0f, kAnimationDurationMs);
+            pressProgress.setTarget(0.0f, kAnimationDurationMs);
             startAnimationTimer();
         }
 

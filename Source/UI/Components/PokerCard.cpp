@@ -411,7 +411,9 @@ void PokerCard::drawCardBack(juce::Graphics& g, juce::Rectangle<float> bounds)
 
     // Clip to rounded rectangle
     g.saveState();
-    g.reduceClipRegion(juce::Path().addRoundedRectangle(bounds, static_cast<float>(kCornerRadius)));
+    juce::Path clipPath;
+    clipPath.addRoundedRectangle(bounds, static_cast<float>(kCornerRadius));
+    g.reduceClipRegion(clipPath);
     g.strokePath(patternPath, juce::PathStrokeType(1.0f));
     g.restoreState();
 

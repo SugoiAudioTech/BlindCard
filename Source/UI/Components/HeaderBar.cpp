@@ -485,8 +485,8 @@ void HeaderBar::drawSettingsButton(juce::Graphics& g, juce::Rectangle<float> bou
     gear.addEllipse(centerX - innerRadius, centerY - innerRadius,
                     innerRadius * 2.0f, innerRadius * 2.0f);
 
-    g.fillPath(gear, juce::AffineTransform(),
-               juce::FillType(g.getCurrentColour()).withEvenOddFill());
+    gear.setUsingNonZeroWinding(false);  // Use even-odd fill rule
+    g.fillPath(gear);
 }
 
 //==============================================================================
