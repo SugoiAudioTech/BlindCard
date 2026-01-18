@@ -30,6 +30,38 @@ target_sources(BlindCard
         Source/Core/Types.h
         Source/Core/BlindCardManager.h
         Source/Core/BlindCardManager.cpp
+
+        # New UI System (Casino Poker Theme)
+        Source/UI/Theme/ThemeColors.h
+        Source/UI/Theme/ThemeManager.h
+        Source/UI/Theme/ThemeManager.cpp
+        Source/UI/Animation/AnimatedValue.h
+        Source/UI/BlindCardEditor.h
+        Source/UI/BlindCardEditor.cpp
+        Source/UI/Components/HeaderBar.h
+        Source/UI/Components/HeaderBar.cpp
+        Source/UI/Components/ModeSelector.h
+        Source/UI/Components/ModeSelector.cpp
+        Source/UI/Components/ChipButton.h
+        Source/UI/Components/ChipButton.cpp
+        Source/UI/Components/ChipStack.h
+        Source/UI/Components/ChipStack.cpp
+        Source/UI/Components/StarRating.h
+        Source/UI/Components/StarRating.cpp
+        Source/UI/Components/GuessDropdown.h
+        Source/UI/Components/GuessDropdown.cpp
+        Source/UI/Components/PokerCard.h
+        Source/UI/Components/PokerCard.cpp
+        Source/UI/Components/PokerTable.h
+        Source/UI/Components/PokerTable.cpp
+        Source/UI/Components/QuestionBanner.h
+        Source/UI/Components/QuestionBanner.cpp
+        Source/UI/Components/ControlPanel.h
+        Source/UI/Components/ControlPanel.cpp
+        Source/UI/Components/ResultsPanel.h
+        Source/UI/Components/ResultsPanel.cpp
+
+        # Legacy UI (to be removed)
         Source/UI/CardComponent.h
         Source/UI/CardComponent.cpp
         Source/UI/ColorUtils.h
