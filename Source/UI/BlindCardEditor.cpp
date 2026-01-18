@@ -107,23 +107,23 @@ void BlindCardEditor::resized()
         questionBanner->setVisible(false);
     }
 
-    // Main content area
+    // Main content area with padding
     auto mainArea = bounds.reduced(16, 8);
 
-    // Side panel on right
-    auto sidePanelArea = mainArea.removeFromRight(kSidePanelWidth);
-    mainArea.removeFromRight(16);  // Gap
+    // Bottom panel area (Control Panel + Results Panel side by side)
+    constexpr int kBottomPanelHeight = 200;
+    auto bottomArea = mainArea.removeFromBottom(kBottomPanelHeight);
+    mainArea.removeFromBottom(12);  // Gap between table and bottom panels
 
-    // Control panel at top of side panel
-    auto controlPanelHeight = juce::jmin(sidePanelArea.getHeight() / 2, 350);
-    controlPanel->setBounds(sidePanelArea.removeFromTop(controlPanelHeight));
+    // Split bottom area: Control Panel (left) and Results Panel (right)
+    auto controlPanelArea = bottomArea.removeFromLeft(bottomArea.getWidth() / 2 - 8);
+    bottomArea.removeFromLeft(16);  // Gap between panels
+    auto resultsPanelArea = bottomArea;
 
-    sidePanelArea.removeFromTop(12);  // Gap
+    controlPanel->setBounds(controlPanelArea);
+    resultsPanel->setBounds(resultsPanelArea);
 
-    // Results panel fills remaining side panel space
-    resultsPanel->setBounds(sidePanelArea);
-
-    // Poker table fills remaining main area
+    // Poker table fills remaining main area (top portion)
     pokerTable->setBounds(mainArea);
 }
 
@@ -200,7 +200,8 @@ void BlindCardEditor::updateCardStates()
         CardData data;
         data.position = slot.displayPosition;
         data.trackName = slot.realTrackName.toStdString();
-        data.isRevealed = (manager->getPhase() == blindcard::GamePhase::Revealed);
+        // Show card FRONT in Setup and Revealed phases, show BACK only in BlindTesting
+        data.isRevealed = (manager->getPhase() != blindcard::GamePhase::BlindTesting);
         data.isSelected = (slot.id == selectedId);
         data.isPlaying = (slot.id == selectedId);
 
