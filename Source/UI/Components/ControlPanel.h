@@ -5,7 +5,7 @@
     Created: 2026-01-19
     Author:  BlindCard
 
-    Control panel component containing tracks display, sliders, toggles,
+    Control panel component containing tracks info, rounds slider, auto gain toggle,
     and action buttons for the BlindCard game.
 
   ==============================================================================
@@ -27,27 +27,25 @@ namespace BlindCard
 /**
  * ControlPanel provides game controls and settings.
  *
- * Layout:
+ * Layout (matching original design):
  * +----------------------------------------------------------+
- * | TRACKS                           |  SETTINGS             |
- * | 1. Plugin A                      |  Rounds: [===*===]  4 |
- * | 2. Plugin B                      |  Auto Gain: [ON/OFF]  |
- * | 3. Plugin C                      |                       |
- * | 4. Plugin D                      |                       |
+ * | ♪ Current Tracks [4]    # Rounds [====*] 1/3             |
  * +----------------------------------------------------------+
- * |        [SHUFFLE]  [REVEAL]  [RESET]  [NEXT]              |
+ * | 🔊 Auto Gain                              [==ON==]       |
+ * +----------------------------------------------------------+
+ * |              [REVEAL]              [RESET]               |
  * +----------------------------------------------------------+
  *
  * Components:
- * - Tracks list (read-only display of loaded tracks)
- * - Rounds slider (2-8 rounds)
- * - Auto Gain toggle
- * - Action buttons: Shuffle, Reveal, Reset, Next Round
+ * - Current Tracks display with count
+ * - Rounds slider with counter display
+ * - Auto Gain toggle switch
+ * - Action buttons: Reveal, Reset (Shuffle and Next shown contextually)
  *
  * Usage:
  *   ControlPanel panel;
  *   panel.setTracks(trackNames);
- *   panel.onShuffleClicked = [this]() { shuffle(); };
+ *   panel.onRevealClicked = [this]() { reveal(); };
  *   panel.onRoundsChanged = [this](int rounds) { setRounds(rounds); };
  */
 class ControlPanel : public juce::Component,
@@ -82,7 +80,7 @@ public:
 
     /**
      * Sets the number of rounds.
-     * @param rounds Number of rounds (2-8)
+     * @param rounds Number of rounds (1-8)
      */
     void setRounds(int rounds);
 
@@ -102,7 +100,7 @@ public:
     // Button state control
 
     /**
-     * Sets the shuffle button enabled state.
+     * Sets the shuffle button enabled/visible state.
      */
     void setShuffleEnabled(bool enabled);
 
@@ -117,7 +115,7 @@ public:
     void setResetEnabled(bool enabled);
 
     /**
-     * Sets the next round button enabled state.
+     * Sets the next round button enabled/visible state.
      */
     void setNextRoundEnabled(bool enabled);
 
@@ -132,14 +130,17 @@ public:
     //==========================================================================
     /** Dimensions */
     static constexpr int kPreferredWidth = 320;
-    static constexpr int kMinHeight = 300;
-    static constexpr int kButtonAreaHeight = 100;
+    static constexpr int kMinHeight = 200;
+    static constexpr int kButtonAreaHeight = 80;
 
 private:
     //==========================================================================
     // State
     std::vector<std::string> trackNames;
     bool autoGainEnabled = true;
+
+    // Layout constants
+    static constexpr int sliderWidth = 100;
 
     //==========================================================================
     // Child components
@@ -152,7 +153,7 @@ private:
     std::unique_ptr<ChipButton> nextRoundButton;
 
     //==========================================================================
-    // Custom slider style
+    // Custom slider look and feel
     class CustomSliderLookAndFeel : public juce::LookAndFeel_V4
     {
     public:
@@ -163,12 +164,20 @@ private:
     std::unique_ptr<CustomSliderLookAndFeel> sliderLookAndFeel;
 
     //==========================================================================
+    // Custom toggle look and feel
+    class CustomToggleLookAndFeel : public juce::LookAndFeel_V4
+    {
+    public:
+        void drawToggleButton(juce::Graphics& g, juce::ToggleButton& button,
+                              bool shouldDrawButtonAsHighlighted,
+                              bool shouldDrawButtonAsDown) override;
+    };
+    std::unique_ptr<CustomToggleLookAndFeel> toggleLookAndFeel;
+
+    //==========================================================================
     // Drawing helpers
-    void drawSectionBackground(juce::Graphics& g, juce::Rectangle<float> bounds,
-                               const juce::String& title);
-    void drawTracksList(juce::Graphics& g, juce::Rectangle<float> bounds);
-    void drawToggleButton(juce::Graphics& g, juce::Rectangle<float> bounds,
-                          const juce::String& label, bool isOn);
+    void drawInfoRow(juce::Graphics& g, juce::Rectangle<float> bounds);
+    void drawAutoGainRow(juce::Graphics& g, juce::Rectangle<float> bounds);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ControlPanel)
 };
