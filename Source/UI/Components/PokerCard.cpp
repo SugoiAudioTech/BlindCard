@@ -413,23 +413,27 @@ void PokerCard::drawCardBack(juce::Graphics& g, juce::Rectangle<float> bounds)
         clipPath.addRoundedRectangle(bounds, static_cast<float>(kCornerRadius));
         g.reduceClipRegion(clipPath);
 
+        // Draw solid black background first (prevents table color bleeding through)
+        g.setColour(juce::Colours::black);
+        g.fillRoundedRectangle(bounds, static_cast<float>(kCornerRadius));
+
         // Draw the card back image, scaled to fit bounds
         g.drawImage(cardBackImg, bounds,
                     juce::RectanglePlacement::centred | juce::RectanglePlacement::fillDestination);
 
         g.restoreState();
 
-        // Draw subtle border
-        g.setColour(juce::Colour(0xFFD4AF37).withAlpha(0.5f));  // Gold border
+        // Draw subtle gold border
+        g.setColour(juce::Colour(0xFFD4AF37).withAlpha(0.7f));  // Gold border
         g.drawRoundedRectangle(bounds, static_cast<float>(kCornerRadius), 1.5f);
     }
     else
     {
         // Fallback: draw simple colored card back if image not loaded
-        g.setColour(CardLayout::cardBackColor);
+        g.setColour(juce::Colours::black);
         g.fillRoundedRectangle(bounds, static_cast<float>(kCornerRadius));
 
-        g.setColour(juce::Colours::black.withAlpha(0.3f));
+        g.setColour(juce::Colour(0xFFD4AF37).withAlpha(0.3f));  // Gold border
         g.drawRoundedRectangle(bounds, static_cast<float>(kCornerRadius), 1.0f);
     }
 
@@ -561,12 +565,30 @@ void PokerCard::drawSelectionGlow(juce::Graphics& g, juce::Rectangle<float> boun
 
 void PokerCard::drawPlayingIndicator(juce::Graphics& g, juce::Rectangle<float> bounds, float pulseAmount)
 {
+    // Draw glowing border around the card when playing
+    auto cardBounds = bounds.withHeight(static_cast<float>(kDefaultHeight));
+
+    // Outer glow (multiple passes for soft effect)
+    for (int i = 4; i >= 1; --i)
+    {
+        float alpha = 0.15f * pulseAmount * (5 - i) / 4.0f;
+        float expansion = static_cast<float>(i * 3);
+        g.setColour(CardLayout::playingColor.withAlpha(alpha));
+        g.drawRoundedRectangle(cardBounds.expanded(expansion),
+                               static_cast<float>(kCornerRadius) + expansion * 0.3f,
+                               2.0f);
+    }
+
+    // Main glow border
+    g.setColour(CardLayout::playingColor.withAlpha(0.6f + 0.4f * pulseAmount));
+    g.drawRoundedRectangle(cardBounds.expanded(2), static_cast<float>(kCornerRadius) + 1, 2.5f);
+
     // Draw pulsing green dot in top-right corner
     float indicatorSize = CardLayout::playingIndicatorSize * (0.8f + 0.4f * pulseAmount);
 
     auto indicatorBounds = juce::Rectangle<float>(
-        bounds.getRight() - indicatorSize - 8,
-        bounds.getY() + 8,
+        cardBounds.getRight() - indicatorSize - 8,
+        cardBounds.getY() + 8,
         indicatorSize,
         indicatorSize
     );

@@ -62,6 +62,12 @@ BlindCardEditor::BlindCardEditor(BlindCardProcessor& processor)
     setResizeLimits(kMinWidth, kMinHeight, kMaxWidth, kMaxHeight);
     setSize(kMinWidth, kMinHeight);
 
+    // For standalone testing: add test cards if none exist
+    if (manager->getCards().size() < blindcard::GameState::MinCards)
+    {
+        manager->addTestCards(4);
+    }
+
     // Initial state sync
     updateFromManager();
 
@@ -151,9 +157,14 @@ void BlindCardEditor::updateFromManager()
     auto cards = manager->getCards();
     int cardCount = cards.size();
 
-    if (cardCount >= 2)
+    // Always sync card count (min 2, max 8)
+    if (cardCount >= blindcard::GameState::MinCards)
     {
         pokerTable->setCardCount(cardCount);
+    }
+    else if (cardCount > 0)
+    {
+        pokerTable->setCardCount(blindcard::GameState::MinCards);
     }
 
     // Sync track names
@@ -235,7 +246,8 @@ void BlindCardEditor::updatePhaseUI()
     switch (phase)
     {
         case blindcard::GamePhase::Setup:
-            controlPanel->setShuffleEnabled(manager->getRegisteredCount() >= 2);
+            // Use card count (not registered instances) for shuffle - allows standalone testing
+            controlPanel->setShuffleEnabled(manager->getCards().size() >= blindcard::GameState::MinCards);
             controlPanel->setRevealEnabled(false);
             controlPanel->setResetEnabled(false);
             controlPanel->setNextRoundEnabled(false);
