@@ -357,6 +357,11 @@ void PokerTable::updateCardLayout()
     int cardWidth = PokerCard::kDefaultWidth;
     int cardHeight = PokerCard::kDefaultHeight;
 
+    // Extra height for star rating and other controls below card
+    // Card: 200, gap: 8, stars: 20 = 228 total
+    int extraHeightForControls = 28;
+    int componentHeight = cardHeight + extraHeightForControls;
+
     // Gap between cards
     int horizontalGap = 20;
     int verticalGap = 15;
@@ -366,7 +371,7 @@ void PokerTable::updateCardLayout()
         // Single row layout
         int totalWidth = cardCount * cardWidth + (cardCount - 1) * horizontalGap;
         int startX = cardArea.getCentreX() - totalWidth / 2;
-        int startY = cardArea.getCentreY() - cardHeight / 2;
+        int startY = cardArea.getCentreY() - componentHeight / 2;
 
         for (int i = 0; i < cardCount; ++i)
         {
@@ -374,7 +379,7 @@ void PokerTable::updateCardLayout()
                 startX + i * (cardWidth + horizontalGap),
                 startY,
                 cardWidth,
-                cardHeight
+                componentHeight
             );
         }
     }
@@ -387,7 +392,7 @@ void PokerTable::updateCardLayout()
         // Top row
         int topTotalWidth = topRowCount * cardWidth + (topRowCount - 1) * horizontalGap;
         int topStartX = cardArea.getCentreX() - topTotalWidth / 2;
-        int topY = cardArea.getCentreY() - cardHeight - verticalGap / 2;
+        int topY = cardArea.getCentreY() - componentHeight - verticalGap / 2;
 
         for (int i = 0; i < topRowCount; ++i)
         {
@@ -395,7 +400,7 @@ void PokerTable::updateCardLayout()
                 topStartX + i * (cardWidth + horizontalGap),
                 topY,
                 cardWidth,
-                cardHeight
+                componentHeight
             );
         }
 
@@ -410,7 +415,7 @@ void PokerTable::updateCardLayout()
                 bottomStartX + i * (cardWidth + horizontalGap),
                 bottomY,
                 cardWidth,
-                cardHeight
+                componentHeight
             );
         }
     }
