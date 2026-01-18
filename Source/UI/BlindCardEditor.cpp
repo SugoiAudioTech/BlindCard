@@ -19,15 +19,10 @@ BlindCardEditor::BlindCardEditor(BlindCardProcessor& processor)
     : AudioProcessorEditor(processor)
     , processorRef(processor)
 {
-    // Set window constraints
-    setResizable(true, true);
-    setResizeLimits(kMinWidth, kMinHeight, kMaxWidth, kMaxHeight);
-    setSize(kMinWidth, kMinHeight);
-
     // Subscribe to manager changes
     manager->addChangeListener(this);
 
-    // Create UI components
+    // Create UI components BEFORE setting size (setResizeLimits triggers resized())
     headerBar = std::make_unique<HeaderBar>();
     headerBar->onSettingsClicked = [this]() { onSettingsClicked(); };
     headerBar->onInfoClicked = [this]() { onInfoClicked(); };
@@ -60,6 +55,12 @@ BlindCardEditor::BlindCardEditor(BlindCardProcessor& processor)
     resultsPanel = std::make_unique<ResultsPanel>();
     resultsPanel->onSubmitGuesses = [this]() { onSubmitGuesses(); };
     addAndMakeVisible(*resultsPanel);
+
+    // Set window constraints AFTER components are created
+    // (setResizeLimits triggers resized() which needs valid component pointers)
+    setResizable(true, true);
+    setResizeLimits(kMinWidth, kMinHeight, kMaxWidth, kMaxHeight);
+    setSize(kMinWidth, kMinHeight);
 
     // Initial state sync
     updateFromManager();
