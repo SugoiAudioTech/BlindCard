@@ -12,7 +12,7 @@ juce_add_plugin(BlindCard
     PRODUCT_NAME "Blind Card"
     COPY_PLUGIN_AFTER_BUILD TRUE)
 
-# 加入光暈素材為 BinaryData
+# Binary assets (glow effects and card images)
 juce_add_binary_data(BlindCardAssets SOURCES
     assets/glow/glow_warm@1x.png
     assets/glow/glow_warm@2x.png
@@ -21,7 +21,8 @@ juce_add_binary_data(BlindCardAssets SOURCES
     assets/glow/compact/glow_warm_compact@1x.png
     assets/glow/compact/glow_warm_compact@2x.png
     assets/glow/compact/glow_cool_compact@1x.png
-    assets/glow/compact/glow_cool_compact@2x.png)
+    assets/glow/compact/glow_cool_compact@2x.png
+    assets/cards/card-back.png)
 
 target_sources(BlindCard
     PRIVATE
