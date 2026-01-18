@@ -16,3 +16,6 @@ Thumbs.db
 *.o
 *.a
 *.dylib
+
+# Worktrees
+.worktrees/
