@@ -23,7 +23,7 @@ void ControlPanel::CustomSliderLookAndFeel::drawLinearSlider(
     auto& tm = ThemeManager::getInstance();
 
     auto bounds = juce::Rectangle<int>(x, y, width, height).toFloat();
-    auto trackHeight = 6.0f;
+    auto trackHeight = 4.0f;
     auto trackBounds = bounds.withSizeKeepingCentre(bounds.getWidth(), trackHeight);
 
     // Track background
@@ -33,25 +33,57 @@ void ControlPanel::CustomSliderLookAndFeel::drawLinearSlider(
     // Filled portion
     auto filledWidth = sliderPos - static_cast<float>(x);
     auto filledBounds = trackBounds.withWidth(filledWidth);
-    g.setColour(tm.getColour(ColourId::SliderFill));
+    g.setColour(tm.getColour(ColourId::Primary));
     g.fillRoundedRectangle(filledBounds, trackHeight / 2.0f);
 
     // Thumb
-    auto thumbSize = 18.0f;
+    auto thumbSize = 14.0f;
     auto thumbBounds = juce::Rectangle<float>(thumbSize, thumbSize)
                            .withCentre({ sliderPos, bounds.getCentreY() });
-
-    // Thumb shadow
-    g.setColour(juce::Colours::black.withAlpha(0.2f));
-    g.fillEllipse(thumbBounds.translated(0.0f, 2.0f));
 
     // Thumb body
     g.setColour(juce::Colours::white);
     g.fillEllipse(thumbBounds);
+}
 
-    // Thumb border
-    g.setColour(tm.getColour(ColourId::SliderFill));
-    g.drawEllipse(thumbBounds, 2.0f);
+//==============================================================================
+// Custom toggle look and feel
+void ControlPanel::CustomToggleLookAndFeel::drawToggleButton(
+    juce::Graphics& g, juce::ToggleButton& button,
+    bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown)
+{
+    auto& tm = ThemeManager::getInstance();
+    auto bounds = button.getLocalBounds().toFloat();
+
+    // Toggle switch dimensions
+    float switchWidth = 44.0f;
+    float switchHeight = 24.0f;
+    float thumbSize = 18.0f;
+
+    auto switchBounds = bounds.withSizeKeepingCentre(switchWidth, switchHeight);
+
+    bool isOn = button.getToggleState();
+
+    // Switch background
+    auto bgColour = isOn ? tm.getColour(ColourId::Primary) : tm.getColour(ColourId::SliderTrack);
+    g.setColour(bgColour);
+    g.fillRoundedRectangle(switchBounds, switchHeight / 2.0f);
+
+    // Border
+    g.setColour(isOn ? tm.getColour(ColourId::Primary).darker(0.2f) : juce::Colours::black.withAlpha(0.3f));
+    g.drawRoundedRectangle(switchBounds, switchHeight / 2.0f, 1.0f);
+
+    // Thumb position
+    float thumbX = isOn
+        ? switchBounds.getRight() - thumbSize - 3.0f
+        : switchBounds.getX() + 3.0f;
+
+    auto thumbBounds = juce::Rectangle<float>(thumbX, switchBounds.getCentreY() - thumbSize / 2.0f,
+                                               thumbSize, thumbSize);
+
+    // Thumb
+    g.setColour(juce::Colours::white);
+    g.fillEllipse(thumbBounds);
 }
 
 //==============================================================================
@@ -59,26 +91,28 @@ ControlPanel::ControlPanel()
 {
     ThemeManager::getInstance().addChangeListener(this);
 
-    // Create custom look and feel
+    // Create custom look and feels
     sliderLookAndFeel = std::make_unique<CustomSliderLookAndFeel>();
+    toggleLookAndFeel = std::make_unique<CustomToggleLookAndFeel>();
 
     // Create rounds slider
     roundsSlider = std::make_unique<juce::Slider>(juce::Slider::LinearHorizontal,
-                                                   juce::Slider::TextBoxRight);
-    roundsSlider->setRange(2.0, 8.0, 1.0);
-    roundsSlider->setValue(4.0);
+                                                   juce::Slider::NoTextBox);
+    roundsSlider->setRange(1.0, 8.0, 1.0);
+    roundsSlider->setValue(3.0);
     roundsSlider->setLookAndFeel(sliderLookAndFeel.get());
-    roundsSlider->setTextBoxStyle(juce::Slider::TextBoxRight, false, 30, 20);
     roundsSlider->onValueChange = [this]()
     {
         if (onRoundsChanged)
             onRoundsChanged(static_cast<int>(roundsSlider->getValue()));
+        repaint();  // Update round counter display
     };
     addAndMakeVisible(*roundsSlider);
 
-    // Create auto gain toggle
-    autoGainToggle = std::make_unique<juce::ToggleButton>("Auto Gain");
+    // Create auto gain toggle (no text - we draw it ourselves)
+    autoGainToggle = std::make_unique<juce::ToggleButton>();
     autoGainToggle->setToggleState(true, juce::dontSendNotification);
+    autoGainToggle->setLookAndFeel(toggleLookAndFeel.get());
     autoGainToggle->onClick = [this]()
     {
         autoGainEnabled = autoGainToggle->getToggleState();
@@ -87,18 +121,17 @@ ControlPanel::ControlPanel()
     };
     addAndMakeVisible(*autoGainToggle);
 
-    // Create action buttons
+    // Create action buttons (only REVEAL and RESET visible initially)
     shuffleButton = std::make_unique<ChipButton>("SHUFFLE", ChipVariant::Red);
-    shuffleButton->setIcon(juce::String::fromUTF8("🔀"));
     shuffleButton->onClick = [this]()
     {
         if (onShuffleClicked)
             onShuffleClicked();
     };
     addAndMakeVisible(*shuffleButton);
+    shuffleButton->setVisible(false);  // Hidden by default
 
     revealButton = std::make_unique<ChipButton>("REVEAL", ChipVariant::Blue);
-    revealButton->setIcon(juce::String::fromUTF8("👁"));
     revealButton->onClick = [this]()
     {
         if (onRevealClicked)
@@ -107,7 +140,6 @@ ControlPanel::ControlPanel()
     addAndMakeVisible(*revealButton);
 
     resetButton = std::make_unique<ChipButton>("RESET", ChipVariant::Black);
-    resetButton->setIcon(juce::String::fromUTF8("↺"));
     resetButton->onClick = [this]()
     {
         if (onResetClicked)
@@ -116,19 +148,20 @@ ControlPanel::ControlPanel()
     addAndMakeVisible(*resetButton);
 
     nextRoundButton = std::make_unique<ChipButton>("NEXT", ChipVariant::Gold);
-    nextRoundButton->setIcon(juce::String::fromUTF8("→"));
     nextRoundButton->onClick = [this]()
     {
         if (onNextRoundClicked)
             onNextRoundClicked();
     };
     addAndMakeVisible(*nextRoundButton);
+    nextRoundButton->setVisible(false);  // Hidden by default
 }
 
 ControlPanel::~ControlPanel()
 {
     ThemeManager::getInstance().removeChangeListener(this);
     roundsSlider->setLookAndFeel(nullptr);
+    autoGainToggle->setLookAndFeel(nullptr);
 }
 
 //==============================================================================
@@ -141,6 +174,7 @@ void ControlPanel::setTracks(const std::vector<std::string>& tracks)
 void ControlPanel::setRounds(int rounds)
 {
     roundsSlider->setValue(static_cast<double>(rounds), juce::dontSendNotification);
+    repaint();
 }
 
 int ControlPanel::getRounds() const
@@ -158,6 +192,8 @@ void ControlPanel::setAutoGain(bool enabled)
 void ControlPanel::setShuffleEnabled(bool enabled)
 {
     shuffleButton->setEnabled(enabled);
+    shuffleButton->setVisible(enabled);
+    resized();
 }
 
 void ControlPanel::setRevealEnabled(bool enabled)
@@ -173,6 +209,8 @@ void ControlPanel::setResetEnabled(bool enabled)
 void ControlPanel::setNextRoundEnabled(bool enabled)
 {
     nextRoundButton->setEnabled(enabled);
+    nextRoundButton->setVisible(enabled);
+    resized();
 }
 
 //==============================================================================
@@ -187,113 +225,170 @@ void ControlPanel::paint(juce::Graphics& g)
     auto& tm = ThemeManager::getInstance();
     auto bounds = getLocalBounds().toFloat();
 
-    // Background
-    g.setColour(tm.getColour(ColourId::Background));
-    g.fillRect(bounds);
-
-    // Sections
-    auto contentBounds = bounds.reduced(16.0f, 12.0f);
-    auto buttonArea = contentBounds.removeFromBottom(static_cast<float>(kButtonAreaHeight));
-    contentBounds.removeFromBottom(12.0f);  // Gap
-
-    // Split remaining area
-    auto tracksArea = contentBounds.removeFromLeft(contentBounds.getWidth() * 0.5f - 8.0f);
-    contentBounds.removeFromLeft(16.0f);  // Gap
-    auto settingsArea = contentBounds;
-
-    // Draw sections
-    drawSectionBackground(g, tracksArea, "TRACKS");
-    drawSectionBackground(g, settingsArea, "SETTINGS");
-
-    // Draw tracks list
-    auto tracksContentArea = tracksArea.reduced(12.0f).withTrimmedTop(24.0f);
-    drawTracksList(g, tracksContentArea);
-}
-
-void ControlPanel::drawSectionBackground(juce::Graphics& g, juce::Rectangle<float> bounds,
-                                          const juce::String& title)
-{
-    auto& tm = ThemeManager::getInstance();
-
-    // Section background
+    // Panel background
     g.setColour(tm.getColour(ColourId::Surface));
     g.fillRoundedRectangle(bounds, 8.0f);
 
-    // Section title
-    auto titleBounds = bounds.removeFromTop(28.0f).reduced(12.0f, 4.0f);
-    g.setColour(tm.getColour(ColourId::TextSecondary));
-    g.setFont(juce::Font(11.0f, juce::Font::bold));
-    g.drawText(title, titleBounds, juce::Justification::centredLeft);
+    // Content area
+    auto contentBounds = bounds.reduced(20.0f, 16.0f);
+
+    // Top info row
+    auto infoRow = contentBounds.removeFromTop(32.0f);
+    drawInfoRow(g, infoRow);
+
+    contentBounds.removeFromTop(16.0f);  // Gap
+
+    // Auto gain row
+    auto autoGainRow = contentBounds.removeFromTop(40.0f);
+    drawAutoGainRow(g, autoGainRow);
 }
 
-void ControlPanel::drawTracksList(juce::Graphics& g, juce::Rectangle<float> bounds)
+void ControlPanel::drawInfoRow(juce::Graphics& g, juce::Rectangle<float> bounds)
 {
     auto& tm = ThemeManager::getInstance();
 
-    g.setFont(juce::Font(12.0f));
-    float lineHeight = 20.0f;
+    // Left section: Current Tracks
+    auto leftSection = bounds.removeFromLeft(bounds.getWidth() * 0.35f);
 
-    for (size_t i = 0; i < trackNames.size() && i < 8; ++i)
-    {
-        auto lineBounds = bounds.removeFromTop(lineHeight);
+    // Music note icon
+    g.setColour(tm.getColour(ColourId::Primary));
+    g.setFont(juce::FontOptions(16.0f));
+    auto iconBounds = leftSection.removeFromLeft(24.0f);
+    g.drawText(juce::String::fromUTF8("♪"), iconBounds, juce::Justification::centred);
 
-        // Index number
-        g.setColour(tm.getColour(ColourId::TextMuted));
-        auto indexArea = lineBounds.removeFromLeft(20.0f);
-        g.drawText(juce::String(i + 1) + ".", indexArea, juce::Justification::centredLeft);
+    leftSection.removeFromLeft(8.0f);  // Gap
 
-        // Track name
-        g.setColour(tm.getColour(ColourId::TextPrimary));
-        g.drawText(juce::String(trackNames[i]), lineBounds, juce::Justification::centredLeft);
-    }
+    // "Current Tracks" label
+    g.setColour(tm.getColour(ColourId::TextSecondary));
+    g.setFont(juce::FontOptions(13.0f));
+    auto labelBounds = leftSection.removeFromLeft(100.0f);
+    g.drawText("Current Tracks", labelBounds, juce::Justification::centredLeft);
 
-    if (trackNames.empty())
-    {
-        g.setColour(tm.getColour(ColourId::TextMuted));
-        g.setFont(juce::Font(11.0f, juce::Font::italic));
-        g.drawText("No tracks loaded", bounds, juce::Justification::centred);
-    }
+    // Track count in gold circle
+    int trackCount = static_cast<int>(trackNames.size());
+    if (trackCount == 0) trackCount = 4;  // Default display
+
+    auto countBounds = leftSection.removeFromLeft(28.0f).reduced(2.0f);
+    g.setColour(tm.getColour(ColourId::Accent));
+    g.fillEllipse(countBounds);
+    g.setColour(juce::Colours::black);
+    g.setFont(juce::FontOptions(12.0f).withStyle("Bold"));
+    g.drawText(juce::String(trackCount), countBounds, juce::Justification::centred);
+
+    bounds.removeFromLeft(24.0f);  // Gap
+
+    // Right section: Rounds
+    // Hash icon
+    g.setColour(tm.getColour(ColourId::TextSecondary));
+    g.setFont(juce::FontOptions(14.0f).withStyle("Bold"));
+    auto hashBounds = bounds.removeFromLeft(20.0f);
+    g.drawText("#", hashBounds, juce::Justification::centred);
+
+    bounds.removeFromLeft(4.0f);  // Gap
+
+    // "Rounds" label
+    g.setFont(juce::FontOptions(13.0f));
+    auto roundsLabelBounds = bounds.removeFromLeft(50.0f);
+    g.drawText("Rounds", roundsLabelBounds, juce::Justification::centredLeft);
+
+    // Slider area is handled in resized()
+    bounds.removeFromLeft(sliderWidth + 16.0f);
+
+    // Round counter (e.g., "1/3")
+    int currentRound = 1;  // This would come from manager
+    int totalRounds = static_cast<int>(roundsSlider->getValue());
+    g.setColour(tm.getColour(ColourId::TextPrimary));
+    g.setFont(juce::FontOptions(13.0f));
+    g.drawText(juce::String(currentRound) + "/" + juce::String(totalRounds),
+               bounds, juce::Justification::centredRight);
+}
+
+void ControlPanel::drawAutoGainRow(juce::Graphics& g, juce::Rectangle<float> bounds)
+{
+    auto& tm = ThemeManager::getInstance();
+
+    // Background bar
+    g.setColour(tm.getColour(ColourId::SurfaceAlt));
+    g.fillRoundedRectangle(bounds, 8.0f);
+
+    auto contentBounds = bounds.reduced(16.0f, 8.0f);
+
+    // Speaker icon
+    g.setColour(tm.getColour(ColourId::TextSecondary));
+    g.setFont(juce::FontOptions(16.0f));
+    auto iconBounds = contentBounds.removeFromLeft(24.0f);
+    g.drawText(juce::String::fromUTF8("🔊"), iconBounds, juce::Justification::centred);
+
+    contentBounds.removeFromLeft(8.0f);  // Gap
+
+    // "Auto Gain" label
+    g.setColour(tm.getColour(ColourId::TextPrimary));
+    g.setFont(juce::FontOptions(14.0f));
+    g.drawText("Auto Gain", contentBounds, juce::Justification::centredLeft);
+
+    // Toggle is handled in resized()
 }
 
 void ControlPanel::resized()
 {
     auto bounds = getLocalBounds();
-    auto contentBounds = bounds.reduced(16, 12);
+    auto contentBounds = bounds.reduced(20, 16);
 
-    // Button area at bottom
-    auto buttonArea = contentBounds.removeFromBottom(kButtonAreaHeight);
-    contentBounds.removeFromBottom(12);  // Gap
+    // Top info row
+    auto infoRow = contentBounds.removeFromTop(32);
 
-    // Split for tracks and settings
-    auto tracksArea = contentBounds.removeFromLeft(contentBounds.getWidth() / 2 - 8);
-    contentBounds.removeFromLeft(16);  // Gap
-    auto settingsArea = contentBounds;
+    // Position rounds slider within info row
+    auto sliderArea = infoRow;
+    sliderArea.removeFromLeft(static_cast<int>(infoRow.getWidth() * 0.35f) + 24 + 20 + 4 + 50 + 8);  // Skip left section
+    sliderArea.removeFromRight(50);  // Leave space for counter
+    sliderArea = sliderArea.withSizeKeepingCentre(sliderWidth, 20);
+    roundsSlider->setBounds(sliderArea);
 
-    // Settings area layout
-    auto settingsContentArea = settingsArea.reduced(12).withTrimmedTop(28);
+    contentBounds.removeFromTop(16);  // Gap
 
-    // Rounds slider
-    auto roundsArea = settingsContentArea.removeFromTop(40);
-    auto roundsLabelArea = roundsArea.removeFromTop(16);
-    roundsSlider->setBounds(roundsArea.reduced(0, 4));
-
-    settingsContentArea.removeFromTop(12);  // Gap
-
-    // Auto gain toggle
-    auto toggleArea = settingsContentArea.removeFromTop(32);
+    // Auto gain row
+    auto autoGainRow = contentBounds.removeFromTop(40);
+    auto toggleArea = autoGainRow.removeFromRight(60).reduced(8, 8);
     autoGainToggle->setBounds(toggleArea);
 
-    // Button layout (centered)
+    contentBounds.removeFromTop(20);  // Gap
+
+    // Button area
+    auto buttonArea = contentBounds;
+
+    // Count visible buttons
+    int visibleButtons = 0;
+    if (shuffleButton->isVisible()) visibleButtons++;
+    if (revealButton->isVisible()) visibleButtons++;
+    if (resetButton->isVisible()) visibleButtons++;
+    if (nextRoundButton->isVisible()) visibleButtons++;
+
+    if (visibleButtons == 0) visibleButtons = 2;  // Default to REVEAL and RESET
+
     int buttonSize = ChipButton::kTotalWidth;
-    int buttonGap = 16;
-    int totalButtonsWidth = 4 * buttonSize + 3 * buttonGap;
+    int buttonGap = 24;
+    int totalButtonsWidth = visibleButtons * buttonSize + (visibleButtons - 1) * buttonGap;
     int startX = buttonArea.getCentreX() - totalButtonsWidth / 2;
     int buttonY = buttonArea.getCentreY() - ChipButton::kTotalHeight / 2;
 
-    shuffleButton->setBounds(startX, buttonY, buttonSize, ChipButton::kTotalHeight);
-    revealButton->setBounds(startX + buttonSize + buttonGap, buttonY, buttonSize, ChipButton::kTotalHeight);
-    resetButton->setBounds(startX + 2 * (buttonSize + buttonGap), buttonY, buttonSize, ChipButton::kTotalHeight);
-    nextRoundButton->setBounds(startX + 3 * (buttonSize + buttonGap), buttonY, buttonSize, ChipButton::kTotalHeight);
+    int currentX = startX;
+
+    if (shuffleButton->isVisible())
+    {
+        shuffleButton->setBounds(currentX, buttonY, buttonSize, ChipButton::kTotalHeight);
+        currentX += buttonSize + buttonGap;
+    }
+
+    revealButton->setBounds(currentX, buttonY, buttonSize, ChipButton::kTotalHeight);
+    currentX += buttonSize + buttonGap;
+
+    resetButton->setBounds(currentX, buttonY, buttonSize, ChipButton::kTotalHeight);
+    currentX += buttonSize + buttonGap;
+
+    if (nextRoundButton->isVisible())
+    {
+        nextRoundButton->setBounds(currentX, buttonY, buttonSize, ChipButton::kTotalHeight);
+    }
 }
 
 } // namespace BlindCard
