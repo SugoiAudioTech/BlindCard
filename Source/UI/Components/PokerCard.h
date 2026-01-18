@@ -272,6 +272,10 @@ private:
     juce::int64 pulseStartTime = 0;
 
     //==========================================================================
+    // Card back image (loaded from binary data)
+    static juce::Image& getCardBackImage();
+
+    //==========================================================================
     // Drawing helpers - Card Back
     void drawCardBack(juce::Graphics& g, juce::Rectangle<float> bounds);
     void drawPositionLabel(juce::Graphics& g, juce::Rectangle<float> bounds);

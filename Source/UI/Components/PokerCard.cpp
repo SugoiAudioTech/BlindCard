@@ -12,6 +12,7 @@
 
 #include "PokerCard.h"
 #include <cmath>
+#include "BinaryData.h"
 
 namespace BlindCard
 {
@@ -390,38 +391,49 @@ void PokerCard::changeListenerCallback(juce::ChangeBroadcaster* source)
 }
 
 //==============================================================================
+juce::Image& PokerCard::getCardBackImage()
+{
+    // Static image loaded once from binary data
+    static juce::Image cardBackImage = juce::ImageCache::getFromMemory(
+        BinaryData::cardback_png, BinaryData::cardback_pngSize);
+    return cardBackImage;
+}
+
+//==============================================================================
 void PokerCard::drawCardBack(juce::Graphics& g, juce::Rectangle<float> bounds)
 {
-    // Draw card background
-    g.setColour(CardLayout::cardBackColor);
-    g.fillRoundedRectangle(bounds, static_cast<float>(kCornerRadius));
+    // Get card back image
+    auto& cardBackImg = getCardBackImage();
 
-    // Draw simple pattern (diagonal lines)
-    g.setColour(CardLayout::cardBackPatternColor);
-    float patternSpacing = 8.0f;
-
-    juce::Path patternPath;
-    auto clipBounds = bounds.reduced(2.0f);
-
-    for (float x = clipBounds.getX() - clipBounds.getHeight(); x < clipBounds.getRight(); x += patternSpacing)
+    if (cardBackImg.isValid())
     {
-        patternPath.startNewSubPath(x, clipBounds.getBottom());
-        patternPath.lineTo(x + clipBounds.getHeight(), clipBounds.getY());
+        // Clip to rounded rectangle
+        g.saveState();
+        juce::Path clipPath;
+        clipPath.addRoundedRectangle(bounds, static_cast<float>(kCornerRadius));
+        g.reduceClipRegion(clipPath);
+
+        // Draw the card back image, scaled to fit bounds
+        g.drawImage(cardBackImg, bounds,
+                    juce::RectanglePlacement::centred | juce::RectanglePlacement::fillDestination);
+
+        g.restoreState();
+
+        // Draw subtle border
+        g.setColour(juce::Colour(0xFFD4AF37).withAlpha(0.5f));  // Gold border
+        g.drawRoundedRectangle(bounds, static_cast<float>(kCornerRadius), 1.5f);
+    }
+    else
+    {
+        // Fallback: draw simple colored card back if image not loaded
+        g.setColour(CardLayout::cardBackColor);
+        g.fillRoundedRectangle(bounds, static_cast<float>(kCornerRadius));
+
+        g.setColour(juce::Colours::black.withAlpha(0.3f));
+        g.drawRoundedRectangle(bounds, static_cast<float>(kCornerRadius), 1.0f);
     }
 
-    // Clip to rounded rectangle
-    g.saveState();
-    juce::Path clipPath;
-    clipPath.addRoundedRectangle(bounds, static_cast<float>(kCornerRadius));
-    g.reduceClipRegion(clipPath);
-    g.strokePath(patternPath, juce::PathStrokeType(1.0f));
-    g.restoreState();
-
-    // Draw border
-    g.setColour(juce::Colours::black.withAlpha(0.3f));
-    g.drawRoundedRectangle(bounds, static_cast<float>(kCornerRadius), 1.0f);
-
-    // Draw position label
+    // Draw position label (gold number at bottom) and stars
     drawPositionLabel(g, bounds);
 }
 
