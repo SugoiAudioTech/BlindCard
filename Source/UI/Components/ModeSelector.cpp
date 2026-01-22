@@ -11,41 +11,91 @@
 */
 
 #include "ModeSelector.h"
+#include "../Theme/FontManager.h"
 
 namespace BlindCard
 {
 
 //==============================================================================
-// Layout constants
+// Layout constants (larger AirCheck-inspired design)
 namespace Layout
 {
     // Container
-    constexpr float containerCornerRadius = 20.0f;
+    constexpr float containerCornerRadius = 12.0f;  // Larger corner radius
     constexpr float borderWidth = 1.0f;
+    constexpr float containerPadding = 6.0f;        // More padding
+    constexpr float optionGap = 8.0f;               // Gap between options
 
     // Mode options
     constexpr int numModes = 3;
-    constexpr float optionPaddingH = 12.0f;
-    constexpr float iconSpacing = 6.0f;
+    constexpr float optionCornerRadius = 10.0f;     // Rounder buttons
+    constexpr float optionPaddingH = 20.0f;         // More horizontal padding
+    constexpr float optionPaddingV = 12.0f;         // More vertical padding
+    constexpr float iconSpacing = 10.0f;            // More spacing between icon and label
 
     // Typography
-    constexpr float labelFontSize = 13.0f;
-    constexpr float iconFontSize = 14.0f;
-
-    // Colors for selected state
-    constexpr float selectedBgAlpha = 0.15f;  // rgba(255,59,78,0.15)
+    constexpr float labelFontSize = 17.0f;          // Larger font
+    constexpr float iconFontSize = 20.0f;           // Larger icons
 
     // Lock icon
-    constexpr float lockIconSize = 12.0f;
+    constexpr float lockIconSize = 14.0f;           // Larger lock icon
 }
 
-// Mode icons (Unicode characters)
+// Colors (AirCheck-inspired vibrant design with theme support)
+namespace Colors
+{
+    // Dark theme
+    namespace Dark
+    {
+        const juce::Colour containerBg      { 0xFF1A1A1A };  // Dark background
+        const juce::Colour containerBorder  { 0xFF333333 };  // Subtle border
+        const juce::Colour inactiveText     { 0xFF9CA3AF };  // Gray text
+        const juce::Colour inactiveBg       { 0xFF2D2D2D };  // Subtle dark bg
+        const juce::Colour hoverBg          { 0xFF3D3D3D };  // Lighter on hover
+        const juce::Colour hoverText        { 0xFFFFFFFF };  // White on hover
+    }
+
+    // Light theme
+    namespace Light
+    {
+        const juce::Colour containerBg      { 0xFFE8E4DF };  // Light beige background
+        const juce::Colour containerBorder  { 0xFFD4CFC8 };  // Subtle border
+        const juce::Colour inactiveText     { 0xFF6B7280 };  // Gray text
+        const juce::Colour inactiveBg       { 0xFFF5F3F0 };  // Light bg
+        const juce::Colour hoverBg          { 0xFFE0DCD6 };  // Darker on hover
+        const juce::Colour hoverText        { 0xFF1F2937 };  // Dark text on hover
+    }
+
+    // Mode-specific colors (same for both themes)
+    const juce::Colour starsActiveBg    { 0xFFDC2626 };  // Red
+    const juce::Colour starsActiveBorder{ 0xFFEF4444 };
+
+    const juce::Colour guessActiveBg    { 0xFFFACC15 };  // Bright Yellow (Tailwind yellow-400)
+    const juce::Colour guessActiveBorder{ 0xFFFDE047 };  // Lighter yellow
+    const juce::Colour guessActiveText  { 0xFF1C1917 };  // Dark text for yellow (better contrast)
+
+    const juce::Colour qaActiveBg       { 0xFF2563EB };  // Blue
+    const juce::Colour qaActiveBorder   { 0xFF3B82F6 };
+
+    const juce::Colour activeText       { 0xFFFFFFFF };  // White text for red and blue
+}
+
+// Mode icons (Unicode characters matching Lucide icons style)
 namespace Icons
 {
-    const juce::String Stars = juce::String::charToString(0x2606);  // White star
-    const juce::String Guess = juce::String::charToString(0x25CE);  // Bullseye
-    const juce::String QA    = juce::String::charToString(0x270E);  // Pencil
-    const juce::String Lock  = juce::String::charToString(0x1F512); // Lock
+    // Stars: ☆ outline star for inactive, ★ filled for active
+    const juce::String StarsOutline = juce::String::charToString(0x2606);  // White star outline (☆)
+    const juce::String StarsFilled  = juce::String::charToString(0x2605);  // Black star filled (★)
+    const juce::String Stars = StarsFilled;
+
+    // Guess: ? question mark
+    const juce::String Guess = "?";  // Simple question mark for better rendering
+
+    // Q&A: Use speech bubbles or Q symbol
+    const juce::String QA = juce::String::charToString(0x2754);  // White question mark ornament (❔)
+
+    // Lock icon
+    const juce::String Lock  = juce::String::charToString(0x1F512); // Lock 🔒
 }
 
 //==============================================================================
@@ -94,31 +144,53 @@ void ModeSelector::setLocked(bool locked)
 //==============================================================================
 void ModeSelector::paint(juce::Graphics& g)
 {
-    auto& theme = ThemeManager::getInstance();
     auto bounds = getLocalBounds().toFloat();
+    bool isDark = ThemeManager::getInstance().isDark();
+
+    // Theme-aware container colors
+    auto containerBg = isDark ? Colors::Dark::containerBg : Colors::Light::containerBg;
+    auto containerBorder = isDark ? Colors::Dark::containerBorder : Colors::Light::containerBorder;
 
     // Outer container background
-    g.setColour(theme.getColour(ColourId::Surface));
+    g.setColour(containerBg);
     g.fillRoundedRectangle(bounds, Layout::containerCornerRadius);
 
     // Border
-    g.setColour(theme.getColour(ColourId::SurfaceAlt));
+    g.setColour(containerBorder);
     g.drawRoundedRectangle(bounds.reduced(Layout::borderWidth / 2.0f),
                            Layout::containerCornerRadius,
                            Layout::borderWidth);
 
-    // Draw mode options
-    drawModeOption(g, starsBounds.toFloat(), Icons::Stars, "Stars",
+    // Draw mode options with padding
+    auto contentBounds = bounds.reduced(Layout::containerPadding);
+    float optionWidth = (contentBounds.getWidth() - Layout::optionGap * 2.0f) / Layout::numModes;
+
+    auto starsOptionBounds = juce::Rectangle<float>(
+        contentBounds.getX(), contentBounds.getY(),
+        optionWidth, contentBounds.getHeight());
+
+    auto guessOptionBounds = juce::Rectangle<float>(
+        starsOptionBounds.getRight() + Layout::optionGap, contentBounds.getY(),
+        optionWidth, contentBounds.getHeight());
+
+    auto qaOptionBounds = juce::Rectangle<float>(
+        guessOptionBounds.getRight() + Layout::optionGap, contentBounds.getY(),
+        contentBounds.getRight() - guessOptionBounds.getRight() - Layout::optionGap, contentBounds.getHeight());
+
+    drawModeOption(g, starsOptionBounds, Icons::Stars, "Stars",
                    currentMode == blindcard::RatingMode::Stars,
-                   currentHover == HoverState::Stars);
+                   currentHover == HoverState::Stars,
+                   blindcard::RatingMode::Stars, isDark);
 
-    drawModeOption(g, guessBounds.toFloat(), Icons::Guess, "Guess",
+    drawModeOption(g, guessOptionBounds, Icons::Guess, "Guess",
                    currentMode == blindcard::RatingMode::Guess,
-                   currentHover == HoverState::Guess);
+                   currentHover == HoverState::Guess,
+                   blindcard::RatingMode::Guess, isDark);
 
-    drawModeOption(g, qaBounds.toFloat(), Icons::QA, "Q&A",
+    drawModeOption(g, qaOptionBounds, Icons::QA, "Q&A",
                    currentMode == blindcard::RatingMode::QA,
-                   currentHover == HoverState::QA);
+                   currentHover == HoverState::QA,
+                   blindcard::RatingMode::QA, isDark);
 
     // Draw lock overlay if locked
     if (lockedState)
@@ -196,120 +268,170 @@ void ModeSelector::drawModeOption(juce::Graphics& g,
                                    const juce::String& icon,
                                    const juce::String& label,
                                    bool isSelected,
-                                   bool isHovered)
+                                   bool isHovered,
+                                   blindcard::RatingMode mode,
+                                   bool isDarkTheme)
 {
-    auto& theme = ThemeManager::getInstance();
+    auto& fonts = FontManager::getInstance();
+
+    // Get theme-specific inactive colors
+    juce::Colour inactiveBg = isDarkTheme ? Colors::Dark::inactiveBg : Colors::Light::inactiveBg;
+    juce::Colour inactiveText = isDarkTheme ? Colors::Dark::inactiveText : Colors::Light::inactiveText;
+    juce::Colour hoverBg = isDarkTheme ? Colors::Dark::hoverBg : Colors::Light::hoverBg;
+    juce::Colour hoverText = isDarkTheme ? Colors::Dark::hoverText : Colors::Light::hoverText;
+
+    // Get mode-specific active colors
+    juce::Colour activeBg, activeBorder, activeTextColour;
+    switch (mode)
+    {
+        case blindcard::RatingMode::Stars:
+            activeBg = Colors::starsActiveBg;
+            activeBorder = Colors::starsActiveBorder;
+            activeTextColour = Colors::activeText;
+            break;
+        case blindcard::RatingMode::Guess:
+            activeBg = Colors::guessActiveBg;
+            activeBorder = Colors::guessActiveBorder;
+            activeTextColour = Colors::guessActiveText;  // Dark text for yellow
+            break;
+        case blindcard::RatingMode::QA:
+            activeBg = Colors::qaActiveBg;
+            activeBorder = Colors::qaActiveBorder;
+            activeTextColour = Colors::activeText;
+            break;
+    }
 
     // Determine colors based on state
-    juce::Colour bgColour = juce::Colours::transparentBlack;
-    juce::Colour textColour = theme.getColour(ColourId::TextSecondary); // #9CA3AF equivalent
+    juce::Colour bgColour = inactiveBg;
+    juce::Colour textColour = inactiveText;
 
     if (isSelected)
     {
-        // Selected: red tint background, red text
-        bgColour = theme.getColour(ColourId::Primary).withAlpha(Layout::selectedBgAlpha);
-        textColour = theme.getColour(ColourId::Primary); // #FF3B4E equivalent
+        // Solid vibrant fill for selected state
+        bgColour = activeBg;
+        textColour = activeTextColour;
     }
     else if (isHovered && !lockedState)
     {
-        // Hover: slight white overlay, lighter text
-        bgColour = juce::Colours::white.withAlpha(0.05f);
-        textColour = theme.getColour(ColourId::TextPrimary).interpolatedWith(
-            theme.getColour(ColourId::TextSecondary), 0.3f);
+        // Lighter/darker background on hover
+        bgColour = hoverBg;
+        textColour = hoverText;
     }
 
-    // Draw background if not transparent
-    if (!bgColour.isTransparent())
+    // Draw background with rounded corners - always draw for all states
+    g.setColour(bgColour);
+    g.fillRoundedRectangle(bounds, Layout::optionCornerRadius);
+
+    // Draw subtle glow border for selected state
+    if (isSelected)
     {
-        // For selected state, apply rounded corners at edges
-        float cornerRadius = 0.0f;
-        bool isLeftEdge = (bounds.getX() < 2.0f);
-        bool isRightEdge = (bounds.getRight() > getWidth() - 2);
-
-        if (isSelected)
-        {
-            juce::Path bgPath;
-            if (isLeftEdge)
-            {
-                // Left option: rounded left corners
-                bgPath.addRoundedRectangle(bounds.getX(), bounds.getY(),
-                                            bounds.getWidth(), bounds.getHeight(),
-                                            Layout::containerCornerRadius, Layout::containerCornerRadius,
-                                            true, false, true, false);
-            }
-            else if (isRightEdge)
-            {
-                // Right option: rounded right corners
-                bgPath.addRoundedRectangle(bounds.getX(), bounds.getY(),
-                                            bounds.getWidth(), bounds.getHeight(),
-                                            Layout::containerCornerRadius, Layout::containerCornerRadius,
-                                            false, true, false, true);
-            }
-            else
-            {
-                // Middle option: no rounded corners
-                bgPath.addRectangle(bounds);
-            }
-
-            g.setColour(bgColour);
-            g.fillPath(bgPath);
-
-            // Draw selected border accent on bottom
-            g.setColour(theme.getColour(ColourId::Primary));
-            g.fillRect(bounds.getX() + Layout::optionPaddingH,
-                       bounds.getBottom() - 2.0f,
-                       bounds.getWidth() - Layout::optionPaddingH * 2.0f,
-                       2.0f);
-        }
-        else
-        {
-            g.setColour(bgColour);
-            g.fillRect(bounds);
-        }
+        // Inner glow effect - slightly lighter border
+        g.setColour(activeBorder.withAlpha(0.6f));
+        g.drawRoundedRectangle(bounds.reduced(0.5f), Layout::optionCornerRadius, 2.0f);
     }
 
-    // Calculate content layout
-    auto contentBounds = bounds.reduced(Layout::optionPaddingH, 0.0f);
+    // Calculate content layout - Clean readable style
+    juce::Font labelFont = fonts.getMedium(Layout::labelFontSize);
 
-    // Measure text widths
-    juce::Font iconFont(Layout::iconFontSize);
-    juce::Font labelFont(Layout::labelFontSize);
-
-    float iconWidth = iconFont.getStringWidthFloat(icon);
+    // Larger icon size
+    float iconSize = 18.0f;
     float labelWidth = labelFont.getStringWidthFloat(label);
-    float totalContentWidth = iconWidth + Layout::iconSpacing + labelWidth;
+    float totalContentWidth = iconSize + Layout::iconSpacing + labelWidth;
 
-    // Center the content
-    float contentStartX = contentBounds.getX() + (contentBounds.getWidth() - totalContentWidth) / 2.0f;
+    // Center the content horizontally
+    float contentStartX = bounds.getX() + (bounds.getWidth() - totalContentWidth) / 2.0f;
+    float iconCenterX = contentStartX + iconSize / 2.0f;
+    float iconCenterY = bounds.getCentreY();
 
-    // Draw icon
+    // Draw icon as path (more reliable than Unicode fonts)
     g.setColour(textColour);
-    g.setFont(iconFont);
-    g.drawText(icon,
-               juce::Rectangle<float>(contentStartX, bounds.getY(), iconWidth, bounds.getHeight()),
-               juce::Justification::centred);
 
-    // Draw label
+    if (label == "Stars")
+    {
+        // Draw 5-pointed star
+        juce::Path star;
+        float outerR = iconSize / 2.0f;
+        float innerR = outerR * 0.4f;
+        for (int i = 0; i < 10; ++i)
+        {
+            float angle = static_cast<float>(i) * juce::MathConstants<float>::pi / 5.0f - juce::MathConstants<float>::halfPi;
+            float r = (i % 2 == 0) ? outerR : innerR;
+            float x = iconCenterX + r * std::cos(angle);
+            float y = iconCenterY + r * std::sin(angle);
+            if (i == 0)
+                star.startNewSubPath(x, y);
+            else
+                star.lineTo(x, y);
+        }
+        star.closeSubPath();
+        g.fillPath(star);
+    }
+    else if (label == "Guess")
+    {
+        // Draw question mark circle
+        float circleR = iconSize / 2.0f - 1.0f;
+        g.drawEllipse(iconCenterX - circleR, iconCenterY - circleR, circleR * 2.0f, circleR * 2.0f, 1.5f);
+        g.setFont(fonts.getMedium(14.0f));
+        g.drawText("?", juce::Rectangle<float>(contentStartX, bounds.getY(), iconSize, bounds.getHeight()),
+                   juce::Justification::centred);
+    }
+    else if (label == "Q&A")
+    {
+        // Draw speech bubble
+        juce::Path bubble;
+        float bw = iconSize - 2.0f;
+        float bh = iconSize * 0.7f;
+        float bx = iconCenterX - bw / 2.0f;
+        float by = iconCenterY - bh / 2.0f - 1.0f;
+        bubble.addRoundedRectangle(bx, by, bw, bh, 3.0f);
+        // Add tail
+        bubble.startNewSubPath(bx + bw * 0.3f, by + bh);
+        bubble.lineTo(bx + bw * 0.2f, by + bh + 4.0f);
+        bubble.lineTo(bx + bw * 0.5f, by + bh);
+        bubble.closeSubPath();
+        g.fillPath(bubble);
+    }
+
+    // Draw label (font-medium = bold in JUCE terms)
     g.setFont(labelFont);
     g.drawText(label,
-               juce::Rectangle<float>(contentStartX + iconWidth + Layout::iconSpacing,
+               juce::Rectangle<float>(contentStartX + iconSize + Layout::iconSpacing,
                                        bounds.getY(),
                                        labelWidth,
                                        bounds.getHeight()),
                juce::Justification::centred);
+
+    // Draw lock icon if locked and selected
+    if (lockedState && isSelected)
+    {
+        juce::Font lockFont = fonts.getRegular(Layout::lockIconSize);
+        float lockWidth = lockFont.getStringWidthFloat(Icons::Lock);
+        g.setColour(textColour.withAlpha(0.5f));  // Original: text-[#FF3B4E]/50
+        g.setFont(lockFont);
+        g.drawText(Icons::Lock,
+                   juce::Rectangle<float>(bounds.getRight() - lockWidth - 8.0f,
+                                           bounds.getY(),
+                                           lockWidth,
+                                           bounds.getHeight()),
+                   juce::Justification::centred);
+    }
 }
 
 void ModeSelector::drawLockOverlay(juce::Graphics& g, juce::Rectangle<float> bounds)
 {
-    auto& theme = ThemeManager::getInstance();
+    auto& fonts = FontManager::getInstance();
+    bool isDark = ThemeManager::getInstance().isDark();
 
-    // Semi-transparent overlay
-    g.setColour(theme.getColour(ColourId::Surface).withAlpha(0.6f));
+    auto containerBg = isDark ? Colors::Dark::containerBg : Colors::Light::containerBg;
+    auto inactiveText = isDark ? Colors::Dark::inactiveText : Colors::Light::inactiveText;
+
+    // Semi-transparent overlay using container color
+    g.setColour(containerBg.withAlpha(0.6f));
     g.fillRoundedRectangle(bounds, Layout::containerCornerRadius);
 
     // Lock icon in center
-    g.setColour(theme.getColour(ColourId::TextMuted));
-    g.setFont(juce::Font(16.0f));
+    g.setColour(inactiveText);
+    g.setFont(fonts.getRegular(18.0f));
     g.drawText(Icons::Lock, bounds.toNearestInt(), juce::Justification::centred);
 }
 

@@ -5,6 +5,10 @@
     Created: 2026-01-19
     Author:  BlindCard
 
+    Poker chip stack with top-down perspective view.
+    Matches the original UI/UX design with alternating red/black chips,
+    white edge markers, and gold ring details.
+
   ==============================================================================
 */
 
@@ -53,148 +57,215 @@ void ChipStack::paint(juce::Graphics& g)
 {
     auto bounds = getLocalBounds().toFloat();
 
-    // Calculate the stacking arrangement
-    // Chips are stacked bottom to top with slight overlap
-    // Each chip shows its edge (thickness) and top surface
+    // Chip dimensions - larger for better detail
+    float chipDiameter = juce::jmin(bounds.getWidth() * 0.95f, 70.0f);
+    float chipSpacing = chipDiameter * 0.22f;  // Vertical spacing between chips
 
-    float totalHeight = bounds.getHeight();
-    float chipDiameter = juce::jmin(bounds.getWidth() * 0.9f, static_cast<float>(kChipDiameter));
-    float thickness = kChipThickness;
+    // Calculate total stack height
+    float totalStackHeight = chipDiameter + (numChips - 1) * chipSpacing;
 
-    // Calculate the vertical spacing for the stack
-    // Each chip overlaps about 60% with the one below
-    float overlapRatio = 0.6f;
-    float visibleHeight = thickness * (1.0f - overlapRatio);
-    float stackHeight = thickness + (numChips - 1) * visibleHeight;
-
-    // Center the stack horizontally and vertically
-    float startY = bounds.getCentreY() + stackHeight / 2.0f - thickness;
+    // Start position (bottom of stack)
     float centerX = bounds.getCentreX();
+    float startY = bounds.getCentreY() + totalStackHeight / 2.0f - chipDiameter / 2.0f;
 
-    // Draw chips from bottom to top (for correct overlap)
+    // Draw chips from bottom to top (so top chips overlap bottom ones)
     for (int i = 0; i < numChips; ++i)
     {
         bool isRed = startRed ? (i % 2 == 0) : (i % 2 != 0);
 
-        // Slight perspective: bottom chips are a tiny bit larger
-        float perspectiveScale = 1.0f - (i * 0.02f);
-        float scaledDiameter = chipDiameter * perspectiveScale;
-
-        // Position for this chip (bottom chip is at i=0)
-        float chipY = startY - (i * visibleHeight);
+        // Position for this chip
+        float chipY = startY - (i * chipSpacing);
 
         juce::Rectangle<float> chipBounds(
-            centerX - scaledDiameter / 2.0f,
-            chipY,
-            scaledDiameter,
-            thickness
+            centerX - chipDiameter / 2.0f,
+            chipY - chipDiameter / 2.0f,
+            chipDiameter,
+            chipDiameter
         );
 
-        // Draw the edge (3D side) first
-        drawChipEdge(g, chipBounds, isRed, perspectiveScale);
-
-        // Draw the top surface
-        drawChip(g, chipBounds, isRed, perspectiveScale);
+        // Draw chip with 3D edge effect
+        drawChipWithEdge(g, chipBounds, isRed, i);
     }
 }
 
-void ChipStack::drawChipEdge(juce::Graphics& g, juce::Rectangle<float> bounds, bool isRed, float scale)
+void ChipStack::drawChipWithEdge(juce::Graphics& g, juce::Rectangle<float> bounds,
+                                  bool isRed, int stackIndex)
 {
-    auto baseColor = getDarkChipColor(isRed);
+    float diameter = bounds.getWidth();
+    float centerX = bounds.getCentreX();
+    float centerY = bounds.getCentreY();
 
-    // Draw the 3D edge as a slightly darker ellipse below the main chip
-    auto edgeBounds = bounds.translated(0.0f, 2.0f);
+    // Draw 3D edge (thickness) - darker layers below the top surface
+    float edgeThickness = diameter * 0.08f;
+    for (int layer = 3; layer >= 0; --layer)
+    {
+        float yOffset = layer * (edgeThickness / 3.0f);
+        auto edgeColor = isRed ? juce::Colour(0xFF5C1515) : juce::Colour(0xFF151515);
+        edgeColor = edgeColor.darker(layer * 0.15f);
 
-    g.setColour(baseColor.darker(0.3f));
-    g.fillEllipse(edgeBounds.withHeight(edgeBounds.getWidth() * 0.3f)
-                            .withY(edgeBounds.getY() + edgeBounds.getHeight() * 0.7f));
+        g.setColour(edgeColor);
+        g.fillEllipse(bounds.getX(), bounds.getY() + yOffset,
+                      diameter, diameter);
+    }
+
+    // Draw main chip top surface
+    drawChipTop(g, bounds, isRed);
 }
 
-void ChipStack::drawChip(juce::Graphics& g, juce::Rectangle<float> bounds, bool isRed, float scale)
+void ChipStack::drawChipTop(juce::Graphics& g, juce::Rectangle<float> bounds, bool isRed)
 {
-    auto& tm = ThemeManager::getInstance();
-    auto baseColor = getChipColor(isRed);
-    auto darkColor = getDarkChipColor(isRed);
+    float diameter = bounds.getWidth();
+    float centerX = bounds.getCentreX();
+    float centerY = bounds.getCentreY();
+    float radius = diameter / 2.0f;
 
-    // The chip is drawn as an ellipse (top-down view at an angle)
-    // Aspect ratio ~0.3 gives a nice 3D perspective
-    float aspectRatio = 0.3f;
-    float width = bounds.getWidth();
-    float height = width * aspectRatio;
+    // Colors
+    juce::Colour mainColor = isRed ? juce::Colour(0xFF8B2942) : juce::Colour(0xFF1A1A1A);
+    juce::Colour darkColor = isRed ? juce::Colour(0xFF5C1525) : juce::Colour(0xFF0D0D0D);
+    juce::Colour goldColor(0xFFD4A84B);
+    juce::Colour creamColor(0xFFF5F0E1);
 
-    auto chipBounds = juce::Rectangle<float>(
-        bounds.getX(),
-        bounds.getY(),
-        width,
-        height
-    );
-
-    // 1. Outer ring - base color with gradient
+    // 1. Main chip body with gradient
     {
         juce::ColourGradient gradient(
-            baseColor.brighter(0.1f), chipBounds.getCentreX(), chipBounds.getY(),
-            darkColor, chipBounds.getCentreX(), chipBounds.getBottom(),
+            mainColor.brighter(0.15f),
+            centerX, bounds.getY(),
+            darkColor,
+            centerX, bounds.getBottom(),
             false
         );
         g.setGradientFill(gradient);
-        g.fillEllipse(chipBounds);
+        g.fillEllipse(bounds);
     }
 
-    // 2. Cream stripes around the edge
+    // 2. Subtle inner shadow ring
     {
-        juce::Colour stripeColor(0xFFF5F5DC); // Cream
-        g.setColour(stripeColor.withAlpha(0.8f));
+        g.setColour(juce::Colours::black.withAlpha(0.2f));
+        g.drawEllipse(bounds.reduced(2.0f), 2.0f);
+    }
 
-        float stripeWidth = width * 0.08f;
-        float stripeInset = width * 0.05f;
+    // 3. White/cream edge markers - 8 markers around the perimeter
+    {
+        int numMarkers = 8;
+        float markerWidth = diameter * 0.09f;
+        float markerHeight = diameter * 0.22f;
+        float markerRadius = radius * 0.82f;  // Distance from center
 
-        // Draw stripes at regular intervals around the ellipse
-        for (int i = 0; i < kStripeCount; ++i)
+        for (int i = 0; i < numMarkers; ++i)
         {
-            float angle = (i / static_cast<float>(kStripeCount)) * juce::MathConstants<float>::twoPi;
+            float angle = (i / static_cast<float>(numMarkers)) * juce::MathConstants<float>::twoPi
+                          - juce::MathConstants<float>::halfPi;  // Start from top
 
-            // Position on the ellipse edge
-            float rx = (width / 2.0f) - stripeInset;
-            float ry = (height / 2.0f) - stripeInset * aspectRatio;
+            float markerX = centerX + markerRadius * std::cos(angle);
+            float markerY = centerY + markerRadius * std::sin(angle);
 
-            float stripeX = chipBounds.getCentreX() + rx * std::cos(angle);
-            float stripeY = chipBounds.getCentreY() + ry * std::sin(angle);
+            // Save graphics state
+            g.saveState();
 
-            // Draw small stripe marker
-            float stripeHeight = height * 0.15f;
-            g.fillEllipse(stripeX - stripeWidth / 2.0f,
-                         stripeY - stripeHeight / 2.0f,
-                         stripeWidth,
-                         stripeHeight);
+            // Translate to marker position and rotate
+            juce::AffineTransform transform = juce::AffineTransform::rotation(
+                angle + juce::MathConstants<float>::halfPi,
+                markerX, markerY
+            );
+
+            // Draw rounded rectangle marker (pill shape)
+            juce::Path markerPath;
+            markerPath.addRoundedRectangle(
+                markerX - markerWidth / 2.0f,
+                markerY - markerHeight / 2.0f,
+                markerWidth,
+                markerHeight,
+                markerWidth / 2.0f
+            );
+            markerPath.applyTransform(transform);
+
+            // Gradient for 3D effect on markers
+            g.setColour(creamColor);
+            g.fillPath(markerPath);
+
+            // Subtle shadow on markers
+            g.setColour(juce::Colours::black.withAlpha(0.15f));
+            g.strokePath(markerPath, juce::PathStrokeType(0.5f));
+
+            g.restoreState();
         }
     }
 
-    // 3. Gold border ring
+    // 4. Outer gold ring
     {
-        g.setColour(tm.getColour(ColourId::Accent)); // Gold
-        auto innerBounds = chipBounds.reduced(width * 0.15f, height * 0.15f);
-        g.drawEllipse(innerBounds, 1.5f * scale);
+        float outerRingRadius = radius * 0.62f;
+        auto outerRingBounds = bounds.reduced((radius - outerRingRadius));
+
+        // Gold glow
+        g.setColour(goldColor.withAlpha(0.3f));
+        g.drawEllipse(outerRingBounds.expanded(1.5f), 3.0f);
+
+        // Main gold ring
+        g.setColour(goldColor);
+        g.drawEllipse(outerRingBounds, 2.5f);
+
+        // Highlight on gold ring
+        g.setColour(goldColor.brighter(0.4f));
+        juce::Path highlightArc;
+        highlightArc.addCentredArc(centerX, centerY,
+                                    outerRingRadius, outerRingRadius,
+                                    0.0f,
+                                    -juce::MathConstants<float>::pi * 0.7f,
+                                    -juce::MathConstants<float>::pi * 0.3f,
+                                    true);
+        g.strokePath(highlightArc, juce::PathStrokeType(1.5f));
     }
 
-    // 4. Inner circle - darker shade
+    // 5. Inner black/colored circle
     {
-        auto innerBounds = chipBounds.reduced(width * 0.2f, height * 0.2f);
+        float innerRadius = radius * 0.52f;
+        auto innerBounds = bounds.reduced(radius - innerRadius);
 
-        juce::ColourGradient gradient(
-            darkColor.brighter(0.05f), innerBounds.getCentreX(), innerBounds.getY(),
-            darkColor.darker(0.2f), innerBounds.getCentreX(), innerBounds.getBottom(),
+        juce::ColourGradient innerGradient(
+            juce::Colour(0xFF2A2A2A),
+            centerX, innerBounds.getY(),
+            juce::Colour(0xFF0A0A0A),
+            centerX, innerBounds.getBottom(),
             false
         );
-        g.setGradientFill(gradient);
+        g.setGradientFill(innerGradient);
         g.fillEllipse(innerBounds);
     }
 
-    // 5. Subtle highlight on top
+    // 6. Inner gold ring
     {
-        auto highlightBounds = chipBounds.reduced(width * 0.25f, height * 0.3f)
-                                         .translated(0.0f, -height * 0.1f);
-        g.setColour(juce::Colours::white.withAlpha(0.15f));
-        g.fillEllipse(highlightBounds);
+        float innerRingRadius = radius * 0.38f;
+        auto innerRingBounds = bounds.reduced(radius - innerRingRadius);
+
+        g.setColour(goldColor.withAlpha(0.9f));
+        g.drawEllipse(innerRingBounds, 2.0f);
+
+        // Highlight
+        g.setColour(goldColor.brighter(0.3f));
+        juce::Path innerHighlight;
+        innerHighlight.addCentredArc(centerX, centerY,
+                                      innerRingRadius, innerRingRadius,
+                                      0.0f,
+                                      -juce::MathConstants<float>::pi * 0.7f,
+                                      -juce::MathConstants<float>::pi * 0.3f,
+                                      true);
+        g.strokePath(innerHighlight, juce::PathStrokeType(1.0f));
+    }
+
+    // 7. Center highlight/reflection
+    {
+        auto centerSpot = bounds.reduced(radius * 0.75f);
+        centerSpot = centerSpot.translated(-diameter * 0.05f, -diameter * 0.08f);
+
+        juce::ColourGradient shineGradient(
+            juce::Colours::white.withAlpha(0.15f),
+            centerSpot.getCentreX(), centerSpot.getY(),
+            juce::Colours::transparentWhite,
+            centerSpot.getCentreX(), centerSpot.getBottom(),
+            false
+        );
+        g.setGradientFill(shineGradient);
+        g.fillEllipse(centerSpot);
     }
 }
 
@@ -206,34 +277,18 @@ void ChipStack::resized()
 //==============================================================================
 juce::Colour ChipStack::getChipColor(bool isRed) const
 {
-    auto& tm = ThemeManager::getInstance();
-
     if (isRed)
-    {
-        // Red chip
-        return tm.isDark() ? juce::Colour(0xFFCC0000) : juce::Colour(0xFFB91C1C);
-    }
+        return juce::Colour(0xFF8B2942);  // Burgundy red
     else
-    {
-        // Black chip
-        return tm.isDark() ? juce::Colour(0xFF2A2A2A) : juce::Colour(0xFF333333);
-    }
+        return juce::Colour(0xFF1A1A1A);  // True black
 }
 
 juce::Colour ChipStack::getDarkChipColor(bool isRed) const
 {
-    auto& tm = ThemeManager::getInstance();
-
     if (isRed)
-    {
-        // Darker red
-        return tm.isDark() ? juce::Colour(0xFF8B0000) : juce::Colour(0xFF7F1D1D);
-    }
+        return juce::Colour(0xFF5C1525);  // Dark burgundy
     else
-    {
-        // Darker black
-        return tm.isDark() ? juce::Colour(0xFF1A1A1A) : juce::Colour(0xFF1F1F1F);
-    }
+        return juce::Colour(0xFF0D0D0D);  // Darker black
 }
 
 } // namespace BlindCard

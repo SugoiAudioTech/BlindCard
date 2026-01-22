@@ -22,6 +22,10 @@ struct CardSlot
     bool isRemoved = false;                   // 是否已移除
     juce::Array<RoundData> rounds;            // 各輪記錄
 
+    // 撲克牌顯示值（洗牌時隨機分配）
+    int cardValue = 1;                        // 1=A, 2-10, 11=J, 12=Q, 13=K
+    int suitIndex = 0;                        // 0=Spades, 1=Clubs, 2=Diamonds, 3=Hearts
+
     // Level Matching
     float measuredLUFS = -100.0f;             // 測量的響度 (LUFS)，-100 = 未測量
     float autoGainDb = 0.0f;                  // 自動增益補償 (dB)
@@ -92,6 +96,11 @@ struct QAState
     FeedbackState lastFeedback = FeedbackState::None;
     int lastAnsweredCardId = -1;          // 上一次回答選擇的卡牌
 
+    // 答案揭曉倒數狀態
+    bool isShowingAnswer = false;         // 是否正在顯示答案（倒數中）
+    int countdownValue = 0;               // 倒數值 (3, 2, 1, 0)
+    int revealedTargetCardId = -1;        // 揭曉時的正確答案卡牌 ID
+
     bool isComplete(int maxQuestions) const { return currentQuestion >= maxQuestions; }
 
     int getCorrectCount() const
@@ -110,6 +119,9 @@ struct QAState
         answers.clear();
         lastFeedback = FeedbackState::None;
         lastAnsweredCardId = -1;
+        isShowingAnswer = false;
+        countdownValue = 0;
+        revealedTargetCardId = -1;
     }
 };
 
@@ -122,9 +134,12 @@ struct GameState
     int selectedCardId = -1;                  // 目前獨奏的卡牌 (-1 = 無)
     juce::Array<CardSlot> cards;              // 最多 8 張卡牌
     QAState qaState;                          // Q&A 模式狀態
+    int qaQuestionCount = 5;                  // Q&A 模式問題數（用戶可設定，1-8）
 
     static constexpr int MinCards = 2;        // 最少卡牌數（盲測需要對照組）
     static constexpr int MaxCards = 8;        // 最多卡牌數（雙排 4+4 佈局上限）
+    static constexpr int MinQAQuestions = 1;  // Q&A 最少問題數
+    static constexpr int MaxQAQuestions = 8;  // Q&A 最多問題數
 };
 
 } // namespace blindcard

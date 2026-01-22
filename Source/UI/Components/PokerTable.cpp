@@ -58,6 +58,7 @@ void PokerTable::setCardCount(int count)
         card->setCardData(data);
         card->setMode(currentMode);
         card->setPhase(currentPhase);
+        card->setStandaloneMode(standaloneMode);  // Inherit standalone mode
 
         if (!trackList.empty())
         {
@@ -120,7 +121,11 @@ void PokerTable::revealAllCards(int delayBetweenCardsMs)
         // Use a timer for staggered effect
         juce::Timer::callAfterDelay(static_cast<int>(i) * delayBetweenCardsMs, [card]()
         {
-            card->flip();
+            // Only reveal if not already revealed (avoid flipping back)
+            if (!card->getCardData().isRevealed)
+            {
+                card->flip();
+            }
         });
     }
 }
@@ -151,6 +156,33 @@ void PokerTable::shuffleCards()
         data.rating = 0;
         data.guessedTrackIndex = -1;
         cards[i]->setCardData(data);
+    }
+}
+
+void PokerTable::setSelectedCard(int index)
+{
+    if (selectedCardIndex == index) return;
+
+    // Deselect previous
+    if (selectedCardIndex >= 0 && selectedCardIndex < static_cast<int>(cards.size()))
+    {
+        cards[static_cast<size_t>(selectedCardIndex)]->setSelected(false);
+    }
+
+    // Select new
+    selectedCardIndex = index;
+    if (index >= 0 && index < static_cast<int>(cards.size()))
+    {
+        cards[static_cast<size_t>(index)]->setSelected(true);
+    }
+}
+
+void PokerTable::setStandaloneMode(bool enabled)
+{
+    standaloneMode = enabled;
+    for (auto& card : cards)
+    {
+        card->setStandaloneMode(enabled);
     }
 }
 
@@ -315,7 +347,7 @@ void PokerTable::resized()
 
     // Position chip stacks on the sides
     int chipStackWidth = 60;
-    int chipStackHeight = 100;
+    int chipStackHeight = 140;  // Increased to fit 5-chip stack with 3D edges
     int chipMargin = 20;
 
     leftChipStack->setBounds(
@@ -349,22 +381,24 @@ void PokerTable::updateCardLayout()
 
     auto feltArea = getFeltArea();
 
-    // Reserved space for chip stacks
+    // Reserved space for chip stacks and vertical padding
     int chipStackSpace = 80;
-    auto cardArea = feltArea.reduced(chipStackSpace, 20);
+    int verticalPadding = 30;  // More space from table edges
+    auto cardArea = feltArea.reduced(chipStackSpace, verticalPadding);
 
     int cardCount = static_cast<int>(cards.size());
     int cardWidth = PokerCard::kDefaultWidth;
     int cardHeight = PokerCard::kDefaultHeight;
 
-    // Extra height for star rating and other controls below card
-    // Card: 200, gap: 8, stars: 20 = 228 total
-    int extraHeightForControls = 28;
+    // Extra height for controls (Q&A button needs 28px height below card)
+    // Button starts at kDefaultHeight - 4 = 166, ends at 166 + 28 = 194
+    // So we need at least 194 - 170 = 24px extra, use 30 for padding
+    int extraHeightForControls = 30;
     int componentHeight = cardHeight + extraHeightForControls;
 
     // Gap between cards
-    int horizontalGap = 20;
-    int verticalGap = 15;
+    int horizontalGap = 16;
+    int verticalGap = 12;
 
     if (cardCount <= 4)
     {
@@ -386,13 +420,18 @@ void PokerTable::updateCardLayout()
     else
     {
         // Double row layout (4 on top, remaining on bottom)
+        // Cards keep original size - window should be resized to fit
         int topRowCount = 4;
         int bottomRowCount = cardCount - 4;
+
+        // Calculate total height and center vertically
+        int totalHeight = componentHeight * 2 + verticalGap;
+        int topY = cardArea.getCentreY() - totalHeight / 2;
+        int bottomY = topY + componentHeight + verticalGap;
 
         // Top row
         int topTotalWidth = topRowCount * cardWidth + (topRowCount - 1) * horizontalGap;
         int topStartX = cardArea.getCentreX() - topTotalWidth / 2;
-        int topY = cardArea.getCentreY() - componentHeight - verticalGap / 2;
 
         for (int i = 0; i < topRowCount; ++i)
         {
@@ -407,7 +446,6 @@ void PokerTable::updateCardLayout()
         // Bottom row (centered)
         int bottomTotalWidth = bottomRowCount * cardWidth + (bottomRowCount - 1) * horizontalGap;
         int bottomStartX = cardArea.getCentreX() - bottomTotalWidth / 2;
-        int bottomY = cardArea.getCentreY() + verticalGap / 2;
 
         for (int i = 0; i < bottomRowCount; ++i)
         {

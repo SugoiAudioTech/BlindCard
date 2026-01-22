@@ -67,6 +67,7 @@ public:
     std::function<void()> onNextRoundClicked;
     std::function<void(int)> onRoundsChanged;       // Number of rounds
     std::function<void(bool)> onAutoGainChanged;    // Auto gain toggle
+    std::function<void(int)> onQAQuestionsChanged;  // Q&A question count
 
     //==========================================================================
     /**
@@ -88,6 +89,15 @@ public:
     int getRounds() const;
 
     /**
+     * Sets the current round number (1-based).
+     * @param round Current round number
+     */
+    void setCurrentRound(int round);
+
+    /** Returns the current round number */
+    int getCurrentRound() const { return currentRound; }
+
+    /**
      * Sets the auto gain state.
      * @param enabled true to enable auto gain
      */
@@ -95,6 +105,47 @@ public:
 
     /** Returns the auto gain state */
     bool getAutoGain() const { return autoGainEnabled; }
+
+    /**
+     * Sets the calibration status for Level-Match.
+     * @param calibrating true if currently calibrating
+     * @param calibrated true if calibration is complete
+     * @param timeRemaining seconds remaining for calibration
+     */
+    void setCalibrationStatus(bool calibrating, bool calibrated, float timeRemaining = 0.0f);
+
+    /** Returns true if currently calibrating */
+    bool isCalibrating() const { return calibratingStatus; }
+
+    /** Returns true if calibration is complete */
+    bool isCalibrated() const { return calibratedStatus; }
+
+    //==========================================================================
+    // Standalone Mode
+
+    /**
+     * Sets standalone mode (hides Level-Match since it requires DAW audio).
+     * @param standalone true if running in Standalone mode
+     */
+    void setStandaloneMode(bool standalone);
+
+    //==========================================================================
+    // Q&A Mode Settings
+
+    /**
+     * Sets the Q&A question count.
+     * @param count Number of questions (1-8)
+     */
+    void setQAQuestions(int count);
+
+    /** Returns the current Q&A question count */
+    int getQAQuestions() const;
+
+    /**
+     * Sets whether Q&A mode is active (shows/hides Q&A slider).
+     * @param isQA true if Q&A mode is active
+     */
+    void setQAMode(bool isQA);
 
     //==========================================================================
     // Button state control
@@ -130,14 +181,20 @@ public:
     //==========================================================================
     /** Dimensions */
     static constexpr int kPreferredWidth = 320;
-    static constexpr int kMinHeight = 200;
-    static constexpr int kButtonAreaHeight = 80;
+    static constexpr int kMinHeight = 220;  // ROUND indicator + info row + buttons
+    static constexpr int kButtonAreaHeight = 100;
 
 private:
     //==========================================================================
     // State
     std::vector<std::string> trackNames;
-    bool autoGainEnabled = true;
+    bool autoGainEnabled = false;  // 預設關閉
+    bool calibratingStatus = false;
+    bool calibratedStatus = false;
+    float calibrationTimeRemaining = 0.0f;  // 剩餘秒數
+    int currentRound = 1;  // 1-based current round number
+    bool isQAModeActive = false;  // 是否為 Q&A 模式
+    bool isStandaloneModeActive = false;  // 是否為 Standalone 模式（隱藏 Level-Match）
 
     // Layout constants
     static constexpr int sliderWidth = 100;
@@ -145,6 +202,7 @@ private:
     //==========================================================================
     // Child components
     std::unique_ptr<juce::Slider> roundsSlider;
+    std::unique_ptr<juce::Slider> qaQuestionsSlider;  // Q&A 問題數滑桿
     std::unique_ptr<juce::ToggleButton> autoGainToggle;
 
     std::unique_ptr<ChipButton> shuffleButton;
@@ -176,8 +234,10 @@ private:
 
     //==========================================================================
     // Drawing helpers
+    void drawRoundIndicator(juce::Graphics& g, juce::Rectangle<float> bounds);
     void drawInfoRow(juce::Graphics& g, juce::Rectangle<float> bounds);
     void drawAutoGainRow(juce::Graphics& g, juce::Rectangle<float> bounds);
+    void drawQARow(juce::Graphics& g, juce::Rectangle<float> bounds);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ControlPanel)
 };

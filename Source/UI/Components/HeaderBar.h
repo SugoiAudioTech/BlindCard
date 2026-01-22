@@ -60,16 +60,31 @@ public:
     /** Callback triggered when the theme toggle is clicked */
     std::function<void()> onThemeToggled;
 
+    /** Callback triggered when the reset button is clicked */
+    std::function<void()> onResetClicked;
+
     //==========================================================================
     /**
-     * Sets the connection status and updates the display.
-     * When connected, shows gold pulsing dot with 1.5s period.
-     * @param connected true if connected to a DAW/audio system
+     * Sets the current playing track info for display.
+     * @param rmsDb Current RMS level in dB (-100 for silence)
+     * @param trackName Track name or "Card X" during blind testing
      */
-    void setConnected(bool connected);
+    void setCurrentTrackInfo(float rmsDb, const juce::String& trackName);
 
-    /** Returns the current connection status */
-    bool isConnected() const { return connectionStatus; }
+    /** Returns the current RMS level in dB */
+    float getCurrentRMS() const { return currentRMSdB; }
+
+    /** Returns the current track name */
+    juce::String getCurrentTrackName() const { return currentTrackName; }
+
+    /**
+     * Sets standalone mode - hides "Now Playing" info to save space for TransportBar.
+     * @param enabled true to hide track info display
+     */
+    void setStandaloneMode(bool enabled);
+
+    /** Returns true if standalone mode is enabled */
+    bool isStandaloneMode() const { return standaloneMode; }
 
     //==========================================================================
     // Component overrides
@@ -91,10 +106,14 @@ public:
 
 private:
     //==========================================================================
-    // Connection status
-    bool connectionStatus = false;
+    // State
+    bool standaloneMode = false;
 
-    // Pulse animation
+    // Current track info
+    float currentRMSdB = -100.0f;
+    juce::String currentTrackName;
+
+    // Pulse animation (for level indicator)
     float pulsePhase = 0.0f;
     static constexpr float kPulsePeriodMs = 1500.0f;
     static constexpr int kTimerIntervalMs = 16; // ~60fps
@@ -104,7 +123,8 @@ private:
     juce::Rectangle<int> themeToggleBounds;
     juce::Rectangle<int> infoButtonBounds;
     juce::Rectangle<int> settingsButtonBounds;
-    juce::Rectangle<int> connectionStatusBounds;
+    juce::Rectangle<int> resetButtonBounds;
+    juce::Rectangle<int> trackInfoBounds;
 
     // Hover states
     enum class HoverState
@@ -112,7 +132,8 @@ private:
         None,
         ThemeToggle,
         InfoButton,
-        SettingsButton
+        SettingsButton,
+        ResetButton
     };
     HoverState currentHover = HoverState::None;
 
@@ -120,10 +141,11 @@ private:
     // Drawing helpers
     void drawLogo(juce::Graphics& g, juce::Rectangle<float> bounds);
     void drawBrandText(juce::Graphics& g, juce::Rectangle<float> bounds);
-    void drawConnectionStatus(juce::Graphics& g, juce::Rectangle<float> bounds);
+    void drawTrackInfo(juce::Graphics& g, juce::Rectangle<float> bounds);
     void drawThemeToggle(juce::Graphics& g, juce::Rectangle<float> bounds, bool isHovered);
     void drawInfoButton(juce::Graphics& g, juce::Rectangle<float> bounds, bool isHovered);
     void drawSettingsButton(juce::Graphics& g, juce::Rectangle<float> bounds, bool isHovered);
+    void drawResetButton(juce::Graphics& g, juce::Rectangle<float> bounds, bool isHovered);
 
     // Utility
     HoverState getHoverStateAt(juce::Point<int> position) const;

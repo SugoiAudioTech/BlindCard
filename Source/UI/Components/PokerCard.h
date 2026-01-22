@@ -53,13 +53,16 @@ struct CardData
     bool isRevealed = false;       // Whether card front is visible
     bool isSelected = false;       // Whether card has gold selection glow
     bool isPlaying = false;        // Whether audio is currently playing
+    bool isCorrectAnswer = false;  // Q&A mode: true when this is the correct answer (bright glow)
 
-    // Derived properties
+    // Random card face value (1-13: A,2,3,4,5,6,7,8,9,10,J,Q,K)
+    int cardValue = 1;             // 1=A, 2-10, 11=J, 12=Q, 13=K
+    int suitIndex = 0;             // 0=Spades, 1=Clubs, 2=Diamonds, 3=Hearts
+
+    // Get suit from suitIndex
     Suit getSuit() const
     {
-        // Cards 1-4: Spades, Clubs, Diamonds, Hearts
-        // Cards 5-8: repeat same pattern
-        switch (position % 4)
+        switch (suitIndex % 4)
         {
             case 0: return Suit::Spades;
             case 1: return Suit::Clubs;
@@ -69,13 +72,17 @@ struct CardData
         }
     }
 
-    // Get display number (1-8 mapped to A,2,3,4,5,6,7,8)
+    // Get display string for card value (A, 2-10, J, Q, K)
     juce::String getDisplayNumber() const
     {
-        int num = position + 1;
-        if (num == 1)
-            return "A";
-        return juce::String(num);
+        switch (cardValue)
+        {
+            case 1:  return "A";
+            case 11: return "J";
+            case 12: return "Q";
+            case 13: return "K";
+            default: return juce::String(cardValue);
+        }
     }
 };
 
@@ -124,7 +131,8 @@ struct CardData
  *   card.onClicked = [this]() { handleClick(); };
  */
 class PokerCard : public juce::Component,
-                  public juce::ChangeListener
+                  public juce::ChangeListener,
+                  public juce::FileDragAndDropTarget
 {
 public:
     //==========================================================================
@@ -140,6 +148,12 @@ public:
     std::function<void(int)> onRatingChanged;      // Stars mode: rating 0-5
     std::function<void(int)> onGuessChanged;       // Guess mode: track index
     std::function<void()> onQASelected;            // Q&A mode: selection
+
+    /** Standalone mode: Called when a file is dropped on the card */
+    std::function<void(const juce::File&)> onFileDropped;
+
+    /** Standalone mode: Called when remove button is clicked */
+    std::function<void()> onRemoveFileClicked;
 
     //==========================================================================
     /**
@@ -200,6 +214,38 @@ public:
     bool isPlaying() const { return cardData.isPlaying; }
 
     //==========================================================================
+    // Standalone mode support
+
+    /**
+     * Enable or disable standalone mode (file drag-drop).
+     * @param enabled true to enable file dropping
+     */
+    void setStandaloneMode(bool enabled);
+
+    /** Check if standalone mode is enabled */
+    bool isStandaloneMode() const { return standaloneMode; }
+
+    /**
+     * Set the loaded audio file info for display.
+     * @param file The loaded audio file (empty File if none)
+     * @param durationSeconds Duration of the file in seconds
+     */
+    void setLoadedAudioFile(const juce::File& file, double durationSeconds);
+
+    /** Get the loaded audio file */
+    const juce::File& getLoadedAudioFile() const { return loadedAudioFile; }
+
+    /** Check if this card has an audio file loaded */
+    bool hasAudioFileLoaded() const { return loadedAudioFile.existsAsFile(); }
+
+    //==========================================================================
+    // FileDragAndDropTarget overrides
+    bool isInterestedInFileDrag(const juce::StringArray& files) override;
+    void fileDragEnter(const juce::StringArray& files, int x, int y) override;
+    void fileDragExit(const juce::StringArray& files) override;
+    void filesDropped(const juce::StringArray& files, int x, int y) override;
+
+    //==========================================================================
     // Component overrides
     void paint(juce::Graphics& g) override;
     void resized() override;
@@ -215,8 +261,8 @@ public:
 
     //==========================================================================
     /** Standard dimensions */
-    static constexpr int kDefaultWidth = 140;
-    static constexpr int kDefaultHeight = 200;
+    static constexpr int kDefaultWidth = 120;
+    static constexpr int kDefaultHeight = 170;
     static constexpr int kCornerRadius = 8;
 
     // Card front colors
@@ -232,6 +278,13 @@ private:
     blindcard::GamePhase currentPhase = blindcard::GamePhase::Setup;
     bool isHovered = false;
 
+    // Standalone mode state
+    bool standaloneMode = false;
+    bool isDragHovering = false;
+    juce::File loadedAudioFile;
+    double audioDurationSeconds = 0.0;
+    juce::Rectangle<int> removeButtonBounds;
+
     //==========================================================================
     // Child components
     std::unique_ptr<StarRating> starRating;
@@ -244,6 +297,7 @@ private:
     AnimatedValue selectionGlow;       // 0.0 = none, 1.0 = full glow
     AnimatedValue playingPulse;        // Pulse animation for playing state
     AnimatedValue hoverGlow;           // Hover highlight
+    AnimatedValue correctAnswerGlow;   // Bright green glow for correct answer in Q&A
 
     // Animation constants
     static constexpr float kFlipDurationMs = 400.0f;
@@ -289,8 +343,19 @@ private:
 
     // Drawing helpers - Effects
     void drawSelectionGlow(juce::Graphics& g, juce::Rectangle<float> bounds, float glowAmount);
+    void drawPlayingGlow(juce::Graphics& g, juce::Rectangle<float> bounds, float pulseAmount);
     void drawPlayingIndicator(juce::Graphics& g, juce::Rectangle<float> bounds, float pulseAmount);
     void drawRevealFlash(juce::Graphics& g, juce::Rectangle<float> bounds, float flashAmount);
+    void drawCorrectAnswerGlow(juce::Graphics& g, juce::Rectangle<float> bounds, float glowAmount);
+
+    // Drawing helpers - Standalone mode
+    void drawEmptyCardState(juce::Graphics& g, juce::Rectangle<float> bounds);
+    void drawDragHoverOverlay(juce::Graphics& g, juce::Rectangle<float> bounds);
+    void drawLoadedAudioInfo(juce::Graphics& g, juce::Rectangle<float> bounds);
+    void drawRemoveButton(juce::Graphics& g, juce::Rectangle<float> bounds);
+
+    // Standalone mode helpers
+    bool isValidAudioFile(const juce::String& path) const;
 
     // Suit helpers
     juce::String getSuitSymbol(Suit suit) const;

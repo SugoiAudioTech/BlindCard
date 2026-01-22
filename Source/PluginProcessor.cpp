@@ -70,11 +70,17 @@ void BlindCardProcessor::prepareToPlay (double newSampleRate, int)
 {
     sampleRate = newSampleRate;
 
+    // 計算淡入淡出的增益步進量（每個 sample 的變化）
+    // 例如 10ms @ 44100Hz = 441 samples，所以 step = 1.0 / 441
+    float fadeSamples = static_cast<float> (sampleRate * kFadeTimeMs / 1000.0);
+    muteGainStep = 1.0f / fadeSamples;
+
     // 只在第一次 prepareToPlay 時註冊
     if (cardId < 0)
     {
-        // 使用空字串，讓 Manager 自動編號 (Track 1, Track 2, ...)
-        cardId = manager->registerInstance (this, {});
+        // 使用緩存的軌道名稱（如果 DAW 已經傳來）
+        // 如果沒有，Manager 會自動編號 (Track 1, Track 2, ...)
+        cardId = manager->registerInstance (this, cachedTrackName);
 
         if (cardId >= 0)
             manager->addChangeListener (this);
@@ -99,17 +105,10 @@ void BlindCardProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 {
     juce::ScopedNoDenormals noDenormals;
 
-    // 獨奏邏輯：如果應該靜音，清空 buffer
-    if (shouldMute.load())
-    {
-        buffer.clear();
-        return;
-    }
-
     const int numChannels = buffer.getNumChannels();
     const int numSamples = buffer.getNumSamples();
 
-    // LUFS 測量
+    // LUFS 測量（校準用）- 必須在靜音檢查之前，測量原始輸入信號
     if (measuring.load())
     {
         for (int ch = 0; ch < numChannels; ++ch)
@@ -133,11 +132,71 @@ void BlindCardProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         }
     }
 
-    // 應用增益補償
-    float gainLinear = currentGainLinear.load();
-    if (std::abs (gainLinear - 1.0f) > 0.0001f)
+    // 獨奏邏輯：設定目標增益（0=靜音, 1=正常播放）
+    targetMuteGain = shouldMute.load() ? 0.0f : 1.0f;
+
+    // 即時 RMS 計算（給 UI 顯示用）- 只計算未靜音的軌道
     {
-        buffer.applyGain (gainLinear);
+        float blockSumSquared = 0.0f;
+        for (int ch = 0; ch < numChannels; ++ch)
+        {
+            const float* data = buffer.getReadPointer (ch);
+            for (int i = 0; i < numSamples; ++i)
+                blockSumSquared += data[i] * data[i];
+        }
+        float blockRMS = std::sqrt (blockSumSquared / static_cast<float> (numSamples * numChannels));
+
+        // 指數平滑（避免跳動太快）
+        rmsSmoothed = rmsSmoothed + kRMSSmoothingCoeff * (blockRMS - rmsSmoothed);
+
+        // 轉換為 dB
+        float rmsDb = (rmsSmoothed > 1e-10f)
+            ? 20.0f * std::log10 (rmsSmoothed)
+            : -100.0f;
+        currentRMSdB = rmsDb;
+    }
+
+    // 應用增益：結合 Level-Match 補償增益和靜音淡入淡出
+    float gainLinear = currentGainLinear.load();
+
+    // 逐 sample 應用平滑的靜音增益（防止切換時爆音）
+    for (int ch = 0; ch < numChannels; ++ch)
+    {
+        float* data = buffer.getWritePointer (ch);
+
+        // 每個 channel 重置 muteGain 到 block 開頭的值（第一個 channel 時不重置）
+        float localMuteGain = muteGain;
+
+        for (int i = 0; i < numSamples; ++i)
+        {
+            // 平滑過渡到目標增益
+            if (localMuteGain < targetMuteGain)
+            {
+                localMuteGain += muteGainStep;
+                if (localMuteGain > targetMuteGain)
+                    localMuteGain = targetMuteGain;
+            }
+            else if (localMuteGain > targetMuteGain)
+            {
+                localMuteGain -= muteGainStep;
+                if (localMuteGain < targetMuteGain)
+                    localMuteGain = targetMuteGain;
+            }
+
+            // 應用總增益（Level-Match * 靜音淡入淡出）
+            data[i] *= gainLinear * localMuteGain;
+        }
+
+        // 只在第一個 channel 時更新成員變數
+        if (ch == 0)
+            muteGain = localMuteGain;
+    }
+
+    // 如果完全靜音，重置 RMS
+    if (muteGain < 0.0001f)
+    {
+        currentRMSdB = -100.0f;
+        rmsSmoothed = 0.0f;
     }
 }
 
@@ -148,15 +207,45 @@ juce::AudioProcessorEditor* BlindCardProcessor::createEditor()
     return new BlindCard::BlindCardEditor(*this);
 }
 
-void BlindCardProcessor::getStateInformation (juce::MemoryBlock&) {}
-void BlindCardProcessor::setStateInformation (const void*, int) {}
+void BlindCardProcessor::getStateInformation (juce::MemoryBlock& destData)
+{
+    // 儲存 Q&A 問題數設定
+    juce::ValueTree state ("BlindCardState");
+    state.setProperty ("qaQuestionCount", manager->getQAQuestionCount(), nullptr);
+
+    std::unique_ptr<juce::XmlElement> xml (state.createXml());
+    if (xml != nullptr)
+        copyXmlToBinary (*xml, destData);
+}
+
+void BlindCardProcessor::setStateInformation (const void* data, int sizeInBytes)
+{
+    // 載入 Q&A 問題數設定
+    std::unique_ptr<juce::XmlElement> xml (getXmlFromBinary (data, sizeInBytes));
+    if (xml != nullptr)
+    {
+        juce::ValueTree state = juce::ValueTree::fromXml (*xml);
+        if (state.isValid() && state.hasType ("BlindCardState"))
+        {
+            int qaCount = state.getProperty ("qaQuestionCount", 5);
+            manager->setQAQuestionCount (qaCount);
+        }
+    }
+}
 
 void BlindCardProcessor::updateTrackProperties (const TrackProperties& properties)
 {
-    // 當 DAW 傳來軌道名稱時，更新 Manager 中的卡牌名稱
-    if (cardId >= 0 && properties.name.has_value())
+    // 當 DAW 傳來軌道名稱時
+    if (properties.name.has_value())
     {
-        manager->setTrackName (cardId, *properties.name);
+        // 緩存名稱（以防 prepareToPlay 尚未被呼叫）
+        cachedTrackName = *properties.name;
+
+        // 如果已註冊，更新 Manager 中的卡牌名稱
+        if (cardId >= 0)
+        {
+            manager->setTrackName (cardId, cachedTrackName);
+        }
     }
 }
 

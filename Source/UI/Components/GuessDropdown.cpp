@@ -190,10 +190,10 @@ void GuessDropdown::drawText(juce::Graphics& g, juce::Rectangle<float> bounds)
 {
     auto textColour = getTextColour();
 
-    // Use muted color for placeholder
+    // Use muted (but still light) color for placeholder
     if (selectedIndex < 0)
     {
-        textColour = ThemeManager::getInstance().getColour(ColourId::TextMuted);
+        textColour = juce::Colour(0xFF6B7280);  // Muted gray that works on dark background
     }
 
     g.setColour(textColour);
@@ -320,8 +320,16 @@ void GuessDropdown::handleMenuResult(int result)
 //==============================================================================
 juce::Colour GuessDropdown::getBackgroundColour() const
 {
-    // Use #2A2A2A as specified, or fall back to theme surface
-    return juce::Colour(0xFF2A2A2A);
+    auto& theme = ThemeManager::getInstance();
+
+    if (theme.isDark())
+    {
+        return juce::Colour(0xFF2A2A2A);  // Dark background for dark theme
+    }
+    else
+    {
+        return juce::Colour(0xFF4A4A4A);  // Darker background for light theme (better contrast with white text)
+    }
 }
 
 juce::Colour GuessDropdown::getBorderColour() const
@@ -340,12 +348,14 @@ juce::Colour GuessDropdown::getBorderColour() const
 
 juce::Colour GuessDropdown::getTextColour() const
 {
-    return ThemeManager::getInstance().getColour(ColourId::TextPrimary);
+    // Always use white text for good contrast on the dark dropdown background
+    return juce::Colour(0xFFF5F5F0);
 }
 
 juce::Colour GuessDropdown::getArrowColour() const
 {
-    return ThemeManager::getInstance().getColour(ColourId::TextSecondary);
+    // Always use light arrow for good contrast on dark background
+    return juce::Colour(0xFF9CA3AF);
 }
 
 } // namespace BlindCard

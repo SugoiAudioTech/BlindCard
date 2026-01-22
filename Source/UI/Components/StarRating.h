@@ -101,8 +101,9 @@ public:
     static constexpr int kStarCount = 5;
     static constexpr int kStarSize = 20;
     static constexpr int kStarSpacing = 4;
-    static constexpr int kTotalWidth = kStarCount * kStarSize + (kStarCount - 1) * kStarSpacing;
-    static constexpr int kTotalHeight = kStarSize;
+    static constexpr int kBgPadding = 8;  // Padding around stars for background
+    static constexpr int kTotalWidth = kStarCount * kStarSize + (kStarCount - 1) * kStarSpacing + kBgPadding * 2;
+    static constexpr int kTotalHeight = kStarSize + kBgPadding;
 
 private:
     //==========================================================================

@@ -101,6 +101,29 @@ public:
     void clearFeedback();
 
     /**
+     * Sets the countdown value (3, 2, 1, 0).
+     * When > 0, displays countdown overlay.
+     * @param countdown Countdown value (0 = no countdown)
+     */
+    void setCountdown(int countdown);
+
+    /** Returns the current countdown value */
+    int getCountdown() const { return countdownValue; }
+
+    /**
+     * Sets the correct answer track name to display during reveal.
+     * @param trackName The correct answer track name
+     */
+    void setCorrectAnswer(const std::string& trackName);
+
+    /**
+     * Shows completion state with score and reset prompt.
+     * @param correct Number of correct answers
+     * @param total Total number of questions
+     */
+    void showCompletion(int correct, int total);
+
+    /**
      * Sets visibility with animation.
      * @param visible true to show, false to hide
      */
@@ -126,9 +149,16 @@ private:
     //==========================================================================
     // State
     std::string currentPluginName;
+    std::string correctAnswerName;         // 正確答案的軌道名
     int currentQuestion = 0;
     int totalQuestions = 0;
+    int countdownValue = 0;                // 倒數值 (3, 2, 1, 0)
     QAFeedback currentFeedback = QAFeedback::None;
+
+    // Completion state
+    bool isComplete = false;
+    int correctCount = 0;
+    int totalCount = 0;
 
     //==========================================================================
     // Animation values
@@ -162,6 +192,9 @@ private:
     void drawProgress(juce::Graphics& g, juce::Rectangle<float> bounds);
     void drawFeedbackGlow(juce::Graphics& g, juce::Rectangle<float> bounds);
     void drawFeedbackIcon(juce::Graphics& g, juce::Rectangle<float> bounds);
+    void drawCountdown(juce::Graphics& g, juce::Rectangle<float> bounds);
+    void drawCorrectAnswer(juce::Graphics& g, juce::Rectangle<float> bounds);
+    void drawCompletion(juce::Graphics& g, juce::Rectangle<float> bounds);
 
     // Animation utilities
     void startAnimationTimer();

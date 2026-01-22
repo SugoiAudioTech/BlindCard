@@ -108,6 +108,25 @@ void StarRating::setInteractive(bool interactive)
 void StarRating::paint(juce::Graphics& g)
 {
     auto& theme = ThemeManager::getInstance();
+    auto localBounds = getLocalBounds().toFloat();
+
+    // Draw dark pill-shaped background (matching original design)
+    float bgPadding = 8.0f;
+    float totalStarsWidth = static_cast<float>(kTotalWidth);
+    float bgWidth = totalStarsWidth + bgPadding * 2.0f;
+    float bgHeight = static_cast<float>(kStarSize) + bgPadding;
+    float bgX = (localBounds.getWidth() - bgWidth) / 2.0f;
+    float bgY = (localBounds.getHeight() - bgHeight) / 2.0f;
+
+    auto bgBounds = juce::Rectangle<float>(bgX, bgY, bgWidth, bgHeight);
+
+    // Dark background with rounded corners (pill shape)
+    g.setColour(juce::Colour(0xFF1A1A1A).withAlpha(0.9f));
+    g.fillRoundedRectangle(bgBounds, bgHeight / 2.0f);
+
+    // Subtle gold border
+    g.setColour(juce::Colour(0xFFD4AF37).withAlpha(0.4f));
+    g.drawRoundedRectangle(bgBounds, bgHeight / 2.0f, 1.0f);
 
     // Determine which rating to display (hover preview or actual)
     int displayRating = (isHovered && interactiveState && hoverRating > 0)

@@ -30,7 +30,8 @@ namespace BlindCard
 struct StarsResult
 {
     std::string trackName;
-    int rating = 0;  // 0-5 stars
+    int currentRating = 0;       // Rating for current round (1-5)
+    float averageRating = 0.0f;  // Average rating across all rounds (shown on Reveal)
     int cardPosition = 0;
 };
 
@@ -120,6 +121,15 @@ public:
     /** Returns the current mode */
     blindcard::RatingMode getMode() const { return currentMode; }
 
+    /**
+     * Sets the game phase (hides track names during BlindTesting).
+     * @param phase Setup, BlindTesting, or Revealed
+     */
+    void setPhase(blindcard::GamePhase phase);
+
+    /** Returns the current phase */
+    blindcard::GamePhase getPhase() const { return currentPhase; }
+
     //==========================================================================
     // Stars mode
 
@@ -168,6 +178,36 @@ public:
      */
     void clearResults();
 
+    /**
+     * Sets whether to show "Final Results" instead of "Current Round".
+     * @param showFinal true to show "Final Results" header
+     */
+    void setShowFinalResults(bool showFinal);
+
+    /**
+     * Sets the current round number and total rounds (for Guess mode tracking).
+     * @param current Current round number (1-based)
+     * @param total Total number of rounds
+     */
+    void setRoundInfo(int current, int total);
+
+    /**
+     * Accumulates the current round's guess results into cumulative totals.
+     * Call this after revealing results each round.
+     */
+    void accumulateGuessResults();
+
+    /**
+     * Resets cumulative tracking (call when starting new game).
+     */
+    void resetCumulativeTracking();
+
+    /**
+     * Sets the countdown value to display (0 = hide countdown).
+     * @param seconds Countdown seconds remaining (3, 2, 1, or 0 to hide)
+     */
+    void setCountdown(int seconds);
+
     //==========================================================================
     // Component overrides
     void paint(juce::Graphics& g) override;
@@ -185,6 +225,7 @@ private:
     //==========================================================================
     // State
     blindcard::RatingMode currentMode = blindcard::RatingMode::Stars;
+    blindcard::GamePhase currentPhase = blindcard::GamePhase::Setup;
 
     std::vector<StarsResult> starsResults;
     std::vector<GuessResult> guessResults;
@@ -192,6 +233,16 @@ private:
 
     bool guessResultsVisible = false;
     bool submitEnabled = true;
+    bool showFinalResults = false;
+
+    // Cumulative tracking for Guess mode
+    int totalCorrectGuesses = 0;
+    int totalGuessAttempts = 0;
+    int currentRoundNumber = 0;
+    int totalRounds = 1;
+
+    // Countdown display
+    int countdownSeconds = 0;  // 0 = hidden, 1-3 = show countdown
 
     //==========================================================================
     // Child components
@@ -201,7 +252,7 @@ private:
     // Drawing helpers - Stars mode
     void drawStarsResults(juce::Graphics& g, juce::Rectangle<float> bounds);
     void drawStarsRow(juce::Graphics& g, juce::Rectangle<float> bounds,
-                      const StarsResult& result);
+                      const StarsResult& result, bool isWinner);
 
     // Drawing helpers - Guess mode
     void drawGuessResults(juce::Graphics& g, juce::Rectangle<float> bounds);
