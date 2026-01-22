@@ -15,18 +15,18 @@ public:
     BlindCardManager();
     ~BlindCardManager() override;
 
-    // 實例註冊
+    // Instance registration
     int registerInstance (BlindCardProcessor* instance, const juce::String& trackName);
     void unregisterInstance (BlindCardProcessor* instance);
 
-    // 遊戲控制
+    // Game control
     void setTotalRounds (int rounds);
     void shuffle();
     void nextRound();
     void reveal();
     void reset();
 
-    // 卡牌操作
+    // Card operations
     void selectCard (int cardId);
     void deselectCard();
     void rateCard (int cardId, int stars);
@@ -34,7 +34,7 @@ public:
     void setTrackName (int cardId, const juce::String& name);
     void setGuess (int cardId, int guessedTrackId);
 
-    // 狀態查詢
+    // State queries
     GamePhase getPhase() const;
     int getCurrentRound() const;
     int getTotalRounds() const;
@@ -44,55 +44,55 @@ public:
     int getRegisteredCount() const;
     bool canJoinGame() const;
 
-    // 當前播放軌道資訊（給 UI 顯示用）
-    float getCurrentPlayingRMSdB() const;         // 當前選中卡片的即時 RMS
-    juce::String getCurrentPlayingTrackName() const;  // 當前選中卡片的軌道名
+    // Current playing track info (for UI display)
+    float getCurrentPlayingRMSdB() const;         // Real-time RMS of currently selected card
+    juce::String getCurrentPlayingTrackName() const;  // Track name of currently selected card
 
-    // Bypass 控制
+    // Bypass control
     void setBypassAll (bool bypass);
     bool isBypassAll() const;
 
-    // 評分模式
+    // Rating mode
     void setRatingMode (RatingMode mode);
     RatingMode getRatingMode() const;
 
-    // Q&A 模式
+    // Q&A mode
     void submitQAAnswer (int selectedCardId);
     void nextQAQuestion();
-    void tickQACountdown();           // 倒數計時 tick（由 UI 每秒呼叫）
-    void skipQACountdown();           // 跳過倒數直接下一題
+    void tickQACountdown();           // Countdown tick (called by UI every second)
+    void skipQACountdown();           // Skip countdown and go to next question
     const QAState& getQAState() const;
     juce::String getCurrentQuestionTrackName() const;
     bool canStartQAMode() const;
     int getQAMaxQuestions() const;
-    int getQACorrectAnswerCardId() const;  // 取得當前正確答案的卡牌 ID
-    void setQAQuestionCount (int count);   // 設定 Q&A 問題數（用戶選擇）
-    int getQAQuestionCount() const;        // 取得 Q&A 問題數設定
+    int getQACorrectAnswerCardId() const;  // Get current correct answer card ID
+    void setQAQuestionCount (int count);   // Set Q&A question count (user selection)
+    int getQAQuestionCount() const;        // Get Q&A question count setting
 
-    // Level Matching - 校準流程
-    void startCalibration();              // 開始校準（重置測量數據）
-    void lockCalibration();               // 鎖定校準結果
+    // Level Matching - Calibration flow
+    void startCalibration();              // Start calibration (reset measurement data)
+    void lockCalibration();               // Lock calibration results
     void setLevelMatchEnabled (bool enabled);
     bool isLevelMatchEnabled() const;
-    bool isCalibrating() const;           // 是否正在校準中
-    bool isCalibrated() const;            // 是否已完成校準
-    std::pair<int, int> getCalibrationProgress() const;  // 回傳 (已測量數, 總數)
-    float getCalibrationTimeRemaining() const;           // 回傳剩餘秒數
+    bool isCalibrating() const;           // Whether calibration is in progress
+    bool isCalibrated() const;            // Whether calibration is complete
+    std::pair<int, int> getCalibrationProgress() const;  // Returns (measured count, total count)
+    float getCalibrationTimeRemaining() const;           // Returns remaining seconds
 
-    // Level Matching - 內部使用
+    // Level Matching - Internal use
     void setMeasuredLUFS (int cardId, float lufs);
     void setManualGain (int cardId, float gainDb);
-    void recalculateAutoGains();          // 使用中位數基準計算
+    void recalculateAutoGains();          // Calculate using median as reference
     float getGainForCard (int cardId) const;
     void resetLevelMatching();
 
-    // 測試用：加入假卡牌（Standalone 測試動畫用）
+    // Testing: Add test cards (for Standalone animation testing)
     void addTestCards (int count = 4);
 
-    // 測試用：設定卡牌數量（會清除並重建）
+    // Testing: Set card count (will clear and rebuild)
     void setTestCardCount (int count);
 
-    // Standalone 模式：不自動分配軌道名稱
+    // Standalone mode: Don't auto-assign track names
     void setStandaloneMode (bool enabled);
     bool isStandaloneMode() const { return standaloneMode; }
 
@@ -101,15 +101,15 @@ private:
     juce::Array<BlindCardProcessor*> instances;
     mutable juce::CriticalSection lock;
     bool bypassAll = false;
-    bool standaloneMode = false;  // Standalone 模式不自動分配軌道名稱
-    RatingMode ratingMode = RatingMode::Stars;  // 預設為星等模式
+    bool standaloneMode = false;  // Standalone mode doesn't auto-assign track names
+    RatingMode ratingMode = RatingMode::Stars;  // Default to star rating mode
 
-    // Level Matching 狀態
-    bool levelMatchEnabled_ = false;      // 是否啟用 Level-Match（預設關閉）
-    bool calibrating_ = false;            // 是否正在校準中
-    bool calibrated_ = false;             // 是否已完成校準並鎖定
-    juce::int64 calibrationStartTime_ = 0; // 校準開始時間 (ms)
-    static constexpr float kCalibrationDuration = 10.0f; // 校準時間 (秒)
+    // Level Matching state
+    bool levelMatchEnabled_ = false;      // Whether Level-Match is enabled (default off)
+    bool calibrating_ = false;            // Whether calibration is in progress
+    bool calibrated_ = false;             // Whether calibration is complete and locked
+    juce::int64 calibrationStartTime_ = 0; // Calibration start time (ms)
+    static constexpr float kCalibrationDuration = 10.0f; // Calibration duration (seconds)
 
     void notifyListeners();
     void selectNextQAQuestion();
@@ -117,7 +117,7 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BlindCardManager)
 };
 
-// SharedResourcePointer 會自動管理生命週期
+// SharedResourcePointer automatically manages lifecycle
 using SharedBlindCardManager = juce::SharedResourcePointer<BlindCardManager>;
 
 } // namespace blindcard

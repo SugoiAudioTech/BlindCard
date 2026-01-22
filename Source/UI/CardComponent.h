@@ -9,24 +9,24 @@ namespace blindcard
 {
 
 /**
- * 選中狀態枚舉
- * 用於區分主選/副選/未選中
+ * Selection state enum
+ * Used to distinguish primary/secondary/unselected
  */
 enum class SelectionState
 {
-    None,      // 未選中
-    Primary,   // 主選：alpha 0.8
-    Secondary  // 副選：alpha 0.38-0.40
+    None,      // Not selected
+    Primary,   // Primary selection: alpha 0.8
+    Secondary  // Secondary selection: alpha 0.38-0.40
 };
 
 /**
- * 翻牌狀態枚舉
+ * Flip state enum
  */
 enum class FlipState
 {
-    FaceDown,   // 背面朝上
-    Flipping,   // 翻牌動畫中
-    FaceUp      // 正面朝上
+    FaceDown,   // Face down
+    Flipping,   // Flip animation in progress
+    FaceUp      // Face up
 };
 
 class CardComponent final : public juce::Component,
@@ -48,17 +48,17 @@ public:
 
     void setTrackNames (const juce::StringArray& names);
 
-    // 選中狀態控制（主選/副選/無）
+    // Selection state control (primary/secondary/none)
     void setSelectionState (SelectionState state);
     SelectionState getSelectionState() const { return selectionState; }
 
-    // 翻牌動畫控制
+    // Flip animation control
     void startFlip();
     void setFlipped (bool flipped, bool animate = true);
     bool isFlipped() const { return flipState == FlipState::FaceUp; }
     bool isFlipping() const { return flipState == FlipState::Flipping; }
 
-    // 光暈閃爍控制（翻牌時觸發）
+    // Glow flash control (triggered when flipping)
     void triggerGlowFlash();
 
     void paint (juce::Graphics&) override;
@@ -66,23 +66,23 @@ public:
     void mouseDown (const juce::MouseEvent&) override;
     bool keyPressed (const juce::KeyPress& key) override;
 
-    // KeyListener - 攔截 TextEditor 的空白鍵，讓 DAW 可以播放/暫停
+    // KeyListener - Intercept spacebar from TextEditor, allow DAW to play/pause
     bool keyPressed (const juce::KeyPress& key, juce::Component* originatingComponent) override;
 
-    // Timer callback 用於動畫更新
+    // Timer callback for animation updates
     void timerCallback() override;
 
-    // Debug 參數存取（供 Debug Panel 使用）
+    // Debug parameter access (for Debug Panel use)
     struct DebugParams
     {
-        float transitionDuration = 150.0f;   // 選中過渡時間 ms
-        float flipDuration = 300.0f;         // 翻牌動畫時間 ms
-        float flashDuration = 200.0f;        // 光暈閃爍時間 ms
-        float glowAlphaPrimary = 0.8f;       // 主選光暈透明度
-        float glowAlphaSecondary = 0.38f;    // 副選光暈透明度（已棄用，改用 MultiCardConfig.subAlpha）
-        float glowAlphaIdle = 0.3f;          // 選中態常駐光暈透明度
-        float glowScale = 1.3f;              // 光暈尺寸倍數
-        bool useEaseOut = true;              // 使用 ease-out 曲線
+        float transitionDuration = 150.0f;   // Selection transition duration ms
+        float flipDuration = 300.0f;         // Flip animation duration ms
+        float flashDuration = 200.0f;        // Glow flash duration ms
+        float glowAlphaPrimary = 0.8f;       // Primary selection glow alpha
+        float glowAlphaSecondary = 0.38f;    // Secondary selection glow alpha (deprecated, use MultiCardConfig.subAlpha)
+        float glowAlphaIdle = 0.3f;          // Idle selection glow alpha
+        float glowScale = 1.3f;              // Glow size multiplier
+        bool useEaseOut = true;              // Use ease-out curve
     };
 
     static DebugParams& getDebugParams()
@@ -92,21 +92,21 @@ public:
     }
 
     /**
-     * 多卡場景動態調整配置
-     * 根據卡牌數量自動調整間距、光暈半徑、副選透明度
-     * 維持主副選約 2:1 的視覺辨識度
+     * Multi-card scene dynamic configuration
+     * Auto-adjusts spacing, glow radius, secondary alpha based on card count
+     * Maintains ~2:1 visual distinction between primary and secondary selection
      */
     struct MultiCardConfig
     {
-        float spacingScale;      // 間距縮放比例 (1.0 = 100%)
-        float glowRadiusScale;   // 光暈半徑縮放比例 (1.0 = 100%)
-        float subAlpha;          // 副選透明度
+        float spacingScale;      // Spacing scale ratio (1.0 = 100%)
+        float glowRadiusScale;   // Glow radius scale ratio (1.0 = 100%)
+        float subAlpha;          // Secondary selection alpha
     };
 
     /**
-     * 根據卡牌數量取得對應的動態配置
-     * 4-6 張: 100%/85% 間距, 100%/85% 光暈, 0.38 副選
-     * 7-8 張: 80%/75% 間距, 82%/80% 光暈, 0.40 副選
+     * Get dynamic configuration based on card count
+     * 4-6 cards: 100%/85% spacing, 100%/85% glow, 0.38 secondary
+     * 7-8 cards: 80%/75% spacing, 82%/80% glow, 0.40 secondary
      */
     static MultiCardConfig getMultiCardConfig (int numCards)
     {
@@ -120,7 +120,7 @@ public:
             return { 0.75f, 0.80f, 0.40f };
     }
 
-    // 設定當前多卡配置（由 Editor 調用）
+    // Set current multi-card configuration (called by Editor)
     void setMultiCardConfig (const MultiCardConfig& config);
     const MultiCardConfig& getCurrentMultiCardConfig() const { return currentMultiCardConfig; }
 
@@ -132,26 +132,26 @@ private:
     GamePhase currentPhase = GamePhase::Setup;
     RatingMode currentRatingMode = RatingMode::Stars;
 
-    // 選中狀態
+    // Selection state
     SelectionState selectionState = SelectionState::None;
 
-    // 翻牌動畫狀態
+    // Flip animation state
     FlipState flipState = FlipState::FaceDown;
-    AnimatedValue flipProgress { 0.0f };  // 0 = 背面, 1 = 正面
+    AnimatedValue flipProgress { 0.0f };  // 0 = back, 1 = front
 
-    // 光暈動畫狀態
-    AnimatedValue glowAlpha { 0.0f };     // 當前光暈透明度
-    bool isFlashActive = false;           // 是否在閃爍中
-    float flashPhase = 0.0f;              // 閃爍動畫進度 (0-1)
+    // Glow animation state
+    AnimatedValue glowAlpha { 0.0f };     // Current glow alpha
+    bool isFlashActive = false;           // Whether flash is active
+    float flashPhase = 0.0f;              // Flash animation progress (0-1)
 
-    // 多卡場景配置
+    // Multi-card scene configuration
     MultiCardConfig currentMultiCardConfig { 1.0f, 1.0f, 0.38f };
 
-    // 光暈顏色
-    juce::Colour glowColorWarm { 0xFFFFD700 };   // 暖金：翻牌閃爍用
-    juce::Colour glowColorCool { 0xFFFFF8E1 };   // 白金：選中態用
+    // Glow colors
+    juce::Colour glowColorWarm { 0xFFFFD700 };   // Warm gold: for flip flash
+    juce::Colour glowColorCool { 0xFFFFF8E1 };   // Cool white-gold: for selection state
 
-    // 動畫計時
+    // Animation timing
     juce::int64 lastUpdateTime = 0;
 
     juce::TextButton starButtons[5];
@@ -173,16 +173,16 @@ private:
     void updateGuessComboBox();
     void updateQAButton();
 
-    // 繪製函式（三層架構）
+    // Paint functions (three-layer architecture)
     void paintCardBase (juce::Graphics& g, const juce::Rectangle<float>& bounds);
     void paintGlowLayer (juce::Graphics& g, const juce::Rectangle<float>& bounds);
     void paintGoldBorder (juce::Graphics& g, const juce::Rectangle<float>& bounds);
     void paintCardContent (juce::Graphics& g, const juce::Rectangle<float>& bounds);
 
-    // 計算翻牌 transform
+    // Calculate flip transform
     juce::AffineTransform getFlipTransform (const juce::Rectangle<float>& bounds) const;
 
-    // 更新光暈目標透明度
+    // Update glow target alpha
     void updateGlowTarget();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CardComponent)

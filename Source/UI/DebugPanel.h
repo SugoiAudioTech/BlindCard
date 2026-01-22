@@ -7,22 +7,22 @@ namespace blindcard
 {
 
 /**
- * Debug Panel 元件
- * 按 D 鍵可切換顯示
- * 用於即時調整動畫參數
+ * Debug Panel component
+ * Press D key to toggle display
+ * Used for real-time animation parameter adjustment
  */
 class DebugPanel final : public juce::Component
 {
 public:
     DebugPanel()
     {
-        // 標題
+        // Title
         titleLabel.setText ("Debug Panel (Press D to toggle)", juce::dontSendNotification);
         titleLabel.setFont (juce::Font (14.0f).boldened());
         titleLabel.setColour (juce::Label::textColourId, juce::Colours::yellow);
         addAndMakeVisible (titleLabel);
 
-        // 過渡時間
+        // Transition time
         transitionLabel.setText ("Transition (ms):", juce::dontSendNotification);
         addAndMakeVisible (transitionLabel);
         transitionSlider.setRange (50.0, 500.0, 10.0);
@@ -34,7 +34,7 @@ public:
         };
         addAndMakeVisible (transitionSlider);
 
-        // 翻牌時間
+        // Flip time
         flipLabel.setText ("Flip Duration (ms):", juce::dontSendNotification);
         addAndMakeVisible (flipLabel);
         flipSlider.setRange (100.0, 800.0, 10.0);
@@ -46,7 +46,7 @@ public:
         };
         addAndMakeVisible (flipSlider);
 
-        // 閃爍時間
+        // Flash time
         flashLabel.setText ("Flash Duration (ms):", juce::dontSendNotification);
         addAndMakeVisible (flashLabel);
         flashSlider.setRange (50.0, 500.0, 10.0);
@@ -58,7 +58,7 @@ public:
         };
         addAndMakeVisible (flashSlider);
 
-        // 主選光暈透明度
+        // Primary glow alpha
         glowPrimaryLabel.setText ("Glow Alpha Primary:", juce::dontSendNotification);
         addAndMakeVisible (glowPrimaryLabel);
         glowPrimarySlider.setRange (0.0, 1.0, 0.05);
@@ -70,7 +70,7 @@ public:
         };
         addAndMakeVisible (glowPrimarySlider);
 
-        // 副選光暈透明度
+        // Secondary glow alpha
         glowSecondaryLabel.setText ("Glow Alpha Secondary:", juce::dontSendNotification);
         addAndMakeVisible (glowSecondaryLabel);
         glowSecondarySlider.setRange (0.0, 1.0, 0.05);
@@ -82,7 +82,7 @@ public:
         };
         addAndMakeVisible (glowSecondarySlider);
 
-        // 常駐光暈透明度
+        // Idle glow alpha
         glowIdleLabel.setText ("Glow Alpha Idle:", juce::dontSendNotification);
         addAndMakeVisible (glowIdleLabel);
         glowIdleSlider.setRange (0.0, 1.0, 0.05);
@@ -94,7 +94,7 @@ public:
         };
         addAndMakeVisible (glowIdleSlider);
 
-        // 光暈尺寸
+        // Glow scale
         glowScaleLabel.setText ("Glow Scale:", juce::dontSendNotification);
         addAndMakeVisible (glowScaleLabel);
         glowScaleSlider.setRange (1.0, 2.0, 0.05);
@@ -106,7 +106,7 @@ public:
         };
         addAndMakeVisible (glowScaleSlider);
 
-        // Ease-out 開關
+        // Ease-out toggle
         easeOutToggle.setButtonText ("Use Ease-Out Curve");
         easeOutToggle.setToggleState (CardComponent::getDebugParams().useEaseOut, juce::dontSendNotification);
         easeOutToggle.onClick = [this]()
@@ -115,7 +115,7 @@ public:
         };
         addAndMakeVisible (easeOutToggle);
 
-        // 測試按鈕
+        // Test buttons
         testFlipButton.setButtonText ("Test Flip Animation");
         testFlipButton.onClick = [this]()
         {
@@ -140,7 +140,7 @@ public:
         };
         addAndMakeVisible (addTestCardsButton);
 
-        // 自動截圖按鈕
+        // Auto screenshot button
         autoScreenshotButton.setButtonText ("Auto Screenshot (4,6,7,8)");
         autoScreenshotButton.setColour (juce::TextButton::buttonColourId, juce::Colours::darkgreen);
         autoScreenshotButton.onClick = [this]()
@@ -198,7 +198,7 @@ public:
         autoScreenshotButton.setBounds (bounds.removeFromTop (30));
     }
 
-    // 回調函式（供 Editor 連接）
+    // Callback functions (for Editor to connect)
     std::function<void()> onTestFlip;
     std::function<void()> onTestGlow;
     std::function<void()> onAddTestCards;

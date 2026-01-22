@@ -1,28 +1,28 @@
-# Claude 操作規範
+# Claude Operating Guidelines
 
-## 絕對禁止的操作
+## Absolutely Prohibited Operations
 
-以下操作**絕對不可以在未經用戶明確同意的情況下執行**：
+The following operations **must never be executed without explicit user consent**:
 
-1. **不要刪除 AU Cache**
+1. **Do not delete AU Cache**
    - `~/Library/Caches/AudioUnitCache`
-   - 這會導致所有 DAW 需要重新掃描插件，浪費大量時間
+   - This causes all DAWs to rescan plugins, wasting significant time
 
-2. **不要刪除 User Preferences**
+2. **Do not delete User Preferences**
    - `~/Library/Preferences/`
-   - 這會導致應用程式設定遺失
+   - This causes application settings to be lost
 
-3. **不要刪除任何系統快取或設定檔**
-   - 除非用戶明確要求並同意
+3. **Do not delete any system caches or configuration files**
+   - Unless the user explicitly requests and agrees
 
-## 正確的做法
+## Correct Approach
 
-如果需要讓 DAW 重新讀取插件：
-- 告訴用戶手動重新掃描（Logic Pro: Preferences > Plug-in Manager > Reset & Rescan）
-- **不要自動刪除快取**
+If you need DAW to re-read plugins:
+- Tell the user to manually rescan (Logic Pro: Preferences > Plug-in Manager > Reset & Rescan)
+- **Do not automatically delete caches**
 
-## 記住
+## Remember
 
-- 永遠先詢問，再執行破壞性操作
-- 刪除任何檔案前都要確認
-- 系統檔案和快取不是我們可以隨意處理的
+- Always ask before executing destructive operations
+- Confirm before deleting any files
+- System files and caches are not ours to handle arbitrarily

@@ -188,13 +188,13 @@ private:
     //==========================================================================
     // State
     std::vector<std::string> trackNames;
-    bool autoGainEnabled = false;  // 預設關閉
+    bool autoGainEnabled = false;  // Default off
     bool calibratingStatus = false;
     bool calibratedStatus = false;
-    float calibrationTimeRemaining = 0.0f;  // 剩餘秒數
+    float calibrationTimeRemaining = 0.0f;  // Remaining seconds
     int currentRound = 1;  // 1-based current round number
-    bool isQAModeActive = false;  // 是否為 Q&A 模式
-    bool isStandaloneModeActive = false;  // 是否為 Standalone 模式（隱藏 Level-Match）
+    bool isQAModeActive = false;  // Whether Q&A mode is active
+    bool isStandaloneModeActive = false;  // Whether Standalone mode (hides Level-Match)
 
     // Layout constants
     static constexpr int sliderWidth = 100;
@@ -202,7 +202,7 @@ private:
     //==========================================================================
     // Child components
     std::unique_ptr<juce::Slider> roundsSlider;
-    std::unique_ptr<juce::Slider> qaQuestionsSlider;  // Q&A 問題數滑桿
+    std::unique_ptr<juce::Slider> qaQuestionsSlider;  // Q&A question count slider
     std::unique_ptr<juce::ToggleButton> autoGainToggle;
 
     std::unique_ptr<ChipButton> shuffleButton;
