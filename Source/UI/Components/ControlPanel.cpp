@@ -9,6 +9,7 @@
 */
 
 #include "ControlPanel.h"
+#include "../Theme/FontManager.h"
 
 namespace BlindCard
 {
@@ -41,9 +42,18 @@ void ControlPanel::CustomSliderLookAndFeel::drawLinearSlider(
     auto thumbBounds = juce::Rectangle<float>(thumbSize, thumbSize)
                            .withCentre({ sliderPos, bounds.getCentreY() });
 
+    // Thumb shadow (for depth)
+    g.setColour(juce::Colours::black.withAlpha(0.15f));
+    g.fillEllipse(thumbBounds.translated(0.0f, 1.0f));
+
     // Thumb body
     g.setColour(juce::Colours::white);
     g.fillEllipse(thumbBounds);
+
+    // Thumb border (for visibility in light mode)
+    bool isDark = tm.isDark();
+    g.setColour(isDark ? juce::Colours::white.withAlpha(0.3f) : juce::Colours::black.withAlpha(0.25f));
+    g.drawEllipse(thumbBounds, 1.0f);
 }
 
 //==============================================================================
@@ -109,6 +119,21 @@ ControlPanel::ControlPanel()
     };
     addAndMakeVisible(*roundsSlider);
 
+    // Create Q&A questions slider (only visible in Q&A mode)
+    qaQuestionsSlider = std::make_unique<juce::Slider>(juce::Slider::LinearHorizontal,
+                                                        juce::Slider::NoTextBox);
+    qaQuestionsSlider->setRange(1.0, 8.0, 1.0);
+    qaQuestionsSlider->setValue(5.0);  // 預設 5 題
+    qaQuestionsSlider->setLookAndFeel(sliderLookAndFeel.get());
+    qaQuestionsSlider->onValueChange = [this]()
+    {
+        if (onQAQuestionsChanged)
+            onQAQuestionsChanged(static_cast<int>(qaQuestionsSlider->getValue()));
+        repaint();
+    };
+    addAndMakeVisible(*qaQuestionsSlider);
+    qaQuestionsSlider->setVisible(false);  // Hidden by default
+
     // Create auto gain toggle (no text - we draw it ourselves)
     autoGainToggle = std::make_unique<juce::ToggleButton>();
     autoGainToggle->setToggleState(true, juce::dontSendNotification);
@@ -161,6 +186,8 @@ ControlPanel::~ControlPanel()
 {
     ThemeManager::getInstance().removeChangeListener(this);
     roundsSlider->setLookAndFeel(nullptr);
+    if (qaQuestionsSlider)
+        qaQuestionsSlider->setLookAndFeel(nullptr);
     autoGainToggle->setLookAndFeel(nullptr);
 }
 
@@ -182,10 +209,59 @@ int ControlPanel::getRounds() const
     return static_cast<int>(roundsSlider->getValue());
 }
 
+void ControlPanel::setStandaloneMode(bool standalone)
+{
+    isStandaloneModeActive = standalone;
+
+    // Level-Match toggle is now always visible (works in both DAW and Standalone modes)
+    autoGainToggle->setVisible(true);
+
+    resized();
+    repaint();
+}
+
 void ControlPanel::setAutoGain(bool enabled)
 {
     autoGainEnabled = enabled;
     autoGainToggle->setToggleState(enabled, juce::dontSendNotification);
+    repaint();
+}
+
+void ControlPanel::setCalibrationStatus(bool calibrating, bool calibrated, float timeRemaining)
+{
+    calibratingStatus = calibrating;
+    calibratedStatus = calibrated;
+    calibrationTimeRemaining = timeRemaining;
+    repaint();
+}
+
+void ControlPanel::setQAQuestions(int count)
+{
+    if (qaQuestionsSlider)
+        qaQuestionsSlider->setValue(static_cast<double>(count), juce::dontSendNotification);
+    repaint();
+}
+
+int ControlPanel::getQAQuestions() const
+{
+    if (qaQuestionsSlider)
+        return static_cast<int>(qaQuestionsSlider->getValue());
+    return 5;
+}
+
+void ControlPanel::setQAMode(bool isQA)
+{
+    isQAModeActive = isQA;
+    if (qaQuestionsSlider)
+        qaQuestionsSlider->setVisible(isQA);
+    resized();
+    repaint();
+}
+
+void ControlPanel::setCurrentRound(int round)
+{
+    currentRound = round;
+    repaint();
 }
 
 //==============================================================================
@@ -238,70 +314,62 @@ void ControlPanel::paint(juce::Graphics& g)
 
     contentBounds.removeFromTop(16.0f);  // Gap
 
-    // Auto gain row
-    auto autoGainRow = contentBounds.removeFromTop(40.0f);
-    drawAutoGainRow(g, autoGainRow);
+    // Auto gain row (skip in Standalone mode - Level-Match doesn't work without DAW)
+    if (!isStandaloneModeActive)
+    {
+        auto autoGainRow = contentBounds.removeFromTop(40.0f);
+        drawAutoGainRow(g, autoGainRow);
+    }
 }
 
 void ControlPanel::drawInfoRow(juce::Graphics& g, juce::Rectangle<float> bounds)
 {
     auto& tm = ThemeManager::getInstance();
-
-    // Use system sans-serif font for clean modern look
-    auto sansSerif = juce::Font::getDefaultSansSerifFontName();
+    auto& fonts = FontManager::getInstance();
 
     // Left section: Current Tracks
     auto leftSection = bounds.removeFromLeft(bounds.getWidth() * 0.35f);
 
     // Music note icon
     g.setColour(tm.getColour(ColourId::Primary));
-    g.setFont(juce::Font(sansSerif, 16.0f, juce::Font::plain));
+    g.setFont(fonts.getRegular(18.0f));
     auto iconBounds = leftSection.removeFromLeft(24.0f);
     g.drawText(juce::String::fromUTF8("♪"), iconBounds, juce::Justification::centred);
 
     leftSection.removeFromLeft(8.0f);  // Gap
 
-    // "Current Tracks" label
-    g.setColour(tm.getColour(ColourId::TextSecondary));
-    g.setFont(juce::Font(sansSerif, 13.0f, juce::Font::plain));
-    auto labelBounds = leftSection.removeFromLeft(100.0f);
-    g.drawText("Current Tracks", labelBounds, juce::Justification::centredLeft);
+    // "TRACKS" label - Casino style: Bebas Neue, uppercase
+    g.setColour(tm.getColour(ColourId::TextMuted));
+    g.setFont(fonts.getBebasNeue(14.0f));
+    auto labelBounds = leftSection.removeFromLeft(60.0f);
+    g.drawText("TRACKS", labelBounds, juce::Justification::centredLeft);
 
-    // Track count in gold circle
+    // Track count - Casino style: Bebas Neue
     int trackCount = static_cast<int>(trackNames.size());
     if (trackCount == 0) trackCount = 4;  // Default display
 
-    auto countBounds = leftSection.removeFromLeft(28.0f).reduced(2.0f);
-    g.setColour(tm.getColour(ColourId::Accent));
-    g.fillEllipse(countBounds);
-    g.setColour(juce::Colours::black);
-    g.setFont(juce::Font(sansSerif, 12.0f, juce::Font::bold));
-    g.drawText(juce::String(trackCount), countBounds, juce::Justification::centred);
+    g.setColour(tm.getColour(ColourId::TextPrimary));
+    g.setFont(fonts.getBebasNeue(22.0f));
+    auto countBounds = leftSection.removeFromLeft(30.0f);
+    g.drawText(juce::String(trackCount), countBounds, juce::Justification::centredLeft);
 
     bounds.removeFromLeft(24.0f);  // Gap
 
-    // Right section: Rounds
-    // Hash icon
-    g.setColour(tm.getColour(ColourId::TextSecondary));
-    g.setFont(juce::Font(sansSerif, 14.0f, juce::Font::bold));
-    auto hashBounds = bounds.removeFromLeft(20.0f);
-    g.drawText("#", hashBounds, juce::Justification::centred);
-
-    bounds.removeFromLeft(4.0f);  // Gap
-
-    // "Rounds" label
-    g.setFont(juce::Font(sansSerif, 13.0f, juce::Font::plain));
-    auto roundsLabelBounds = bounds.removeFromLeft(50.0f);
-    g.drawText("Rounds", roundsLabelBounds, juce::Justification::centredLeft);
+    // Right section: Rounds (or Questions in Q&A mode)
+    // "ROUNDS" / "QUESTIONS" label - Casino style: Bebas Neue
+    g.setColour(tm.getColour(ColourId::TextMuted));
+    g.setFont(fonts.getBebasNeue(14.0f));
+    auto roundsLabelBounds = bounds.removeFromLeft(75.0f);
+    juce::String labelText = isQAModeActive ? "QUESTIONS" : "ROUNDS";
+    g.drawText(labelText, roundsLabelBounds, juce::Justification::centredLeft);
 
     // Slider area is handled in resized()
     bounds.removeFromLeft(sliderWidth + 16.0f);
 
-    // Round counter (e.g., "1/3")
-    int currentRound = 1;  // This would come from manager
+    // Round counter (e.g., "1/3") - Casino style: Cinzel Art Deco font
     int totalRounds = static_cast<int>(roundsSlider->getValue());
     g.setColour(tm.getColour(ColourId::TextPrimary));
-    g.setFont(juce::Font(sansSerif, 13.0f, juce::Font::plain));
+    g.setFont(fonts.getCasinoTitle(24.0f));  // Cinzel Bold - Art Deco luxury feel
     g.drawText(juce::String(currentRound) + "/" + juce::String(totalRounds),
                bounds, juce::Justification::centredRight);
 }
@@ -309,9 +377,7 @@ void ControlPanel::drawInfoRow(juce::Graphics& g, juce::Rectangle<float> bounds)
 void ControlPanel::drawAutoGainRow(juce::Graphics& g, juce::Rectangle<float> bounds)
 {
     auto& tm = ThemeManager::getInstance();
-
-    // Use system sans-serif font
-    auto sansSerif = juce::Font::getDefaultSansSerifFontName();
+    auto& fonts = FontManager::getInstance();
 
     // Background bar
     g.setColour(tm.getColour(ColourId::SurfaceAlt));
@@ -321,16 +387,60 @@ void ControlPanel::drawAutoGainRow(juce::Graphics& g, juce::Rectangle<float> bou
 
     // Speaker icon
     g.setColour(tm.getColour(ColourId::TextSecondary));
-    g.setFont(juce::Font(sansSerif, 16.0f, juce::Font::plain));
+    g.setFont(fonts.getRegular(18.0f));
     auto iconBounds = contentBounds.removeFromLeft(24.0f);
     g.drawText(juce::String::fromUTF8("🔊"), iconBounds, juce::Justification::centred);
 
     contentBounds.removeFromLeft(8.0f);  // Gap
 
-    // "Auto Gain" label
-    g.setColour(tm.getColour(ColourId::TextPrimary));
-    g.setFont(juce::Font(sansSerif, 14.0f, juce::Font::plain));
-    g.drawText("Auto Gain", contentBounds, juce::Justification::centredLeft);
+    // "LEVEL-MATCH" label - Casino style: Bebas Neue
+    g.setColour(tm.getColour(ColourId::TextMuted));
+    g.setFont(fonts.getBebasNeue(14.0f));
+    auto labelBounds = contentBounds.removeFromLeft(100.0f);
+    g.drawText("LEVEL-MATCH", labelBounds, juce::Justification::centredLeft);
+
+    // Status indicator (between label and toggle)
+    // Reserve space for toggle on the right (60px)
+    auto statusArea = contentBounds.withTrimmedRight(60.0f);
+
+    if (autoGainEnabled)
+    {
+        if (calibratingStatus)
+        {
+            // Calibrating: show pulsing dot and time remaining
+            float dotSize = 8.0f;
+            auto dotBounds = statusArea.removeFromLeft(dotSize + 8.0f);
+
+            // Pulsing effect using time
+            float pulse = 0.5f + 0.5f * std::sin(static_cast<float>(juce::Time::currentTimeMillis()) * 0.005f);
+            g.setColour(tm.getColour(ColourId::Primary).withAlpha(0.5f + pulse * 0.5f));
+            g.fillEllipse(dotBounds.getCentreX() - dotSize / 2.0f,
+                          dotBounds.getCentreY() - dotSize / 2.0f,
+                          dotSize, dotSize);
+
+            // "Detecting..." text with time
+            g.setColour(tm.getColour(ColourId::Primary));
+            g.setFont(fonts.getBebasNeue(12.0f));
+            juce::String statusText = "Detecting...";
+            if (calibrationTimeRemaining > 0.0f)
+                statusText = juce::String::formatted("%.1fs", calibrationTimeRemaining);
+            g.drawText(statusText, statusArea, juce::Justification::centredLeft);
+        }
+        else if (calibratedStatus)
+        {
+            // Calibrated: show checkmark
+            g.setColour(tm.getColour(ColourId::Success));
+            g.setFont(fonts.getBebasNeue(12.0f));
+            g.drawText(juce::String::fromUTF8("✓ READY"), statusArea, juce::Justification::centredLeft);
+        }
+        else
+        {
+            // Enabled but waiting for audio
+            g.setColour(tm.getColour(ColourId::TextMuted));
+            g.setFont(fonts.getBebasNeue(12.0f));
+            g.drawText("WAITING...", statusArea, juce::Justification::centredLeft);
+        }
+    }
 
     // Toggle is handled in resized()
 }
@@ -345,37 +455,46 @@ void ControlPanel::resized()
 
     // Position rounds slider within info row
     auto sliderArea = infoRow;
-    sliderArea.removeFromLeft(static_cast<int>(infoRow.getWidth() * 0.35f) + 24 + 20 + 4 + 50 + 8);  // Skip left section
+    sliderArea.removeFromLeft(static_cast<int>(infoRow.getWidth() * 0.35f) + 24 + 75 + 8);  // Skip left section + label
     sliderArea.removeFromRight(50);  // Leave space for counter
     sliderArea = sliderArea.withSizeKeepingCentre(sliderWidth, 20);
     roundsSlider->setBounds(sliderArea);
 
     contentBounds.removeFromTop(16);  // Gap
 
-    // Auto gain row
-    auto autoGainRow = contentBounds.removeFromTop(40);
-    auto toggleArea = autoGainRow.removeFromRight(60).reduced(8, 8);
-    autoGainToggle->setBounds(toggleArea);
-
-    contentBounds.removeFromTop(20);  // Gap
+    // Auto gain row (skip in Standalone mode)
+    if (!isStandaloneModeActive)
+    {
+        auto autoGainRow = contentBounds.removeFromTop(40);
+        auto toggleArea = autoGainRow.removeFromRight(60).reduced(8, 8);
+        autoGainToggle->setBounds(toggleArea);
+        contentBounds.removeFromTop(20);  // Gap
+    }
 
     // Button area
     auto buttonArea = contentBounds;
 
-    // Count visible buttons
-    int visibleButtons = 0;
-    if (shuffleButton->isVisible()) visibleButtons++;
-    if (revealButton->isVisible()) visibleButtons++;
-    if (resetButton->isVisible()) visibleButtons++;
-    if (nextRoundButton->isVisible()) visibleButtons++;
-
-    if (visibleButtons == 0) visibleButtons = 2;  // Default to REVEAL and RESET
-
     int buttonSize = ChipButton::kTotalWidth;
     int buttonGap = 24;
-    int totalButtonsWidth = visibleButtons * buttonSize + (visibleButtons - 1) * buttonGap;
-    int startX = buttonArea.getCentreX() - totalButtonsWidth / 2;
     int buttonY = buttonArea.getCentreY() - ChipButton::kTotalHeight / 2;
+
+    // RESET always on the left
+    int resetX = buttonArea.getX();
+    resetButton->setBounds(resetX, buttonY, buttonSize, ChipButton::kTotalHeight);
+
+    // Count other visible buttons (SHUFFLE, REVEAL, NEXT)
+    int otherButtons = 0;
+    if (shuffleButton->isVisible()) otherButtons++;
+    if (revealButton->isVisible()) otherButtons++;
+    if (nextRoundButton->isVisible()) otherButtons++;
+
+    if (otherButtons == 0) otherButtons = 1;  // At least REVEAL
+
+    // Center the other buttons in remaining space
+    int otherButtonsWidth = otherButtons * buttonSize + (otherButtons - 1) * buttonGap;
+    int remainingAreaStart = resetX + buttonSize + buttonGap;
+    int remainingAreaWidth = buttonArea.getRight() - remainingAreaStart;
+    int startX = remainingAreaStart + (remainingAreaWidth - otherButtonsWidth) / 2;
 
     int currentX = startX;
 
@@ -386,9 +505,6 @@ void ControlPanel::resized()
     }
 
     revealButton->setBounds(currentX, buttonY, buttonSize, ChipButton::kTotalHeight);
-    currentX += buttonSize + buttonGap;
-
-    resetButton->setBounds(currentX, buttonY, buttonSize, ChipButton::kTotalHeight);
     currentX += buttonSize + buttonGap;
 
     if (nextRoundButton->isVisible())

@@ -34,6 +34,7 @@ QuestionBanner::~QuestionBanner()
 void QuestionBanner::setQuestion(const std::string& pluginName)
 {
     currentPluginName = pluginName;
+    isComplete = false;  // Reset completion state when new question is set
     clearFeedback();
     repaint();
 }
@@ -63,6 +64,30 @@ void QuestionBanner::clearFeedback()
 {
     currentFeedback = QAFeedback::None;
     feedbackGlow.setImmediate(0.0f);
+    countdownValue = 0;
+    correctAnswerName.clear();
+    repaint();
+}
+
+void QuestionBanner::setCountdown(int countdown)
+{
+    countdownValue = countdown;
+    repaint();
+}
+
+void QuestionBanner::setCorrectAnswer(const std::string& trackName)
+{
+    correctAnswerName = trackName;
+    repaint();
+}
+
+void QuestionBanner::showCompletion(int correct, int total)
+{
+    isComplete = true;
+    correctCount = correct;
+    totalCount = total;
+    currentFeedback = QAFeedback::None;
+    countdownValue = 0;
     repaint();
 }
 
@@ -147,20 +172,41 @@ void QuestionBanner::paint(juce::Graphics& g)
     // Draw content
     auto contentBounds = bounds.reduced(16.0f, 8.0f);
 
-    // Draw feedback icon on the left if feedback is shown
-    if (currentFeedback != QAFeedback::None)
+    // Handle completion state
+    if (isComplete)
     {
-        auto iconArea = contentBounds.removeFromLeft(32.0f);
-        drawFeedbackIcon(g, iconArea);
-        contentBounds.removeFromLeft(8.0f);
+        drawCompletion(g, contentBounds);
     }
+    else
+    {
+        // Draw feedback icon on the left if feedback is shown
+        if (currentFeedback != QAFeedback::None)
+        {
+            auto iconArea = contentBounds.removeFromLeft(32.0f);
+            drawFeedbackIcon(g, iconArea);
+            contentBounds.removeFromLeft(8.0f);
+        }
 
-    // Draw progress on the right
-    auto progressArea = contentBounds.removeFromRight(100.0f);
-    drawProgress(g, progressArea);
+        // If showing countdown, display correct answer and countdown
+        if (countdownValue > 0)
+        {
+            // Draw countdown on the right
+            auto countdownArea = contentBounds.removeFromRight(60.0f);
+            drawCountdown(g, countdownArea);
 
-    // Draw question in the remaining space
-    drawQuestion(g, contentBounds);
+            // Draw correct answer in the center
+            drawCorrectAnswer(g, contentBounds);
+        }
+        else
+        {
+            // Draw progress on the right
+            auto progressArea = contentBounds.removeFromRight(100.0f);
+            drawProgress(g, progressArea);
+
+            // Draw question in the remaining space
+            drawQuestion(g, contentBounds);
+        }
+    }
 
     g.restoreState();
 }
@@ -265,6 +311,69 @@ void QuestionBanner::drawFeedbackIcon(juce::Graphics& g, juce::Rectangle<float> 
     g.setColour(iconColor);
     g.setFont(juce::Font(18.0f, juce::Font::bold));
     g.drawText(iconText, iconBounds, juce::Justification::centred);
+}
+
+void QuestionBanner::drawCountdown(juce::Graphics& g, juce::Rectangle<float> bounds)
+{
+    auto& tm = ThemeManager::getInstance();
+
+    // Draw countdown number with large font
+    juce::String countdownText = juce::String(countdownValue);
+
+    // Use accent color for countdown
+    g.setColour(tm.getColour(ColourId::Accent));
+    g.setFont(juce::Font(24.0f, juce::Font::bold));
+    g.drawText(countdownText, bounds, juce::Justification::centred);
+}
+
+void QuestionBanner::drawCorrectAnswer(juce::Graphics& g, juce::Rectangle<float> bounds)
+{
+    auto& tm = ThemeManager::getInstance();
+
+    // Show "Answer: [Track Name]" with emphasis
+    juce::String answerText = "Answer: " + juce::String(correctAnswerName);
+
+    // Use success/error color based on feedback
+    juce::Colour textColor = tm.getColour(ColourId::TextPrimary);
+    if (currentFeedback == QAFeedback::Correct)
+        textColor = tm.getColour(ColourId::Success);
+    else if (currentFeedback == QAFeedback::Wrong)
+        textColor = tm.getColour(ColourId::Error);
+
+    g.setColour(textColor);
+    g.setFont(juce::Font(16.0f, juce::Font::bold));
+    g.drawText(answerText, bounds, juce::Justification::centredLeft);
+}
+
+void QuestionBanner::drawCompletion(juce::Graphics& g, juce::Rectangle<float> bounds)
+{
+    auto& tm = ThemeManager::getInstance();
+
+    // Calculate score percentage for color
+    float scorePercent = totalCount > 0 ? static_cast<float>(correctCount) / static_cast<float>(totalCount) : 0.0f;
+
+    // Choose color based on score
+    juce::Colour scoreColor;
+    if (scorePercent >= 0.8f)
+        scoreColor = tm.getColour(ColourId::Success);  // Green for 80%+
+    else if (scorePercent >= 0.5f)
+        scoreColor = tm.getColour(ColourId::Accent);   // Accent for 50%+
+    else
+        scoreColor = tm.getColour(ColourId::Error);    // Red for below 50%
+
+    // Draw score on the left
+    juce::String scoreText = "Score: " + juce::String(correctCount) + "/" + juce::String(totalCount);
+    g.setColour(scoreColor);
+    g.setFont(juce::Font(18.0f, juce::Font::bold));
+
+    auto scoreArea = bounds.removeFromLeft(bounds.getWidth() * 0.4f);
+    g.drawText(scoreText, scoreArea, juce::Justification::centredLeft);
+
+    // Draw reset prompt on the right
+    juce::String resetText = "Press Reset to play again";
+    g.setColour(tm.getColour(ColourId::TextSecondary));
+    g.setFont(juce::Font(14.0f));
+    g.drawText(resetText, bounds, juce::Justification::centredRight);
 }
 
 void QuestionBanner::resized()

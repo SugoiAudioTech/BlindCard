@@ -132,6 +132,31 @@ public:
     void shuffleCards();
 
     //==========================================================================
+    // Selection
+
+    /**
+     * Sets the selected card (gold glow).
+     * @param index Card index, or -1 to deselect all
+     */
+    void setSelectedCard(int index);
+
+    /** Returns the currently selected card index, or -1 if none */
+    int getSelectedCard() const { return selectedCardIndex; }
+
+    //==========================================================================
+    // Standalone mode
+
+    /**
+     * Enables or disables standalone mode for all cards.
+     * In standalone mode, cards accept file drag-drop.
+     * @param enabled true to enable standalone mode
+     */
+    void setStandaloneMode(bool enabled);
+
+    /** Returns true if standalone mode is enabled */
+    bool isStandaloneMode() const { return standaloneMode; }
+
+    //==========================================================================
     // Callbacks (forwarded from cards)
     std::function<void(int)> onCardClicked;               // card index
     std::function<void(int, int)> onCardRatingChanged;    // card index, rating
@@ -160,6 +185,8 @@ private:
     blindcard::RatingMode currentMode = blindcard::RatingMode::Stars;
     blindcard::GamePhase currentPhase = blindcard::GamePhase::Setup;
     std::vector<std::string> trackList;
+    int selectedCardIndex = -1;
+    bool standaloneMode = false;
 
     //==========================================================================
     // Child components

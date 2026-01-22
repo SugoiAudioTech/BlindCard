@@ -98,7 +98,7 @@ namespace Light
     inline const juce::Colour Error             { 0xFFDC2626 };
 
     // Components
-    inline const juce::Colour SliderTrack       { 0xFFD4D4D4 };
+    inline const juce::Colour SliderTrack       { 0xFF8A8A8A };  // Darker for visibility on light bg
     inline const juce::Colour SliderFill        { 0xFFC41E3A };
     inline const juce::Colour ToggleOff         { 0xFFD4D4D4 };
     inline const juce::Colour ToggleOn          { 0xFFC41E3A };

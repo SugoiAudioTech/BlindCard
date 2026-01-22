@@ -11,6 +11,7 @@
 */
 
 #include "HeaderBar.h"
+#include "../Theme/FontManager.h"
 
 namespace BlindCard
 {
@@ -20,33 +21,38 @@ namespace BlindCard
 namespace Layout
 {
     // Logo area
-    constexpr int logoSize = 40;
+    constexpr int logoSize = 44;
     constexpr int logoLeftMargin = 16;
-    constexpr float logoCornerRadius = 8.0f;
+    constexpr float logoCornerRadius = 10.0f;
 
     // Brand text
-    constexpr int brandLeftMargin = 12;
-    constexpr float brandNameFontSize = 18.0f;
-    constexpr float sugoiFontSize = 10.0f;
+    constexpr int brandLeftMargin = 14;
+    constexpr float brandNameFontSize = 24.0f;
+    constexpr float sugoiFontSize = 16.0f;
 
     // Connection status capsule
-    constexpr int capsuleWidth = 130;
-    constexpr int capsuleHeight = 28;
-    constexpr float capsuleCornerRadius = 14.0f;
-    constexpr int statusDotSize = 8;
+    constexpr int capsuleWidth = 160;
+    constexpr int capsuleHeight = 36;
+    constexpr float capsuleCornerRadius = 18.0f;
+    constexpr int statusDotSize = 10;
 
     // Right controls
     constexpr int controlRightMargin = 16;
     constexpr int controlSpacing = 8;
 
-    // Theme toggle (pill shape)
-    constexpr int toggleWidth = 44;
-    constexpr int toggleHeight = 24;
-    constexpr float toggleCornerRadius = 12.0f;
+    // Theme toggle (now just an icon, same size as other icon buttons)
+    constexpr int toggleWidth = 32;
+    constexpr int toggleHeight = 32;
+    constexpr float toggleCornerRadius = 6.0f;
 
     // Icon buttons
     constexpr int iconButtonSize = 32;
     constexpr float iconButtonCornerRadius = 6.0f;
+
+    // Reset chip button
+    constexpr int resetButtonWidth = 60;
+    constexpr int resetButtonHeight = 26;
+    constexpr float resetChipCornerRadius = 13.0f;
 }
 
 //==============================================================================
@@ -66,40 +72,47 @@ HeaderBar::~HeaderBar()
 }
 
 //==============================================================================
-void HeaderBar::setConnected(bool connected)
+void HeaderBar::setStandaloneMode(bool enabled)
 {
-    if (connectionStatus != connected)
+    if (standaloneMode != enabled)
     {
-        connectionStatus = connected;
-
-        if (connected)
-        {
-            // Start pulse animation
-            pulsePhase = 0.0f;
-            startTimer(kTimerIntervalMs);
-        }
-        else
-        {
-            // Stop pulse animation
-            stopTimer();
-        }
-
+        standaloneMode = enabled;
+        resized();
         repaint();
     }
+}
+
+void HeaderBar::setCurrentTrackInfo(float rmsDb, const juce::String& trackName)
+{
+    // In standalone mode, don't update track info (TransportBar handles this)
+    if (standaloneMode)
+        return;
+
+    currentRMSdB = rmsDb;
+    currentTrackName = trackName;
+
+    // Start timer for continuous repaint (level meter needs smooth updates)
+    if (!isTimerRunning())
+        startTimer(kTimerIntervalMs);
+
+    repaint(trackInfoBounds);
 }
 
 //==============================================================================
 void HeaderBar::paint(juce::Graphics& g)
 {
     auto& theme = ThemeManager::getInstance();
+    bool isDark = theme.isDark();
     auto bounds = getLocalBounds().toFloat();
 
-    // Background
-    g.setColour(theme.getColour(ColourId::Surface));
+    // Background - Original: #0A0A0A (dark) / #F5F0E8 (light)
+    juce::Colour bgColor = isDark ? juce::Colour(0xFF0A0A0A) : juce::Colour(0xFFF5F0E8);
+    g.setColour(bgColor);
     g.fillRect(bounds);
 
-    // Subtle bottom border
-    g.setColour(theme.getColour(ColourId::SurfaceAlt));
+    // Bottom border - Original: #2A2A2A (dark) / #D4C9B8 (light)
+    juce::Colour borderColor = isDark ? juce::Colour(0xFF2A2A2A) : juce::Colour(0xFFD4C9B8);
+    g.setColour(borderColor);
     g.fillRect(bounds.removeFromBottom(1.0f));
 
     // Draw components
@@ -110,10 +123,13 @@ void HeaderBar::paint(juce::Graphics& g)
     // Brand text (to the right of logo)
     float brandX = logoX + Layout::logoSize + Layout::brandLeftMargin;
     float brandY = logoY;
-    drawBrandText(g, { brandX, brandY, 120.0f, static_cast<float>(Layout::logoSize) });
+    drawBrandText(g, { brandX, brandY, 150.0f, static_cast<float>(Layout::logoSize) });
 
-    // Connection status (centered)
-    drawConnectionStatus(g, connectionStatusBounds.toFloat());
+    // Track info (centered) - hidden in standalone mode (TransportBar shows playback info)
+    if (!standaloneMode)
+    {
+        drawTrackInfo(g, trackInfoBounds.toFloat());
+    }
 
     // Right controls
     drawThemeToggle(g, themeToggleBounds.toFloat(), currentHover == HoverState::ThemeToggle);
@@ -128,9 +144,10 @@ void HeaderBar::resized()
     auto centerY = bounds.getCentreY();
 
     // Calculate right-side button positions (from right to left)
+    // 順序：說明 | 深淺切換 | 設定
     int rightEdge = bounds.getWidth() - Layout::controlRightMargin;
 
-    // Settings button
+    // Settings button (最右邊)
     settingsButtonBounds = {
         rightEdge - Layout::iconButtonSize,
         centerY - Layout::iconButtonSize / 2,
@@ -139,29 +156,29 @@ void HeaderBar::resized()
     };
     rightEdge = settingsButtonBounds.getX() - Layout::controlSpacing;
 
-    // Info button
-    infoButtonBounds = {
-        rightEdge - Layout::iconButtonSize,
-        centerY - Layout::iconButtonSize / 2,
-        Layout::iconButtonSize,
-        Layout::iconButtonSize
-    };
-    rightEdge = infoButtonBounds.getX() - Layout::controlSpacing;
-
-    // Theme toggle
+    // Theme toggle (中間)
     themeToggleBounds = {
         rightEdge - Layout::toggleWidth,
         centerY - Layout::toggleHeight / 2,
         Layout::toggleWidth,
         Layout::toggleHeight
     };
-    rightEdge = themeToggleBounds.getX() - Layout::controlSpacing * 2;
+    rightEdge = themeToggleBounds.getX() - Layout::controlSpacing;
 
-    // Connection status (positioned between brand and controls)
-    connectionStatusBounds = {
-        rightEdge - Layout::capsuleWidth,
+    // Info button (最左邊)
+    infoButtonBounds = {
+        rightEdge - Layout::iconButtonSize,
+        centerY - Layout::iconButtonSize / 2,
+        Layout::iconButtonSize,
+        Layout::iconButtonSize
+    };
+
+    // Track info (centered in the header, wider to fit NOW PLAYING + RMS + track name)
+    int trackInfoWidth = 360;  // Wider to fit all sections
+    trackInfoBounds = {
+        bounds.getCentreX() - trackInfoWidth / 2,
         centerY - Layout::capsuleHeight / 2,
-        Layout::capsuleWidth,
+        trackInfoWidth,
         Layout::capsuleHeight
     };
 }
@@ -228,22 +245,23 @@ void HeaderBar::timerCallback()
     if (pulsePhase >= 1.0f)
         pulsePhase -= 1.0f;
 
-    // Only repaint the connection status area for efficiency
-    repaint(connectionStatusBounds);
+    // Only repaint the track info area for efficiency
+    repaint(trackInfoBounds);
 }
 
 //==============================================================================
 void HeaderBar::drawLogo(juce::Graphics& g, juce::Rectangle<float> bounds)
 {
     auto& theme = ThemeManager::getInstance();
+    bool isDark = theme.isDark();
 
-    // Red gradient background
-    juce::Colour gradientTop = theme.getColour(ColourId::Primary);
-    juce::Colour gradientBottom = gradientTop.darker(0.2f);
+    // Red gradient background - Original: #FF3B4E to #B82D3A (dark) / #C41E3A to #8B1528 (light)
+    juce::Colour gradientTop = isDark ? juce::Colour(0xFFFF3B4E) : juce::Colour(0xFFC41E3A);
+    juce::Colour gradientBottom = isDark ? juce::Colour(0xFFB82D3A) : juce::Colour(0xFF8B1528);
 
     juce::ColourGradient gradient(
         gradientTop, bounds.getX(), bounds.getY(),
-        gradientBottom, bounds.getX(), bounds.getBottom(),
+        gradientBottom, bounds.getRight(), bounds.getBottom(),
         false);
 
     g.setGradientFill(gradient);
@@ -251,111 +269,127 @@ void HeaderBar::drawLogo(juce::Graphics& g, juce::Rectangle<float> bounds)
 
     // White spade symbol
     g.setColour(juce::Colours::white);
-    g.setFont(juce::Font(24.0f));
+    g.setFont(juce::Font(juce::FontOptions().withHeight(24.0f)));
 
     // Draw spade symbol centered
     g.drawText(juce::String::charToString(0x2660), // Unicode spade
                bounds.toNearestInt(),
                juce::Justification::centred);
+
+    // Gold accent dot removed per user request
 }
 
 void HeaderBar::drawBrandText(juce::Graphics& g, juce::Rectangle<float> bounds)
 {
     auto& theme = ThemeManager::getInstance();
+    bool isDark = theme.isDark();
 
-    // "BlindCard" in red, bold
-    g.setColour(theme.getColour(ColourId::Primary));
-    g.setFont(juce::Font(Layout::brandNameFontSize, juce::Font::bold));
+    // Original: "Blind" in white/black, "Card" in red
+    juce::Colour textColor = isDark ? juce::Colour(0xFFF5F5F0) : juce::Colour(0xFF1A1A1A);
+    juce::Colour redColor = isDark ? juce::Colour(0xFFFF3B4E) : juce::Colour(0xFFC41E3A);
+    juce::Colour mutedColor = isDark ? juce::Colour(0xFF606060) : juce::Colour(0xFF8B8B8B);
 
     auto nameArea = bounds.removeFromTop(bounds.getHeight() * 0.6f);
-    g.drawText("BlindCard", nameArea, juce::Justification::centredLeft);
 
-    // "BY SUGOI AUDIO" in gray
-    g.setColour(theme.getColour(ColourId::TextMuted));
-    g.setFont(juce::Font(Layout::sugoiFontSize));
-    g.drawText("BY SUGOI AUDIO", bounds, juce::Justification::centredLeft);
+    // Calculate text widths for proper positioning - Cinzel Bold for casino style
+    auto& fonts = FontManager::getInstance();
+    auto brandFont = fonts.getCinzelBold(Layout::brandNameFontSize);
+    g.setFont(brandFont);
+
+    float blindWidth = 60.0f;  // Approximate width for "Blind"
+    float cardWidth = 50.0f;   // Approximate width for "Card"
+
+    // Draw "Blind" in white/black
+    g.setColour(textColor);
+    auto blindArea = nameArea.withWidth(blindWidth);
+    g.drawText("Blind", blindArea, juce::Justification::centredLeft);
+
+    // Draw "Card" in red
+    g.setColour(redColor);
+    auto cardArea = nameArea.withX(nameArea.getX() + blindWidth).withWidth(cardWidth);
+    g.drawText("Card", cardArea, juce::Justification::centredLeft);
+
+    // "by Sugoi Audio" in muted color - clean readable style
+    g.setColour(mutedColor);
+    g.setFont(fonts.getMedium(Layout::sugoiFontSize));
+    g.drawText("by Sugoi Audio", bounds, juce::Justification::centredLeft);
 }
 
-void HeaderBar::drawConnectionStatus(juce::Graphics& g, juce::Rectangle<float> bounds)
+void HeaderBar::drawTrackInfo(juce::Graphics& g, juce::Rectangle<float> bounds)
 {
     auto& theme = ThemeManager::getInstance();
+    auto& fonts = FontManager::getInstance();
+    bool isDark = theme.isDark();
 
-    // Dark capsule background
-    g.setColour(theme.isDark() ? juce::Colour(0xFF1A1A1A) : juce::Colour(0xFFE8E8E8));
+    // Capsule background - Original: #2D2815 (dark) / #FDF6E3 (light)
+    juce::Colour bgColor = isDark ? juce::Colour(0xFF2D2815) : juce::Colour(0xFFFDF6E3);
+    g.setColour(bgColor);
     g.fillRoundedRectangle(bounds, Layout::capsuleCornerRadius);
+
+    // Capsule border - Original: rgba(212, 175, 55, 0.3) dark / 0.5 light
+    juce::Colour borderColor = isDark
+        ? juce::Colour(0xFFD4AF37).withAlpha(0.3f)
+        : juce::Colour(0xFFD4AF37).withAlpha(0.5f);
+    g.setColour(borderColor);
+    g.drawRoundedRectangle(bounds.reduced(0.5f), Layout::capsuleCornerRadius, 1.0f);
 
     // Content area with padding
     auto contentArea = bounds.reduced(12.0f, 0.0f);
 
-    // Headphone icon (using a simple shape)
-    auto iconArea = contentArea.removeFromLeft(16.0f);
-    g.setColour(theme.getColour(ColourId::TextSecondary));
+    // Colors
+    juce::Colour goldColor = isDark ? juce::Colour(0xFFFFD700) : juce::Colour(0xFFD4AF37);
+    juce::Colour textColor = isDark ? juce::Colour(0xFFD4AF37) : juce::Colour(0xFF9C7E25);
 
-    // Draw simplified headphone icon
-    float iconCenterX = iconArea.getCentreX();
-    float iconCenterY = iconArea.getCentreY();
-    float iconRadius = 6.0f;
+    // Format: Now Playing | 軌道名稱 | dB
 
-    // Headband arc
-    juce::Path headband;
-    headband.addCentredArc(iconCenterX, iconCenterY + 2.0f,
-                           iconRadius, iconRadius,
-                           0.0f,
-                           -juce::MathConstants<float>::pi,
-                           0.0f,
-                           true);
-    g.strokePath(headband, juce::PathStrokeType(1.5f));
+    // "Now Playing" section (left side)
+    auto nowPlayingArea = contentArea.removeFromLeft(90.0f);
+    g.setColour(goldColor);
+    g.setFont(fonts.getBebasNeue(14.0f));
+    g.drawText("NOW PLAYING", nowPlayingArea, juce::Justification::centred);
 
-    // Ear cups
-    g.fillEllipse(iconCenterX - iconRadius - 2.0f, iconCenterY, 4.0f, 6.0f);
-    g.fillEllipse(iconCenterX + iconRadius - 2.0f, iconCenterY, 4.0f, 6.0f);
+    // Vertical separator line
+    contentArea.removeFromLeft(8.0f);
+    auto separatorArea = contentArea.removeFromLeft(1.0f);
+    g.setColour(borderColor);
+    g.fillRect(separatorArea.reduced(0.0f, 6.0f));
+    contentArea.removeFromLeft(8.0f);
 
-    // Status text
-    contentArea.removeFromLeft(6.0f); // Spacing
-    auto textArea = contentArea.removeFromLeft(70.0f);
+    // Track name (middle section)
+    auto trackNameArea = contentArea.removeFromLeft(140.0f);
+    g.setFont(fonts.getBebasNeue(14.0f));
+    g.setColour(textColor);
 
-    g.setFont(juce::Font(12.0f));
-    g.setColour(theme.getColour(ColourId::TextSecondary));
-    g.drawText(connectionStatus ? "Connected" : "No Connection",
-               textArea,
-               juce::Justification::centredLeft);
-
-    // Status dot
-    if (connectionStatus)
+    if (currentTrackName.isEmpty())
     {
-        // Calculate pulse alpha (sine wave: 0.4 to 1.0)
-        float pulseAlpha = 0.4f + 0.6f * (0.5f + 0.5f * std::sin(pulsePhase * juce::MathConstants<float>::twoPi));
-
-        // Gold dot with pulse
-        juce::Colour goldColour = theme.getColour(ColourId::Accent);
-        g.setColour(goldColour.withAlpha(pulseAlpha));
-
-        float dotX = contentArea.getRight() - Layout::statusDotSize - 4.0f;
-        float dotY = bounds.getCentreY() - Layout::statusDotSize / 2.0f;
-
-        g.fillEllipse(dotX, dotY,
-                      static_cast<float>(Layout::statusDotSize),
-                      static_cast<float>(Layout::statusDotSize));
-
-        // Glow effect when at peak brightness
-        if (pulseAlpha > 0.8f)
-        {
-            g.setColour(goldColour.withAlpha((pulseAlpha - 0.8f) * 0.5f));
-            g.fillEllipse(dotX - 2.0f, dotY - 2.0f,
-                          static_cast<float>(Layout::statusDotSize + 4),
-                          static_cast<float>(Layout::statusDotSize + 4));
-        }
+        g.drawText("NO TRACK", trackNameArea, juce::Justification::centred);
     }
     else
     {
-        // Gray dot when disconnected
-        g.setColour(theme.getColour(ColourId::TextMuted));
-        float dotX = contentArea.getRight() - Layout::statusDotSize - 4.0f;
-        float dotY = bounds.getCentreY() - Layout::statusDotSize / 2.0f;
-        g.fillEllipse(dotX, dotY,
-                      static_cast<float>(Layout::statusDotSize),
-                      static_cast<float>(Layout::statusDotSize));
+        g.drawText(currentTrackName.toUpperCase(), trackNameArea, juce::Justification::centred);
     }
+
+    // Vertical separator line
+    contentArea.removeFromLeft(6.0f);
+    auto separator2Area = contentArea.removeFromLeft(1.0f);
+    g.setColour(borderColor);
+    g.fillRect(separator2Area.reduced(0.0f, 6.0f));
+    contentArea.removeFromLeft(8.0f);
+
+    // RMS display (right side)
+    juce::String rmsText;
+    if (currentRMSdB <= -60.0f)
+    {
+        rmsText = "-- dB";
+    }
+    else
+    {
+        rmsText = juce::String(currentRMSdB, 1) + " dB";
+    }
+
+    g.setFont(fonts.getBebasNeue(14.0f));
+    g.setColour(goldColor);
+    g.drawText(rmsText, contentArea, juce::Justification::centred);
 }
 
 void HeaderBar::drawThemeToggle(juce::Graphics& g, juce::Rectangle<float> bounds, bool isHovered)
@@ -363,113 +397,166 @@ void HeaderBar::drawThemeToggle(juce::Graphics& g, juce::Rectangle<float> bounds
     auto& theme = ThemeManager::getInstance();
     bool isDark = theme.isDark();
 
-    // Toggle background
-    juce::Colour bgColour = isDark
-        ? juce::Colour(0xFF2A2A2A)
-        : juce::Colour(0xFFE0E0E0);
-
+    // Draw hover background with shadow (AirCheck style)
     if (isHovered)
-        bgColour = bgColour.brighter(0.1f);
+    {
+        // Expand bounds for background
+        auto bgBounds = bounds.expanded(4.0f);
 
-    g.setColour(bgColour);
-    g.fillRoundedRectangle(bounds, Layout::toggleCornerRadius);
+        // Shadow (subtle drop shadow)
+        g.setColour(juce::Colours::black.withAlpha(0.15f));
+        g.fillRoundedRectangle(bgBounds.translated(0.0f, 2.0f), 10.0f);
 
-    // Knob position (left for light mode, right for dark mode)
-    float knobDiameter = bounds.getHeight() - 4.0f;
-    float knobX = isDark
-        ? bounds.getRight() - knobDiameter - 2.0f
-        : bounds.getX() + 2.0f;
-    float knobY = bounds.getY() + 2.0f;
+        // Background
+        juce::Colour bgColor = isDark ? juce::Colour(0xFF2A2A2A) : juce::Colour(0xFFEEEEEE);
+        g.setColour(bgColor);
+        g.fillRoundedRectangle(bgBounds, 10.0f);
+    }
 
-    // Knob with glow when in dark mode
-    juce::Rectangle<float> knobBounds(knobX, knobY, knobDiameter, knobDiameter);
+    // Golden/yellow color for sun and moon
+    juce::Colour iconColor = juce::Colour(0xFFFFD700);  // Gold
+
+    // Icon size and position
+    float iconSize = 22.0f;
+    auto iconBounds = bounds.withSizeKeepingCentre(iconSize, iconSize);
 
     if (isDark)
     {
-        // Red glow effect
-        juce::Colour glowColour = theme.getColour(ColourId::Primary).withAlpha(0.4f);
-        g.setColour(glowColour);
-        g.fillEllipse(knobBounds.expanded(3.0f));
+        // Dark mode: show SUN icon (to switch to light)
+        // Draw sun with rays
+        float centerX = iconBounds.getCentreX();
+        float centerY = iconBounds.getCentreY();
+        float sunRadius = 6.0f;
+        float rayLength = 4.0f;
+        float rayOffset = sunRadius + 2.0f;
+
+        // Sun body (filled circle)
+        g.setColour(iconColor);
+        g.fillEllipse(centerX - sunRadius, centerY - sunRadius, sunRadius * 2.0f, sunRadius * 2.0f);
+
+        // Sun rays (8 rays)
+        g.setColour(iconColor);
+        for (int i = 0; i < 8; ++i)
+        {
+            float angle = static_cast<float>(i) * juce::MathConstants<float>::pi / 4.0f;
+            float x1 = centerX + rayOffset * std::cos(angle);
+            float y1 = centerY + rayOffset * std::sin(angle);
+            float x2 = centerX + (rayOffset + rayLength) * std::cos(angle);
+            float y2 = centerY + (rayOffset + rayLength) * std::sin(angle);
+            g.drawLine(x1, y1, x2, y2, 2.0f);
+        }
     }
+    else
+    {
+        // Light mode: show MOON icon (to switch to dark)
+        // Draw crescent moon
+        float centerX = iconBounds.getCentreX();
+        float centerY = iconBounds.getCentreY();
+        float moonRadius = 8.0f;
 
-    // Knob fill
-    g.setColour(isDark ? theme.getColour(ColourId::Primary) : juce::Colours::white);
-    g.fillEllipse(knobBounds);
+        // Create crescent by subtracting a circle
+        juce::Path moon;
+        moon.addEllipse(centerX - moonRadius, centerY - moonRadius, moonRadius * 2.0f, moonRadius * 2.0f);
 
-    // Icon inside knob
-    g.setColour(isDark ? juce::Colours::white : theme.getColour(ColourId::TextMuted));
-    g.setFont(juce::Font(12.0f));
+        // Subtract overlapping circle to create crescent
+        juce::Path cutout;
+        float cutoutOffset = 5.0f;
+        cutout.addEllipse(centerX - moonRadius + cutoutOffset, centerY - moonRadius - 1.0f,
+                          moonRadius * 2.0f, moonRadius * 2.0f);
 
-    // Moon (dark mode) or Sun (light mode)
-    juce::String icon = isDark
-        ? juce::String::charToString(0x263D)   // Crescent moon
-        : juce::String::charToString(0x2600);  // Sun
+        // Use path subtraction
+        juce::Path crescent;
+        crescent.addPath(moon);
 
-    g.drawText(icon, knobBounds.toNearestInt(), juce::Justification::centred);
+        g.setColour(iconColor);
+        g.fillPath(moon);
+
+        // Draw cutout in background color to create crescent effect
+        auto bgColor = theme.isDark() ? juce::Colour(0xFF0A0A0A) : juce::Colour(0xFFF5F0E8);
+        g.setColour(bgColor);
+        g.fillPath(cutout);
+    }
 }
 
 void HeaderBar::drawInfoButton(juce::Graphics& g, juce::Rectangle<float> bounds, bool isHovered)
 {
     auto& theme = ThemeManager::getInstance();
+    bool isDark = theme.isDark();
 
-    // Button background
-    juce::Colour bgColour = theme.isDark()
-        ? juce::Colour(0xFF2A2A2A)
-        : juce::Colour(0xFFE8E8E8);
+    // Draw hover background with shadow (AirCheck style)
+    if (isHovered)
+    {
+        auto bgBounds = bounds.expanded(4.0f);
+
+        // Shadow
+        g.setColour(juce::Colours::black.withAlpha(0.15f));
+        g.fillRoundedRectangle(bgBounds.translated(0.0f, 2.0f), 10.0f);
+
+        // Background
+        juce::Colour bgColor = isDark ? juce::Colour(0xFF2A2A2A) : juce::Colour(0xFFEEEEEE);
+        g.setColour(bgColor);
+        g.fillRoundedRectangle(bgBounds, 10.0f);
+    }
+
+    // Icon color - gray outline style
+    juce::Colour iconColor = isDark ? juce::Colour(0xFF707070) : juce::Colour(0xFF606060);
 
     if (isHovered)
-        bgColour = bgColour.brighter(0.15f);
+        iconColor = isDark ? juce::Colour(0xFF909090) : juce::Colour(0xFF404040);
 
-    g.setColour(bgColour);
-    g.fillRoundedRectangle(bounds, Layout::iconButtonCornerRadius);
-
-    // Info icon (circle with 'i')
-    g.setColour(isHovered
-        ? theme.getColour(ColourId::Primary)
-        : theme.getColour(ColourId::TextSecondary));
+    // Question mark icon (circle with '?')
+    g.setColour(iconColor);
 
     // Draw circle outline
-    float iconSize = 18.0f;
+    float iconSize = 22.0f;
     auto iconBounds = bounds.withSizeKeepingCentre(iconSize, iconSize);
-    g.drawEllipse(iconBounds, 1.5f);
+    g.drawEllipse(iconBounds, 2.0f);
 
-    // Draw 'i' character
-    g.setFont(juce::Font(12.0f, juce::Font::bold));
-    g.drawText("i", iconBounds.toNearestInt(), juce::Justification::centred);
+    // Draw '?' character
+    g.setFont(FontManager::getInstance().getBebasNeue(16.0f));
+    g.drawText("?", iconBounds.toNearestInt(), juce::Justification::centred);
 }
 
 void HeaderBar::drawSettingsButton(juce::Graphics& g, juce::Rectangle<float> bounds, bool isHovered)
 {
     auto& theme = ThemeManager::getInstance();
+    bool isDark = theme.isDark();
 
-    // Button background
-    juce::Colour bgColour = theme.isDark()
-        ? juce::Colour(0xFF2A2A2A)
-        : juce::Colour(0xFFE8E8E8);
+    // Draw hover background with shadow (AirCheck style)
+    if (isHovered)
+    {
+        auto bgBounds = bounds.expanded(4.0f);
+
+        // Shadow
+        g.setColour(juce::Colours::black.withAlpha(0.15f));
+        g.fillRoundedRectangle(bgBounds.translated(0.0f, 2.0f), 10.0f);
+
+        // Background
+        juce::Colour bgColor = isDark ? juce::Colour(0xFF2A2A2A) : juce::Colour(0xFFEEEEEE);
+        g.setColour(bgColor);
+        g.fillRoundedRectangle(bgBounds, 10.0f);
+    }
+
+    // Icon color - gray outline style matching the design
+    juce::Colour iconColor = isDark ? juce::Colour(0xFF707070) : juce::Colour(0xFF606060);
 
     if (isHovered)
-        bgColour = bgColour.brighter(0.15f);
+        iconColor = isDark ? juce::Colour(0xFF909090) : juce::Colour(0xFF404040);
 
-    g.setColour(bgColour);
-    g.fillRoundedRectangle(bounds, Layout::iconButtonCornerRadius);
-
-    // Gear icon
-    g.setColour(isHovered
-        ? theme.getColour(ColourId::Primary)
-        : theme.getColour(ColourId::TextSecondary));
+    g.setColour(iconColor);
 
     float centerX = bounds.getCentreX();
     float centerY = bounds.getCentreY();
-    float outerRadius = 9.0f;
-    float innerRadius = 4.0f;
+    float outerRadius = 10.0f;
+    float innerRadius = 4.5f;
     int numTeeth = 8;
 
-    // Draw gear shape
+    // Draw gear shape as outline
     juce::Path gear;
     for (int i = 0; i < numTeeth * 2; ++i)
     {
         float angle = static_cast<float>(i) * juce::MathConstants<float>::pi / static_cast<float>(numTeeth);
-        float radius = (i % 2 == 0) ? outerRadius : outerRadius - 2.5f;
+        float radius = (i % 2 == 0) ? outerRadius : outerRadius - 3.0f;
 
         float x = centerX + radius * std::cos(angle);
         float y = centerY + radius * std::sin(angle);
@@ -481,12 +568,49 @@ void HeaderBar::drawSettingsButton(juce::Graphics& g, juce::Rectangle<float> bou
     }
     gear.closeSubPath();
 
-    // Cut out center circle
-    gear.addEllipse(centerX - innerRadius, centerY - innerRadius,
-                    innerRadius * 2.0f, innerRadius * 2.0f);
+    // Draw gear outline instead of fill
+    g.strokePath(gear, juce::PathStrokeType(2.0f));
 
-    gear.setUsingNonZeroWinding(false);  // Use even-odd fill rule
-    g.fillPath(gear);
+    // Draw center circle outline
+    g.drawEllipse(centerX - innerRadius, centerY - innerRadius,
+                  innerRadius * 2.0f, innerRadius * 2.0f, 2.0f);
+}
+
+void HeaderBar::drawResetButton(juce::Graphics& g, juce::Rectangle<float> bounds, bool isHovered)
+{
+    auto& theme = ThemeManager::getInstance();
+    bool isDark = theme.isDark();
+
+    // Red chip background (like poker chip)
+    juce::Colour baseColor = isDark ? juce::Colour(0xFFB82D3A) : juce::Colour(0xFFC41E3A);
+    juce::Colour highlightColor = isDark ? juce::Colour(0xFFFF3B4E) : juce::Colour(0xFFE53E4E);
+
+    if (isHovered)
+        baseColor = highlightColor;
+
+    // Draw chip body with gradient
+    juce::ColourGradient gradient(
+        highlightColor, bounds.getX(), bounds.getY(),
+        baseColor, bounds.getRight(), bounds.getBottom(),
+        false);
+
+    g.setGradientFill(gradient);
+    g.fillRoundedRectangle(bounds, Layout::resetChipCornerRadius);
+
+    // Chip edge highlight
+    g.setColour(juce::Colours::white.withAlpha(0.2f));
+    g.drawRoundedRectangle(bounds.reduced(1.0f), Layout::resetChipCornerRadius - 1.0f, 1.0f);
+
+    // Inner shadow (top)
+    g.setColour(juce::Colours::black.withAlpha(0.15f));
+    auto innerBounds = bounds.reduced(2.0f);
+    g.drawLine(innerBounds.getX() + 4.0f, innerBounds.getY(),
+               innerBounds.getRight() - 4.0f, innerBounds.getY(), 1.0f);
+
+    // "RESET" text - Bebas Neue casino style
+    g.setColour(juce::Colours::white);
+    g.setFont(FontManager::getInstance().getBebasNeue(12.0f));
+    g.drawText("RESET", bounds.toNearestInt(), juce::Justification::centred);
 }
 
 //==============================================================================

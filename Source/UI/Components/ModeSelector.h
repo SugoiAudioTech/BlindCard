@@ -84,8 +84,8 @@ public:
 
     //==========================================================================
     /** Standard dimensions */
-    static constexpr int kWidth = 280;
-    static constexpr int kHeight = 40;
+    static constexpr int kWidth = 360;
+    static constexpr int kHeight = 52;
 
 private:
     //==========================================================================
@@ -116,7 +116,9 @@ private:
                         const juce::String& icon,
                         const juce::String& label,
                         bool isSelected,
-                        bool isHovered);
+                        bool isHovered,
+                        blindcard::RatingMode mode,
+                        bool isDarkTheme);
 
     void drawLockOverlay(juce::Graphics& g, juce::Rectangle<float> bounds);
 

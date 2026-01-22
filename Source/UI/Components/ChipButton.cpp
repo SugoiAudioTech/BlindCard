@@ -11,6 +11,7 @@
 */
 
 #include "ChipButton.h"
+#include "../Theme/FontManager.h"
 #include <cmath>
 
 namespace BlindCard
@@ -50,7 +51,7 @@ namespace ChipLayout
     const juce::Colour iconColor { 0xFFFFFFFF };       // White
 
     // Typography
-    constexpr float labelFontSize = 11.0f;
+    constexpr float labelFontSize = 13.0f;
     constexpr float iconFontSize = 20.0f;
 
     // Disabled state
@@ -435,13 +436,13 @@ void ChipButton::drawGoldBorder(juce::Graphics& g, juce::Point<float> center, fl
 
 void ChipButton::drawInnerCircle(juce::Graphics& g, juce::Point<float> center, float radius)
 {
-    // Inner circle uses darker version of base color
-    auto darkColor = getDarkColor();
+    // Original design: inner circle is always black (#0A0A0A)
+    juce::Colour innerColor(0xFF0A0A0A);
 
     // Create subtle gradient for 3D effect
     juce::ColourGradient gradient(
-        darkColor.brighter(0.1f), center.x - radius * 0.3f, center.y - radius * 0.3f,
-        darkColor.darker(0.1f), center.x + radius * 0.5f, center.y + radius * 0.5f,
+        innerColor.brighter(0.15f), center.x - radius * 0.3f, center.y - radius * 0.3f,
+        innerColor, center.x + radius * 0.5f, center.y + radius * 0.5f,
         true
     );
 
@@ -467,34 +468,40 @@ void ChipButton::drawIcon(juce::Graphics& g, juce::Point<float> center, float ra
 void ChipButton::drawLabel(juce::Graphics& g, juce::Rectangle<float> labelBounds)
 {
     auto& theme = ThemeManager::getInstance();
+    auto& fonts = FontManager::getInstance();
+
+    // Move label down a bit and center it
+    auto adjustedBounds = labelBounds.withTrimmedTop(4.0f);
 
     g.setColour(theme.getColour(ColourId::TextSecondary));
-    g.setFont(juce::Font(ChipLayout::labelFontSize).boldened());
-    g.drawText(label, labelBounds, juce::Justification::centredTop);
+    g.setFont(fonts.getCasinoButton(ChipLayout::labelFontSize));  // Bebas Neue - neon sign casino style
+    g.drawText(label, adjustedBounds, juce::Justification::centredTop);
 }
 
 //==============================================================================
 juce::Colour ChipButton::getBaseColor() const
 {
+    // Original design colors from chip-button.tsx
     switch (variant)
     {
-        case ChipVariant::Red:   return juce::Colour(0xFFCC0000);
-        case ChipVariant::Gold:  return juce::Colour(0xFFDAA520);
-        case ChipVariant::Black: return juce::Colour(0xFF333333);
-        case ChipVariant::Blue:  return juce::Colour(0xFF2E6EB0);
-        default:                 return juce::Colour(0xFFCC0000);
+        case ChipVariant::Red:   return juce::Colour(0xFFCC2244);  // Bright red
+        case ChipVariant::Gold:  return juce::Colour(0xFFCC9922);  // Bright gold
+        case ChipVariant::Black: return juce::Colour(0xFF444444);  // Medium gray
+        case ChipVariant::Blue:  return juce::Colour(0xFF2266CC);  // Bright blue
+        default:                 return juce::Colour(0xFFCC2244);
     }
 }
 
 juce::Colour ChipButton::getDarkColor() const
 {
+    // Darker versions for gradient
     switch (variant)
     {
-        case ChipVariant::Red:   return juce::Colour(0xFF8B0000);
-        case ChipVariant::Gold:  return juce::Colour(0xFF8B7300);
-        case ChipVariant::Black: return juce::Colour(0xFF1A1A1A);
-        case ChipVariant::Blue:  return juce::Colour(0xFF1A4A7A);
-        default:                 return juce::Colour(0xFF8B0000);
+        case ChipVariant::Red:   return juce::Colour(0xFF881122);  // Darker red
+        case ChipVariant::Gold:  return juce::Colour(0xFF886611);  // Darker gold
+        case ChipVariant::Black: return juce::Colour(0xFF222222);  // Dark gray
+        case ChipVariant::Blue:  return juce::Colour(0xFF113388);  // Darker blue
+        default:                 return juce::Colour(0xFF881122);
     }
 }
 

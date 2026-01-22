@@ -129,9 +129,9 @@ public:
     //==========================================================================
     /** Standard dimensions */
     static constexpr int kChipSize = 64;
-    static constexpr int kLabelHeight = 20;
+    static constexpr int kLabelHeight = 28;
     static constexpr int kTotalHeight = kChipSize + kLabelHeight;
-    static constexpr int kTotalWidth = kChipSize;
+    static constexpr int kTotalWidth = 80;  // Extra space for shadow/glow
 
 private:
     //==========================================================================
