@@ -34,18 +34,18 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
-    // TrackProperties - 從 DAW 取得軌道名稱
+    // TrackProperties - Get track name from DAW
     void updateTrackProperties (const TrackProperties& properties) override;
 
     // ChangeListener
     void changeListenerCallback (juce::ChangeBroadcaster* source) override;
 
-    // 公開給 Editor 使用
+    // Public for Editor use
     blindcard::BlindCardManager& getManager() { return *manager; }
     int getCardId() const { return cardId; }
     bool isRegistered() const { return cardId >= 0; }
 
-    // 當卡牌重新編號時由 Manager 呼叫
+    // Called by Manager when card IDs are renumbered
     void updateCardId (int newId) { cardId = newId; }
 
     // Level Matching
@@ -54,7 +54,7 @@ public:
     bool isMeasuring() const { return measuring.load(); }
     float getMeasurementProgress() const;
 
-    // 即時 RMS（給 UI 顯示用）
+    // Real-time RMS (for UI display)
     float getCurrentRMSdB() const { return currentRMSdB.load(); }
 
 private:
@@ -70,18 +70,18 @@ private:
     int64_t sampleCount = 0;
     int64_t targetSampleCount = 0;
 
-    // 即時 RMS 計算
+    // Real-time RMS calculation
     std::atomic<float> currentRMSdB { -100.0f };
     float rmsSmoothed = 0.0f;
-    static constexpr float kRMSSmoothingCoeff = 0.1f;  // 平滑係數
+    static constexpr float kRMSSmoothingCoeff = 0.1f;  // Smoothing coefficient
 
-    // 音軌切換淡入淡出（防止爆音）
-    float muteGain = 0.0f;          // 當前靜音增益 (0=靜音, 1=正常)
-    float targetMuteGain = 0.0f;    // 目標靜音增益
-    float muteGainStep = 0.0f;      // 每個 sample 的增益變化量
-    static constexpr float kFadeTimeMs = 10.0f;  // 10ms 淡入淡出時間
+    // Track switch fade in/out (prevent clicks/pops)
+    float muteGain = 0.0f;          // Current mute gain (0=muted, 1=normal)
+    float targetMuteGain = 0.0f;    // Target mute gain
+    float muteGainStep = 0.0f;      // Gain change per sample
+    static constexpr float kFadeTimeMs = 10.0f;  // 10ms fade time
 
-    // 緩存 DAW 傳來的軌道名稱（可能在 prepareToPlay 之前收到）
+    // Cache track name from DAW (may be received before prepareToPlay)
     juce::String cachedTrackName;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BlindCardProcessor)

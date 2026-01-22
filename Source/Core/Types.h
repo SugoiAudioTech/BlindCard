@@ -5,36 +5,36 @@
 namespace blindcard
 {
 
-// 單輪評分資料
+// Single round rating data
 struct RoundData
 {
-    int rating = 0;          // 1-5 星，0 = 未評分
-    juce::String note;       // 文字筆記
-    int guessedTrackId = -1; // 猜測的原始軌道 ID (-1 = 未猜測)
+    int rating = 0;          // 1-5 stars, 0 = not rated
+    juce::String note;       // Text note
+    int guessedTrackId = -1; // Guessed original track ID (-1 = not guessed)
 };
 
-// 單張卡牌
+// Single card slot
 struct CardSlot
 {
-    int id = -1;                              // 0-7 卡牌編號
-    juce::String realTrackName;               // 真實軌道名稱
-    int displayPosition = -1;                 // 洗牌後顯示位置
-    bool isRemoved = false;                   // 是否已移除
-    juce::Array<RoundData> rounds;            // 各輪記錄
+    int id = -1;                              // 0-7 card ID
+    juce::String realTrackName;               // Real track name
+    int displayPosition = -1;                 // Display position after shuffle
+    bool isRemoved = false;                   // Whether removed
+    juce::Array<RoundData> rounds;            // Records for each round
 
-    // 撲克牌顯示值（洗牌時隨機分配）
+    // Poker card display value (randomly assigned during shuffle)
     int cardValue = 1;                        // 1=A, 2-10, 11=J, 12=Q, 13=K
     int suitIndex = 0;                        // 0=Spades, 1=Clubs, 2=Diamonds, 3=Hearts
 
     // Level Matching
-    float measuredLUFS = -100.0f;             // 測量的響度 (LUFS)，-100 = 未測量
-    float autoGainDb = 0.0f;                  // 自動增益補償 (dB)
-    float manualGainDb = 0.0f;                // 手動增益調整 (dB)
+    float measuredLUFS = -100.0f;             // Measured loudness (LUFS), -100 = not measured
+    float autoGainDb = 0.0f;                  // Auto gain compensation (dB)
+    float manualGainDb = 0.0f;                // Manual gain adjustment (dB)
 
     float getTotalGainDb() const { return autoGainDb + manualGainDb; }
     bool hasLUFSMeasurement() const { return measuredLUFS > -100.0f; }
 
-    // 計算平均評分（忽略未評分的輪次）
+    // Calculate average rating (ignoring unrated rounds)
     float getAverageRating() const
     {
         int count = 0;
@@ -50,17 +50,17 @@ struct CardSlot
         return count > 0 ? static_cast<float>(total) / count : 0.0f;
     }
 
-    // 計算猜測正確率（回傳 correctCount 和 totalGuesses）
+    // Calculate guess accuracy (returns correctCount and totalGuesses)
     std::pair<int, int> getGuessAccuracy() const
     {
         int correct = 0;
         int total = 0;
         for (const auto& r : rounds)
         {
-            if (r.guessedTrackId >= 0)  // 有做猜測
+            if (r.guessedTrackId >= 0)  // Made a guess
             {
                 total++;
-                if (r.guessedTrackId == id)  // 猜對了
+                if (r.guessedTrackId == id)  // Guessed correctly
                     correct++;
             }
         }
@@ -68,38 +68,38 @@ struct CardSlot
     }
 };
 
-// 遊戲階段
+// Game phase
 enum class GamePhase
 {
-    Setup,        // 初始狀態，可編輯軌道名稱
-    BlindTesting, // 盲測中
-    Revealed      // 已揭曉
+    Setup,        // Initial state, track names editable
+    BlindTesting, // Blind testing in progress
+    Revealed      // Results revealed
 };
 
-// 評分模式
+// Rating mode
 enum class RatingMode
 {
-    Stars,   // 星等評分
-    Guess,   // 猜測軌道
-    QA       // Q&A 問答模式
+    Stars,   // Star rating
+    Guess,   // Guess track
+    QA       // Q&A quiz mode
 };
 
-// Q&A 模式專用狀態
+// Q&A mode state
 struct QAState
 {
-    int currentQuestion = 0;              // 當前問題索引 (0-based)
-    int targetCardId = -1;                // 當前問題的目標卡牌 ID
-    juce::Array<int> askedCardIds;        // 已經問過的卡牌 ID
-    juce::Array<bool> answers;            // 每題的答案結果 (true = 正確)
+    int currentQuestion = 0;              // Current question index (0-based)
+    int targetCardId = -1;                // Target card ID for current question
+    juce::Array<int> askedCardIds;        // Card IDs that have been asked
+    juce::Array<bool> answers;            // Answer results for each question (true = correct)
 
     enum class FeedbackState { None, Correct, Wrong };
     FeedbackState lastFeedback = FeedbackState::None;
-    int lastAnsweredCardId = -1;          // 上一次回答選擇的卡牌
+    int lastAnsweredCardId = -1;          // Card selected in last answer
 
-    // 答案揭曉倒數狀態
-    bool isShowingAnswer = false;         // 是否正在顯示答案（倒數中）
-    int countdownValue = 0;               // 倒數值 (3, 2, 1, 0)
-    int revealedTargetCardId = -1;        // 揭曉時的正確答案卡牌 ID
+    // Answer reveal countdown state
+    bool isShowingAnswer = false;         // Whether showing answer (counting down)
+    int countdownValue = 0;               // Countdown value (3, 2, 1, 0)
+    int revealedTargetCardId = -1;        // Correct answer card ID during reveal
 
     bool isComplete(int maxQuestions) const { return currentQuestion >= maxQuestions; }
 
@@ -125,21 +125,21 @@ struct QAState
     }
 };
 
-// 遊戲狀態
+// Game state
 struct GameState
 {
     GamePhase phase = GamePhase::Setup;
-    int totalRounds = 1;                      // 總輪數
-    int currentRound = 0;                     // 目前輪次 (0-indexed)
-    int selectedCardId = -1;                  // 目前獨奏的卡牌 (-1 = 無)
-    juce::Array<CardSlot> cards;              // 最多 8 張卡牌
-    QAState qaState;                          // Q&A 模式狀態
-    int qaQuestionCount = 5;                  // Q&A 模式問題數（用戶可設定，1-8）
+    int totalRounds = 1;                      // Total rounds
+    int currentRound = 0;                     // Current round (0-indexed)
+    int selectedCardId = -1;                  // Currently soloed card (-1 = none)
+    juce::Array<CardSlot> cards;              // Up to 8 cards
+    QAState qaState;                          // Q&A mode state
+    int qaQuestionCount = 5;                  // Q&A mode question count (user configurable, 1-8)
 
-    static constexpr int MinCards = 2;        // 最少卡牌數（盲測需要對照組）
-    static constexpr int MaxCards = 8;        // 最多卡牌數（雙排 4+4 佈局上限）
-    static constexpr int MinQAQuestions = 1;  // Q&A 最少問題數
-    static constexpr int MaxQAQuestions = 8;  // Q&A 最多問題數
+    static constexpr int MinCards = 2;        // Minimum card count (blind test needs comparison)
+    static constexpr int MaxCards = 8;        // Maximum card count (dual row 4+4 layout limit)
+    static constexpr int MinQAQuestions = 1;  // Q&A minimum questions
+    static constexpr int MaxQAQuestions = 8;  // Q&A maximum questions
 };
 
 } // namespace blindcard

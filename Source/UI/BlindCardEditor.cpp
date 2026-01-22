@@ -139,7 +139,7 @@ BlindCardEditor::BlindCardEditor(BlindCardProcessor& processor)
     // Initial state sync
     updateFromManager();
 
-    // 如果 Level-Match 預設啟用，開始校準
+    // If Level-Match is enabled by default, start calibration
     if (manager->isLevelMatchEnabled() && manager->getPhase() == blindcard::GamePhase::Setup)
         manager->startCalibration();
 
@@ -150,7 +150,7 @@ BlindCardEditor::BlindCardEditor(BlindCardProcessor& processor)
     setWantsKeyboardFocus(true);
     addKeyListener(this);
 
-    // 確保滑鼠點擊能被捕獲（用於獲取鍵盤焦點）
+    // Ensure mouse clicks can be captured (for obtaining keyboard focus)
     setInterceptsMouseClicks(true, true);
 }
 
@@ -188,9 +188,9 @@ void BlindCardEditor::paint(juce::Graphics& g)
 
 void BlindCardEditor::resized()
 {
-    // 確保視窗調整大小後仍保持鍵盤焦點（修復拖移視窗後方向鍵失效問題）
-    // 使用 callAsync 延遲執行，確保在佈局完成後才搶回焦點
-    // 使用 SafePointer 防止組件被銷毀後的懸空指標問題
+    // Ensure keyboard focus is maintained after window resize (fixes arrow key not working after dragging window)
+    // Use callAsync for delayed execution, ensure focus is grabbed after layout is complete
+    // Use SafePointer to prevent dangling pointer after component is destroyed
     juce::Component::SafePointer<BlindCardEditor> safeThis(this);
     juce::MessageManager::callAsync([safeThis]()
     {
@@ -494,14 +494,14 @@ void BlindCardEditor::updateCardStates()
     {
         const auto& slot = cards[static_cast<int>(i)];
 
-        // 使用 displayPosition 來決定卡牌在桌面上的位置
-        // 這樣洗牌後，卡牌會出現在不同的位置
+        // Use displayPosition to determine card's position on the table
+        // This way cards appear at different positions after shuffle
         auto* card = pokerTable->getCard(slot.displayPosition);
         if (card == nullptr)
             continue;
 
         CardData data;
-        // 卡牌上顯示的字母（A, B, C...）反映它在桌面上的位置
+        // The letter shown on card (A, B, C...) reflects its position on the table
         data.position = slot.displayPosition;
 
         // In standalone mode, preserve trackName if card has loaded audio file
@@ -748,7 +748,7 @@ void BlindCardEditor::onModeChanged(blindcard::RatingMode mode)
 {
     manager->setRatingMode(mode);
 
-    // Q&A 模式時，同步 Rounds 設定到問題數量
+    // In Q&A mode, sync Rounds setting to question count
     if (mode == blindcard::RatingMode::QA)
     {
         int rounds = controlPanel->getRounds();
@@ -759,9 +759,9 @@ void BlindCardEditor::onModeChanged(blindcard::RatingMode mode)
 //==============================================================================
 // Event handlers - PokerTable
 
-// Helper: 從桌面位置找到對應的卡牌 ID
-// tablePosition 是 PokerTable 上的位置（0, 1, 2, 3...）
-// 需要找到 displayPosition == tablePosition 的卡牌
+// Helper: Find card ID from table position
+// tablePosition is the position on PokerTable (0, 1, 2, 3...)
+// Need to find card where displayPosition == tablePosition
 int BlindCardEditor::findCardIdAtTablePosition(int tablePosition)
 {
     auto cards = manager->getCards();
@@ -770,7 +770,7 @@ int BlindCardEditor::findCardIdAtTablePosition(int tablePosition)
         if (card.displayPosition == tablePosition)
             return card.id;
     }
-    return -1;  // 找不到
+    return -1;  // Not found
 }
 
 void BlindCardEditor::onCardClicked(int tablePosition)

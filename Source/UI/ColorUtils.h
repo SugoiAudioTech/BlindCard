@@ -7,8 +7,8 @@ namespace blindcard
 {
 
 /**
- * HSL 色彩工具函式
- * 用於色相環插值（走最短路徑）
+ * HSL color utility functions
+ * For hue wheel interpolation (shortest path)
  */
 struct ColorUtils
 {
@@ -20,7 +20,7 @@ struct ColorUtils
     };
 
     /**
-     * RGB 轉 HSL
+     * RGB to HSL
      */
     static HSL rgbToHsl (juce::Colour colour)
     {
@@ -58,7 +58,7 @@ struct ColorUtils
     }
 
     /**
-     * HSL 轉 RGB
+     * HSL to RGB
      */
     static juce::Colour hslToRgb (float h, float s, float l, float alpha = 1.0f)
     {
@@ -94,17 +94,17 @@ struct ColorUtils
     }
 
     /**
-     * 計算色相環最短路徑的插值
-     * @param fromHue 起始色相 (0-360)
-     * @param toHue 目標色相 (0-360)
-     * @param t 插值參數 (0-1)
-     * @return 插值後的色相 (0-360)
+     * Calculate hue wheel shortest path interpolation
+     * @param fromHue Start hue (0-360)
+     * @param toHue Target hue (0-360)
+     * @param t Interpolation parameter (0-1)
+     * @return Interpolated hue (0-360)
      */
     static float interpolateHueShortestPath (float fromHue, float toHue, float t)
     {
         float diff = toHue - fromHue;
 
-        // 走最短路徑
+        // Take shortest path
         if (diff > 180.0f)
             diff -= 360.0f;
         else if (diff < -180.0f)
@@ -112,7 +112,7 @@ struct ColorUtils
 
         float result = fromHue + diff * t;
 
-        // 確保結果在 0-360 範圍內
+        // Ensure result is in 0-360 range
         if (result < 0.0f) result += 360.0f;
         if (result >= 360.0f) result -= 360.0f;
 
@@ -120,7 +120,7 @@ struct ColorUtils
     }
 
     /**
-     * HSL 色彩插值（走色相環最短路徑）
+     * HSL color interpolation (shortest path on hue wheel)
      */
     static juce::Colour interpolateHSL (juce::Colour from, juce::Colour to, float t)
     {
@@ -137,8 +137,8 @@ struct ColorUtils
 };
 
 /**
- * 簡單的動畫值類別
- * 用於 alpha 透明度等數值的平滑過渡
+ * Simple animated value class
+ * For smooth transitions of values like alpha transparency
  */
 class AnimatedValue
 {
@@ -168,9 +168,9 @@ public:
     }
 
     /**
-     * 更新動畫狀態
-     * @param deltaTimeMs 經過的毫秒數
-     * @return true 如果值發生變化
+     * Update animation state
+     * @param deltaTimeMs Milliseconds elapsed
+     * @return true if value changed
      */
     bool update (float deltaTimeMs)
     {
@@ -180,7 +180,7 @@ public:
         elapsedTime += deltaTimeMs;
         float t = juce::jlimit (0.0f, 1.0f, elapsedTime / transitionDuration);
 
-        // 使用 ease-out 曲線
+        // Use ease-out curve
         float eased = useEaseOut ? easeOut (t) : t;
 
         float newValue = startValue + (targetValue - startValue) * eased;

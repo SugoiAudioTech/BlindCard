@@ -17,7 +17,7 @@ CardComponent::CardComponent()
         addAndMakeVisible (starButtons[i]);
     }
 
-    // 手動增益 Slider
+    // Manual gain slider
     gainSlider.setRange (-12.0, 12.0, 0.1);
     gainSlider.setValue (0.0);
     gainSlider.setSliderStyle (juce::Slider::LinearHorizontal);
@@ -30,13 +30,13 @@ CardComponent::CardComponent()
     };
     addAndMakeVisible (gainSlider);
 
-    // LUFS 顯示
+    // LUFS display
     lufsLabel.setJustificationType (juce::Justification::centred);
     lufsLabel.setFont (juce::Font (11.0f));
     lufsLabel.setColour (juce::Label::textColourId, juce::Colours::lightgrey);
     addAndMakeVisible (lufsLabel);
 
-    // 筆記編輯器
+    // Note editor
     noteEditor.setMultiLine (true);
     noteEditor.setReturnKeyStartsNewLine (true);
     noteEditor.setFont (juce::Font (12.0f));
@@ -48,11 +48,11 @@ CardComponent::CardComponent()
         if (onNoteChanged && hasCard)
             onNoteChanged (cardData.id, noteEditor.getText());
     };
-    // 讓空白鍵不被 TextEditor 攔截，傳遞給 DAW 播放/暫停
+    // Don't let TextEditor intercept spacebar, pass to DAW for play/pause
     noteEditor.addKeyListener (this);
     addAndMakeVisible (noteEditor);
 
-    // 猜測下拉選單
+    // Guess dropdown menu
     guessComboBox.setColour (juce::ComboBox::backgroundColourId, juce::Colours::black.withAlpha (0.3f));
     guessComboBox.setColour (juce::ComboBox::textColourId, juce::Colours::white);
     guessComboBox.onChange = [this]()
@@ -65,8 +65,8 @@ CardComponent::CardComponent()
     };
     addAndMakeVisible (guessComboBox);
 
-    // Q&A 選擇按鈕
-    selectButton.setButtonText (juce::CharPointer_UTF8 ("\xe9\x81\xb8\xe6\xad\xa4")); // 選此
+    // Q&A selection button
+    selectButton.setButtonText ("Select"); // Select this
     selectButton.setColour (juce::TextButton::buttonColourId, juce::Colours::orange.darker());
     selectButton.onClick = [this]()
     {
@@ -75,7 +75,7 @@ CardComponent::CardComponent()
     };
     addAndMakeVisible (selectButton);
 
-    // 初始化動畫值
+    // Initialize animation values
     glowAlpha.setEaseOut (true);
     flipProgress.setEaseOut (true);
 }
@@ -89,7 +89,7 @@ void CardComponent::setCard (const CardSlot& card, int currentRound, bool isSele
     currentPhase = phase;
     currentRatingMode = ratingMode;
 
-    // 更新 Q&A 狀態
+    // Update Q&A state
     if (qaState != nullptr && ratingMode == RatingMode::QA)
     {
         qaFeedbackState = qaState->lastFeedback;
@@ -103,7 +103,7 @@ void CardComponent::setCard (const CardSlot& card, int currentRound, bool isSele
         wasQASelected = false;
     }
 
-    // 更新選中狀態（根據 isSelected 設定主選）
+    // Update selection state (set as primary based on isSelected)
     if (isSelected && selectionState == SelectionState::None)
     {
         setSelectionState (SelectionState::Primary);
@@ -142,7 +142,7 @@ void CardComponent::setSelectionState (SelectionState state)
     selectionState = state;
     updateGlowTarget();
 
-    // 確保動畫計時器在運行
+    // Ensure animation timer is running
     if (!isTimerRunning())
         startTimerHz (60);
 }
@@ -155,13 +155,13 @@ void CardComponent::startFlip()
     flipState = FlipState::Flipping;
     auto& params = getDebugParams();
 
-    // 切換翻牌狀態：若已是正面則翻回背面，反之亦然
+    // Toggle flip state: if face up, flip to back, otherwise flip to front
     float currentValue = flipProgress.getValue();
     float targetValue = (currentValue > 0.5f) ? 0.0f : 1.0f;
 
     flipProgress.setTarget (targetValue, params.flipDuration);
 
-    // 翻到正面時觸發光暈閃爍
+    // Trigger glow flash when flipping to front
     if (targetValue > 0.5f)
         triggerGlowFlash();
 
@@ -197,7 +197,7 @@ void CardComponent::triggerGlowFlash()
     isFlashActive = true;
     flashPhase = 0.0f;
 
-    // 閃爍：0.3 → 1.0 → 0.3
+    // Flash: 0.3 → 1.0 → 0.3
     auto& params = getDebugParams();
     glowAlpha.setTarget (1.0f, params.flashDuration / 2.0f);
 
@@ -213,11 +213,11 @@ void CardComponent::updateGlowTarget()
     switch (selectionState)
     {
         case SelectionState::Primary:
-            // 主選 Alpha 鎖定不動
+            // Primary alpha is fixed
             targetAlpha = params.glowAlphaPrimary;
             break;
         case SelectionState::Secondary:
-            // 副選 Alpha 使用多卡場景配置（光暈變小時調高以維持辨識度）
+            // Secondary alpha uses multi-card config (increase when glow shrinks to maintain visibility)
             targetAlpha = currentMultiCardConfig.subAlpha;
             break;
         case SelectionState::None:
@@ -225,7 +225,7 @@ void CardComponent::updateGlowTarget()
             break;
     }
 
-    // 如果選中，保持常駐光暈
+    // If selected, maintain idle glow
     if (selected && selectionState == SelectionState::None)
         targetAlpha = params.glowAlphaIdle;
 
@@ -241,47 +241,47 @@ void CardComponent::timerCallback()
     bool needsRepaint = false;
     auto& params = getDebugParams();
 
-    // 更新翻牌動畫
+    // Update flip animation
     if (flipProgress.update (deltaTime))
     {
         needsRepaint = true;
     }
 
-    // 檢查翻牌動畫是否完成（獨立於 update 返回值）
+    // Check if flip animation is complete (independent of update return value)
     if (flipState == FlipState::Flipping)
     {
         float progress = flipProgress.getValue();
         float target = flipProgress.getTarget();
 
-        // 動畫完成：值已到達目標附近
+        // Animation complete: value has reached near target
         if (std::abs (progress - target) < 0.01f)
         {
             flipState = target > 0.5f ? FlipState::FaceUp : FlipState::FaceDown;
         }
     }
 
-    // 更新光暈閃爍
+    // Update glow flash
     if (isFlashActive)
     {
         flashPhase += deltaTime / params.flashDuration;
 
         if (flashPhase >= 1.0f)
         {
-            // 閃爍完成，回到目標值
+            // Flash complete, return to target value
             isFlashActive = false;
             flashPhase = 0.0f;
             updateGlowTarget();
         }
         else if (flashPhase >= 0.5f && glowAlpha.getTarget() > 0.9f)
         {
-            // 閃爍中點，開始下降
+            // Flash midpoint, start descending
             updateGlowTarget();
         }
 
         needsRepaint = true;
     }
 
-    // 更新光暈透明度
+    // Update glow alpha
     if (glowAlpha.update (deltaTime))
     {
         needsRepaint = true;
@@ -293,7 +293,7 @@ void CardComponent::timerCallback()
     }
     else
     {
-        // 沒有動畫需要更新，停止計時器
+        // No animation needs updating, stop timer
         stopTimer();
         lastUpdateTime = 0;
     }
@@ -418,20 +418,20 @@ juce::AffineTransform CardComponent::getFlipTransform (const juce::Rectangle<flo
 {
     float progress = flipProgress.getValue();
 
-    // scaleX 從 1 → 0 → 1（中間翻轉）
+    // scaleX from 1 → 0 → 1 (flip in middle)
     float scaleX;
     if (progress < 0.5f)
     {
-        // 前半段：1 → 0
+        // First half: 1 → 0
         scaleX = 1.0f - progress * 2.0f;
     }
     else
     {
-        // 後半段：0 → 1
+        // Second half: 0 → 1
         scaleX = (progress - 0.5f) * 2.0f;
     }
 
-    // 確保最小縮放不為零
+    // Ensure minimum scale is not zero
     scaleX = std::max (0.01f, scaleX);
 
     float centerX = bounds.getCentreX();
@@ -478,18 +478,18 @@ void CardComponent::paintGlowLayer (juce::Graphics& g, const juce::Rectangle<flo
     auto& params = getDebugParams();
     float scale = params.glowScale;
 
-    // 套用多卡場景光暈半徑縮放
+    // Apply multi-card scene glow radius scale
     scale *= currentMultiCardConfig.glowRadiusScale;
 
-    // 計算光暈區域（擴展到卡片的 1.3 倍，再乘以多卡縮放）
+    // Calculate glow area (expand to 1.3x card size, then multiply by multi-card scale)
     float expandX = bounds.getWidth() * (scale - 1.0f) / 2.0f;
     float expandY = bounds.getHeight() * (scale - 1.0f) / 2.0f;
     auto glowBounds = bounds.expanded (expandX, expandY);
 
-    // 選擇光暈圖片（閃爍用暖金，選中態用白金）
-    // 根據卡片寬度決定是否使用 Compact 版本
+    // Choose glow image (warm gold for flash, cool white-gold for selection)
+    // Use Compact version based on card width
     bool useCompact = bounds.getWidth() < 70.0f;
-    bool use2x = bounds.getWidth() > 100.0f;  // 大尺寸使用 @2x
+    bool use2x = bounds.getWidth() > 100.0f;  // Use @2x for larger sizes
 
     const juce::Image& glowImage = isFlashActive
         ? (useCompact ? assets.getGlowWarmCompact (use2x) : assets.getGlowWarm (use2x))
@@ -497,7 +497,7 @@ void CardComponent::paintGlowLayer (juce::Graphics& g, const juce::Rectangle<flo
 
     if (glowImage.isValid())
     {
-        // 使用 PNG 貼圖繪製
+        // Draw using PNG texture
         g.setOpacity (alpha);
         g.drawImage (glowImage,
                      glowBounds,
@@ -506,7 +506,7 @@ void CardComponent::paintGlowLayer (juce::Graphics& g, const juce::Rectangle<flo
     }
     else
     {
-        // 備用：程式繪製漸層（素材未載入時）
+        // Fallback: programmatic gradient (when assets not loaded)
         juce::Colour glowColor = isFlashActive ? glowColorWarm : glowColorCool;
 
         juce::ColourGradient gradient (
@@ -523,21 +523,21 @@ void CardComponent::paintGlowLayer (juce::Graphics& g, const juce::Rectangle<flo
 
 void CardComponent::paintGoldBorder (juce::Graphics& g, const juce::Rectangle<float>& bounds)
 {
-    // 只有選中狀態才繪製金邊
+    // Only draw gold border when selected
     if (selectionState == SelectionState::None && !selected)
     {
-        // 未選中時繪製普通邊框
+        // Draw normal border when not selected
         g.setColour (juce::Colours::grey);
         g.drawRoundedRectangle (bounds.reduced (1), 10.0f, 2.0f);
         return;
     }
 
-    // 金邊：根據選中狀態調整透明度
+    // Gold border: adjust alpha based on selection state
     float borderAlpha = 1.0f;
     if (selectionState == SelectionState::Secondary)
         borderAlpha = 0.5f;
 
-    // 白金色邊框
+    // Cool white-gold border
     g.setColour (glowColorCool.withAlpha (borderAlpha));
     g.drawRoundedRectangle (bounds.reduced (1), 10.0f, 2.5f);
 }
@@ -552,23 +552,23 @@ void CardComponent::paintCardContent (juce::Graphics& g, const juce::Rectangle<f
 
     juce::String displayText;
 
-    // 翻牌動畫中途切換顯示內容（僅 Revealed 階段使用）
+    // Switch display content mid-flip animation (Revealed phase only)
     bool showFront = flipProgress.getValue() > 0.5f;
 
     switch (currentPhase)
     {
         case GamePhase::Setup:
-            // Setup: 顯示真實軌道名稱
+            // Setup: show real track name
             displayText = cardData.realTrackName;
             break;
 
         case GamePhase::BlindTesting:
-            // 盲測階段：永遠顯示代號（A, B, C...），隱藏真實名稱
+            // Blind testing: always show code (A, B, C...), hide real name
             displayText = juce::String::charToString ('A' + cardData.displayPosition);
             break;
 
         case GamePhase::Revealed:
-            // 揭曉階段：翻牌動畫顯示真名
+            // Revealed: flip animation shows real name
             if (showFront)
                 displayText = cardData.realTrackName;
             else
@@ -580,7 +580,7 @@ void CardComponent::paintCardContent (juce::Graphics& g, const juce::Rectangle<f
                       bounds.toNearestInt().reduced (10, 10).withHeight (30),
                       juce::Justification::centred, 1);
 
-    // 揭曉時顯示平均分
+    // Show average rating when revealed
     if (currentPhase == GamePhase::Revealed)
     {
         float avg = cardData.getAverageRating();
@@ -626,31 +626,31 @@ void CardComponent::paint (juce::Graphics& g)
 {
     auto bounds = getLocalBounds().toFloat();
 
-    // 第一層：光暈層（在卡牌下方）
+    // Layer 1: Glow layer (below card)
     paintGlowLayer (g, bounds);
 
-    // 應用翻牌變換
+    // Apply flip transform
     if (flipState == FlipState::Flipping)
     {
         auto transform = getFlipTransform (bounds);
         g.addTransform (transform);
 
-        // 陰影偏移（根據翻牌進度）
+        // Shadow offset (based on flip progress)
         float progress = flipProgress.getValue();
         float shadowOffset = std::sin (progress * juce::MathConstants<float>::pi) * 5.0f;
 
-        // 繪製陰影
+        // Draw shadow
         g.setColour (juce::Colours::black.withAlpha (0.3f));
         g.fillRoundedRectangle (bounds.translated (shadowOffset, shadowOffset), 10.0f);
     }
 
-    // 第二層：卡牌基底
+    // Layer 2: Card base
     paintCardBase (g, bounds);
 
-    // 第三層：金邊裝飾
+    // Layer 3: Gold border decoration
     paintGoldBorder (g, bounds);
 
-    // 卡牌內容
+    // Card content
     paintCardContent (g, bounds);
 }
 
@@ -658,7 +658,7 @@ void CardComponent::resized()
 {
     auto bounds = getLocalBounds().reduced (5);
 
-    // 星星評分在底部
+    // Star rating at bottom
     auto starArea = bounds.removeFromBottom (25);
     int starWidth = starArea.getWidth() / 5;
     for (int i = 0; i < 5; ++i)
@@ -666,26 +666,26 @@ void CardComponent::resized()
         starButtons[i].setBounds (starArea.removeFromLeft (starWidth));
     }
 
-    // Q&A 選擇按鈕 (與星星同一區域)
+    // Q&A selection button (same area as stars)
     auto qaButtonArea = getLocalBounds().reduced (5).removeFromBottom (28);
     selectButton.setBounds (qaButtonArea);
 
-    // 猜測下拉選單 (盲測時顯示，在星星上方)
+    // Guess dropdown (shown during blind testing, above stars)
     bounds.removeFromBottom (3);
     auto guessArea = bounds.removeFromBottom (24);
     guessComboBox.setBounds (guessArea);
 
-    // 增益 Slider (非盲測時顯示)
+    // Gain slider (shown when not blind testing)
     bounds.removeFromBottom (3);
     auto gainArea = bounds.removeFromBottom (22);
     gainSlider.setBounds (gainArea);
 
-    // LUFS 顯示 (非盲測時顯示)
+    // LUFS display (shown when not blind testing)
     bounds.removeFromBottom (2);
     auto lufsArea = bounds.removeFromBottom (16);
     lufsLabel.setBounds (lufsArea);
 
-    // 筆記編輯器 (盲測時顯示)
+    // Note editor (shown during blind testing)
     bounds.removeFromTop (35);
     noteEditor.setBounds (bounds);
 }
@@ -708,13 +708,13 @@ bool CardComponent::keyPressed (const juce::KeyPress& key)
 
 bool CardComponent::keyPressed (const juce::KeyPress& key, juce::Component* /*originatingComponent*/)
 {
-    // 攔截空白鍵，不讓 TextEditor 處理，讓 DAW 可以播放/暫停
+    // Intercept spacebar, don't let TextEditor handle it, allow DAW to play/pause
     if (key.getKeyCode() == juce::KeyPress::spaceKey)
     {
-        return true;  // 返回 true 表示已處理，阻止 TextEditor 輸入空格
+        return true;  // Return true means handled, prevent TextEditor from inserting space
     }
 
-    return false;  // 其他按鍵讓 TextEditor 正常處理
+    return false;  // Let TextEditor handle other keys normally
 }
 
 void CardComponent::setMultiCardConfig (const MultiCardConfig& config)
@@ -730,7 +730,7 @@ void CardComponent::setMultiCardConfig (const MultiCardConfig& config)
     {
         currentMultiCardConfig = config;
 
-        // 如果是副選狀態，更新光暈透明度目標
+        // If in secondary selection state, update glow alpha target
         if (selectionState == SelectionState::Secondary)
         {
             updateGlowTarget();

@@ -250,7 +250,7 @@ private:
     void buildStarsResults();
     void buildGuessResults();
     void buildQAResults();
-    int findCardIdAtTablePosition(int tablePosition);  // 根據桌面位置找到對應的卡牌 ID
+    int findCardIdAtTablePosition(int tablePosition);  // Find card ID based on table position
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BlindCardEditor)
 };

@@ -25,17 +25,17 @@ int BlindCardManager::registerInstance (BlindCardProcessor* instance, const juce
     {
         juce::ScopedLock sl (lock);
 
-        // 盲測中不允許新實例加入
+        // Don't allow new instances during blind testing
         if (state.phase == GamePhase::BlindTesting)
             return -1;
 
-        // 最多 8 個實例
+        // Maximum 8 instances
         if (instances.size() >= GameState::MaxCards)
             return -1;
 
         instances.add (instance);
 
-        // 建立對應的卡牌
+        // Create corresponding card
         CardSlot card;
         card.id = static_cast<int> (state.cards.size());
         card.realTrackName = trackName.isEmpty()
@@ -43,19 +43,19 @@ int BlindCardManager::registerInstance (BlindCardProcessor* instance, const juce
             : trackName;
         card.displayPosition = card.id;
 
-        // 分配隨機撲克牌數值（避免與現有卡牌重複）
+        // Assign random poker card value (avoid duplicates with existing cards)
         std::set<std::pair<int, int>> usedCards;
         for (const auto& existingCard : state.cards)
             usedCards.insert ({ existingCard.cardValue, existingCard.suitIndex });
 
-        // 建立可用的撲克牌列表
+        // Build list of available poker cards
         juce::Array<std::pair<int, int>> availableCards;
         for (int suit = 0; suit < 4; ++suit)
             for (int value = 1; value <= 13; ++value)
                 if (usedCards.find ({ value, suit }) == usedCards.end())
                     availableCards.add ({ value, suit });
 
-        // 隨機選擇一張
+        // Randomly select one
         if (!availableCards.isEmpty())
         {
             std::random_device rd;
@@ -67,7 +67,7 @@ int BlindCardManager::registerInstance (BlindCardProcessor* instance, const juce
         }
         else
         {
-            // 備用：如果沒有可用的（不太可能），用隨機值
+            // Fallback: if none available (unlikely), use random values
             std::random_device rd;
             std::mt19937 gen (rd());
             card.cardValue = std::uniform_int_distribution<> (1, 13) (gen);
@@ -78,7 +78,7 @@ int BlindCardManager::registerInstance (BlindCardProcessor* instance, const juce
 
         resultCardId = card.id;
 
-        // 自動選擇第一張卡牌（確保只有一軌播放）
+        // Auto-select first card (ensure only one track plays)
         if (state.cards.size() == 1)
             state.selectedCardId = 0;
 
@@ -114,26 +114,26 @@ void BlindCardManager::unregisterInstance (BlindCardProcessor* instance)
             if (index < state.cards.size())
             {
                 state.cards.remove (index);
-                // 重新編號
+                // Re-number cards
                 for (int i = 0; i < state.cards.size(); ++i)
                 {
                     state.cards.getReference (i).id = i;
                     state.cards.getReference (i).displayPosition = i;
                 }
 
-                // 更新 selectedCardId 以保持有效
+                // Update selectedCardId to keep it valid
                 if (state.selectedCardId == index)
                 {
-                    // 被選中的卡牌被移除了，選擇第一張
+                    // Selected card was removed, select first card
                     state.selectedCardId = state.cards.isEmpty() ? -1 : 0;
                 }
                 else if (state.selectedCardId > index)
                 {
-                    // 被選中的卡牌在被移除的後面，ID 減 1
+                    // Selected card was after the removed one, decrement ID
                     state.selectedCardId--;
                 }
 
-                // 通知所有 processor 更新它們的 cardId
+                // Notify all processors to update their cardId
                 for (int i = 0; i < instances.size(); ++i)
                 {
                     if (instances[i] != nullptr)
@@ -172,11 +172,11 @@ void BlindCardManager::shuffle()
         if (state.phase != GamePhase::Setup)
             return;
 
-        // 檢查卡牌數量下限
+        // Check minimum card count
         if (state.cards.size() < GameState::MinCards)
             return;
 
-        // 初始化每張卡牌的輪次資料
+        // Initialize round data for each card
         for (auto& card : state.cards)
         {
             card.rounds.clear();
@@ -184,7 +184,7 @@ void BlindCardManager::shuffle()
                 card.rounds.add (RoundData{});
         }
 
-        // 隨機打亂 displayPosition
+        // Randomly shuffle displayPosition
         std::random_device rd;
         std::mt19937 gen (rd());
 
@@ -202,14 +202,14 @@ void BlindCardManager::shuffle()
         for (int i = 0; i < state.cards.size(); ++i)
             state.cards.getReference (i).displayPosition = positions[i];
 
-        // 注意：卡牌數值 (cardValue, suitIndex) 已在卡牌創建時分配，
-        // shuffle() 只打亂顯示位置，不改變卡牌花色數字
+        // Note: Card values (cardValue, suitIndex) were assigned when cards were created,
+        // shuffle() only shuffles display positions, not card suits/values
 
         state.phase = GamePhase::BlindTesting;
         state.currentRound = 0;
 
-        // 選擇視覺上第一個位置（displayPosition=0）的卡片
-        // 這樣用戶無法通過播放位置猜測卡片身份
+        // Select the visually first position (displayPosition=0) card
+        // This prevents users from guessing card identity by playback position
         state.selectedCardId = -1;
         for (int i = 0; i < state.cards.size(); ++i)
         {
@@ -220,7 +220,7 @@ void BlindCardManager::shuffle()
             }
         }
 
-        // Q&A 模式：初始化並選擇第一個問題
+        // Q&A mode: Initialize and select first question
         if (ratingMode == RatingMode::QA)
         {
             state.qaState.reset();
@@ -247,7 +247,7 @@ void BlindCardManager::nextRound()
         {
             state.currentRound++;
 
-            // 每輪重新洗牌 - 打亂 displayPosition
+            // Re-shuffle each round - shuffle displayPosition
             std::random_device rd;
             std::mt19937 gen (rd());
 
@@ -265,8 +265,8 @@ void BlindCardManager::nextRound()
             for (int i = 0; i < state.cards.size(); ++i)
                 state.cards.getReference (i).displayPosition = positions[i];
 
-            // 選擇視覺上第一個位置（displayPosition=0）的卡片
-            // 這樣用戶無法通過播放位置猜測卡片身份
+            // Select the visually first position (displayPosition=0) card
+            // This prevents users from guessing card identity by playback position
             for (int i = 0; i < state.cards.size(); ++i)
             {
                 if (state.cards[i].displayPosition == 0)
@@ -296,7 +296,7 @@ void BlindCardManager::reveal()
             return;
 
         state.phase = GamePhase::Revealed;
-        // 自動選擇第一張卡牌（確保只有一軌播放）
+        // Auto-select first card (ensure only one track plays)
         state.selectedCardId = state.cards.isEmpty() ? -1 : 0;
         shouldNotify = true;
     }
@@ -313,7 +313,7 @@ void BlindCardManager::reset()
         state.phase = GamePhase::Setup;
         state.currentRound = 0;
 
-        // 清除評分資料但保留卡牌
+        // Clear rating data but keep cards
         for (auto& card : state.cards)
         {
             card.rounds.clear();
@@ -321,20 +321,20 @@ void BlindCardManager::reset()
             card.isRemoved = false;
         }
 
-        // 重新分配隨機撲克牌數值（每場新遊戲都不同）
+        // Reassign random poker card values (different for each new game)
         if (!state.cards.isEmpty())
         {
             std::random_device rd;
             std::mt19937 gen (rd());
 
-            // 建立一副 52 張撲克牌
+            // Build a 52-card deck
             struct PokerCard { int value; int suit; };
             juce::Array<PokerCard> deck;
             for (int suit = 0; suit < 4; ++suit)
                 for (int value = 1; value <= 13; ++value)
                     deck.add ({ value, suit });
 
-            // 洗牌
+            // Shuffle
             for (int i = deck.size() - 1; i > 0; --i)
             {
                 std::uniform_int_distribution<> dis (0, i);
@@ -342,7 +342,7 @@ void BlindCardManager::reset()
                 deck.swap (i, j);
             }
 
-            // 分配給卡牌
+            // Assign to cards
             for (int i = 0; i < state.cards.size(); ++i)
             {
                 auto& card = state.cards.getReference (i);
@@ -351,10 +351,10 @@ void BlindCardManager::reset()
             }
         }
 
-        // 清除 Q&A 狀態
+        // Clear Q&A state
         state.qaState.reset();
 
-        // 自動選擇第一張卡牌（確保只有一軌播放）
+        // Auto-select first card (ensure only one track plays)
         state.selectedCardId = state.cards.isEmpty() ? -1 : 0;
 
         shouldNotify = true;
@@ -369,7 +369,7 @@ void BlindCardManager::selectCard (int cardId)
     {
         juce::ScopedLock sl (lock);
 
-        // 允許在所有階段選擇卡牌（包括 Revealed 階段，讓用戶可以重聽）
+        // Allow card selection in all phases (including Revealed, so users can re-listen)
         if (cardId >= 0 && cardId < state.cards.size() && !state.cards[cardId].isRemoved)
         {
             state.selectedCardId = cardId;
@@ -386,7 +386,7 @@ void BlindCardManager::deselectCard()
     {
         juce::ScopedLock sl (lock);
 
-        // 盲測階段禁止取消選擇（避免多軌同時播放）
+        // Prevent deselection during blind testing (avoid multiple tracks playing)
         if (state.phase == GamePhase::BlindTesting)
             return;
 
@@ -449,10 +449,10 @@ void BlindCardManager::setTrackName (int cardId, const juce::String& name)
     {
         juce::ScopedLock sl (lock);
 
-        // 允許任何階段更新軌道名稱（UI 會在盲測時隱藏真實名稱）
+        // Allow track name updates in any phase (UI hides real names during blind testing)
         if (cardId >= 0 && cardId < state.cards.size())
         {
-            // 只有當名稱真正改變時才更新
+            // Only update if name actually changed
             if (state.cards[cardId].realTrackName != name)
             {
                 state.cards.getReference (cardId).realTrackName = name;
@@ -545,7 +545,7 @@ float BlindCardManager::getCurrentPlayingRMSdB() const
             processor = instances[selectedId];
     }
 
-    // 在鎖外呼叫 processor 方法（避免死鎖）
+    // Call processor method outside lock (avoid deadlock)
     if (processor != nullptr)
         return processor->getCurrentRMSdB();
 
@@ -562,11 +562,11 @@ juce::String BlindCardManager::getCurrentPlayingTrackName() const
 
     const auto& card = state.cards[selectedId];
 
-    // 盲測階段只顯示卡片編號，不顯示軌道名
+    // During blind testing, only show card number, not track name
     if (state.phase == GamePhase::BlindTesting)
         return "Card " + juce::String (card.displayPosition + 1);
 
-    // Setup 或 Revealed 階段顯示軌道名
+    // In Setup or Revealed phase, show track name
     return card.realTrackName;
 }
 
@@ -596,7 +596,7 @@ void BlindCardManager::setRatingMode (RatingMode mode)
     bool shouldNotify = false;
     {
         juce::ScopedLock sl (lock);
-        // Q&A 模式至少需要 2 軌
+        // Q&A mode requires at least 2 tracks
         if (mode == RatingMode::QA && state.cards.size() < 2)
             return;
 
@@ -628,14 +628,14 @@ void BlindCardManager::setMeasuredLUFS (int cardId, float lufs)
             state.cards.getReference (cardId).measuredLUFS = lufs;
             shouldNotify = true;
 
-            // 校準期間不自動重算增益（等 lockCalibration 時一次算）
-            // 但如果不在校準中（手動設定 LUFS），則自動重算
+            // During calibration, don't auto-recalculate gains (wait for lockCalibration)
+            // But if not calibrating (manual LUFS setting), auto-recalculate
             if (!calibrating_)
                 shouldRecalculate = true;
 
             DBG ("BlindCardManager: Card " << cardId << " LUFS = " << lufs << " dB");
 
-            // 校準期間：檢查是否所有卡牌都已測量完成
+            // During calibration: check if all cards have been measured
             if (calibrating_)
             {
                 int measuredCount = 0;
@@ -651,7 +651,7 @@ void BlindCardManager::setMeasuredLUFS (int cardId, float lufs)
                 }
                 DBG ("BlindCardManager: Calibration progress " << measuredCount << "/" << totalCount);
 
-                // 所有卡牌都測量完成，自動鎖定校準
+                // All cards measured, auto-lock calibration
                 if (measuredCount >= totalCount && totalCount > 0)
                     shouldAutoLock = true;
             }
@@ -672,7 +672,7 @@ void BlindCardManager::setManualGain (int cardId, float gainDb)
         juce::ScopedLock sl (lock);
         if (cardId >= 0 && cardId < state.cards.size())
         {
-            // 限制手動增益範圍 -12 到 +12 dB
+            // Limit manual gain range to -12 to +12 dB
             state.cards.getReference (cardId).manualGainDb = juce::jlimit (-12.0f, 12.0f, gainDb);
             shouldNotify = true;
         }
@@ -685,7 +685,7 @@ void BlindCardManager::recalculateAutoGains()
 {
     juce::ScopedLock sl (lock);
 
-    // 收集所有有效的 LUFS 測量值
+    // Collect all valid LUFS measurements
     std::vector<float> lufsValues;
     for (const auto& card : state.cards)
     {
@@ -693,7 +693,7 @@ void BlindCardManager::recalculateAutoGains()
             lufsValues.push_back (card.measuredLUFS);
     }
 
-    // 如果沒有有效測量值，重置所有增益
+    // If no valid measurements, reset all gains
     if (lufsValues.empty())
     {
         for (auto& card : state.cards)
@@ -701,29 +701,29 @@ void BlindCardManager::recalculateAutoGains()
         return;
     }
 
-    // 計算中位數作為基準
+    // Calculate median as reference
     std::sort (lufsValues.begin(), lufsValues.end());
     float medianLUFS;
     size_t n = lufsValues.size();
     if (n % 2 == 1)
     {
-        // 奇數：取正中間
+        // Odd count: take middle value
         medianLUFS = lufsValues[n / 2];
     }
     else
     {
-        // 偶數：取中間兩個的較小值（更保守，避免音量過大）
+        // Even count: take smaller of two middle values (more conservative, avoid excessive volume)
         medianLUFS = lufsValues[n / 2 - 1];
     }
 
-    // 使用中位數作為基準計算增益
+    // Calculate gains using median as reference
     for (auto& card : state.cards)
     {
         if (card.hasLUFSMeasurement() && !card.isRemoved)
         {
-            // 計算需要的增益來達到中位數響度
+            // Calculate gain needed to reach median loudness
             card.autoGainDb = medianLUFS - card.measuredLUFS;
-            // 限制自動增益範圍 -24 到 +24 dB
+            // Limit auto gain range to -24 to +24 dB
             card.autoGainDb = juce::jlimit (-24.0f, 24.0f, card.autoGainDb);
         }
         else
@@ -737,7 +737,7 @@ float BlindCardManager::getGainForCard (int cardId) const
 {
     juce::ScopedLock sl (lock);
 
-    // 如果 Level-Match 未啟用或尚未校準完成，不應用增益
+    // If Level-Match is not enabled or calibration not complete, don't apply gain
     if (!levelMatchEnabled_ || !calibrated_)
         return 0.0f;
 
@@ -757,7 +757,7 @@ void BlindCardManager::resetLevelMatching()
             card.autoGainDb = 0.0f;
             card.manualGainDb = 0.0f;
         }
-        // 重置校準狀態
+        // Reset calibration state
         calibrating_ = false;
         calibrated_ = false;
         shouldNotify = true;
@@ -767,7 +767,7 @@ void BlindCardManager::resetLevelMatching()
 }
 
 // ============================================================================
-// Level Matching - 校準流程
+// Level Matching - Calibration Flow
 // ============================================================================
 
 void BlindCardManager::startCalibration()
@@ -777,11 +777,11 @@ void BlindCardManager::startCalibration()
     {
         juce::ScopedLock sl (lock);
 
-        // 只在 Setup 階段允許開始校準
+        // Only allow calibration start in Setup phase
         if (state.phase != GamePhase::Setup)
             return;
 
-        // 重置所有測量數據
+        // Reset all measurement data
         for (auto& card : state.cards)
         {
             card.measuredLUFS = -100.0f;
@@ -792,14 +792,14 @@ void BlindCardManager::startCalibration()
         calibrated_ = false;
         calibrationStartTime_ = juce::Time::currentTimeMillis();
 
-        // 複製實例列表（避免在鎖內呼叫外部方法）
+        // Copy instance list (avoid calling external methods while holding lock)
         instancesCopy = instances;
         shouldNotify = true;
 
         DBG ("BlindCardManager: Calibration started");
     }
 
-    // 在鎖外啟動所有實例的測量
+    // Start measurement on all instances outside lock
     for (auto* instance : instancesCopy)
     {
         if (instance != nullptr)
@@ -819,7 +819,7 @@ void BlindCardManager::lockCalibration()
         if (!calibrating_)
             return;
 
-        // 檢查是否所有卡牌都有測量值
+        // Check if all cards have measurements
         int measuredCount = 0;
         for (const auto& card : state.cards)
         {
@@ -827,14 +827,14 @@ void BlindCardManager::lockCalibration()
                 measuredCount++;
         }
 
-        // 至少需要有測量值才能鎖定
+        // Need at least one measurement to lock
         if (measuredCount == 0)
         {
             DBG ("BlindCardManager: Cannot lock calibration - no measurements");
             return;
         }
 
-        // 計算增益（使用中位數基準）
+        // Calculate gains (using median as reference)
         recalculateAutoGains();
 
         calibrating_ = false;
@@ -915,11 +915,11 @@ void BlindCardManager::notifyListeners()
     sendChangeMessage();
 }
 
-// Q&A 模式實作
+// Q&A Mode Implementation
 
 void BlindCardManager::selectNextQAQuestion()
 {
-    // 從未問過的卡牌中隨機選擇一個（呼叫時已在 lock 中）
+    // Randomly select from unasked cards (already holding lock when called)
     juce::Array<int> availableIds;
     for (const auto& card : state.cards)
     {
@@ -955,7 +955,7 @@ void BlindCardManager::submitQAAnswer (int selectedCardId)
         if (state.qaState.isComplete (maxQ))
             return;
 
-        // 如果正在倒數中，忽略點擊（讓用戶看完答案）
+        // If countdown is active, ignore clicks (let user see the answer)
         if (state.qaState.isShowingAnswer)
             return;
 
@@ -965,7 +965,7 @@ void BlindCardManager::submitQAAnswer (int selectedCardId)
                                              : QAState::FeedbackState::Wrong;
         state.qaState.lastAnsweredCardId = selectedCardId;
 
-        // 開始顯示答案倒數（3 秒）
+        // Start answer reveal countdown (3 seconds)
         state.qaState.isShowingAnswer = true;
         state.qaState.countdownValue = 3;
         state.qaState.revealedTargetCardId = state.qaState.targetCardId;
@@ -1036,7 +1036,7 @@ int BlindCardManager::getQAMaxQuestions() const
         if (!card.isRemoved)
             activeCount++;
     }
-    // 使用用戶設定的問題數，但不超過活躍卡牌數
+    // Use user-set question count, but not more than active card count
     return juce::jmin (state.qaQuestionCount, activeCount);
 }
 
@@ -1075,7 +1075,7 @@ void BlindCardManager::tickQACountdown()
 
         if (state.qaState.countdownValue <= 0)
         {
-            // 倒數結束，前進到下一題
+            // Countdown finished, advance to next question
             state.qaState.isShowingAnswer = false;
             state.qaState.countdownValue = 0;
             state.qaState.revealedTargetCardId = -1;
@@ -1084,12 +1084,12 @@ void BlindCardManager::tickQACountdown()
             int maxQ = getQAMaxQuestions();
             if (state.qaState.isComplete (maxQ))
             {
-                // 所有問題完成，進入 Revealed 階段
+                // All questions complete, enter Revealed phase
                 state.phase = GamePhase::Revealed;
             }
             else
             {
-                // 還有問題，選擇下一題
+                // More questions remaining, select next question
                 selectNextQAQuestion();
             }
         }
@@ -1109,7 +1109,7 @@ void BlindCardManager::skipQACountdown()
         if (!state.qaState.isShowingAnswer)
             return;
 
-        // 直接結束倒數
+        // End countdown immediately
         state.qaState.isShowingAnswer = false;
         state.qaState.countdownValue = 0;
         state.qaState.revealedTargetCardId = -1;
@@ -1134,7 +1134,7 @@ void BlindCardManager::skipQACountdown()
 int BlindCardManager::getQACorrectAnswerCardId() const
 {
     juce::ScopedLock sl (lock);
-    // 如果正在顯示答案，回傳揭曉的正確卡牌 ID
+    // If showing answer, return the revealed correct card ID
     if (state.qaState.isShowingAnswer)
         return state.qaState.revealedTargetCardId;
     return -1;
@@ -1146,22 +1146,22 @@ void BlindCardManager::addTestCards (int count)
     {
         juce::ScopedLock sl (lock);
 
-        // 只在 Setup 階段允許
+        // Only allow in Setup phase
         if (state.phase != GamePhase::Setup)
             return;
 
-        // 如果已有足夠卡牌，不需要加入
+        // If already have enough cards, no need to add
         if (state.cards.size() >= count)
             return;
 
-        // 限制數量
+        // Limit count
         count = juce::jlimit (1, static_cast<int> (GameState::MaxCards), count);
 
-        // 測試卡牌名稱
+        // Test card names
         juce::StringArray testNames = { "Kick Drum", "Snare", "Hi-Hat", "Bass",
                                         "Piano", "Guitar", "Synth Lead", "Vocal" };
 
-        // 建立一副 52 張撲克牌並洗牌（確保不重複）
+        // Build a 52-card deck and shuffle (ensure no duplicates)
         std::random_device rd;
         std::mt19937 gen (rd());
 
@@ -1178,7 +1178,7 @@ void BlindCardManager::addTestCards (int count)
             deck.swap (i, j);
         }
 
-        // 從現有數量開始加入測試卡牌
+        // Add test cards starting from existing count
         int startId = state.cards.size();
         for (int i = startId; i < count; ++i)
         {
@@ -1187,14 +1187,14 @@ void BlindCardManager::addTestCards (int count)
             card.realTrackName = testNames[i % testNames.size()];
             card.displayPosition = i;
 
-            // 從洗好的牌堆分配（保證不重複）
+            // Assign from shuffled deck (guaranteed no duplicates)
             card.cardValue = deck[i].value;
             card.suitIndex = deck[i].suit;
 
             state.cards.add (card);
         }
 
-        // 自動選擇第一張卡牌（如果尚未選擇）
+        // Auto-select first card (if not already selected)
         if (state.selectedCardId < 0)
             state.selectedCardId = 0;
 
@@ -1212,32 +1212,32 @@ void BlindCardManager::setTestCardCount (int count)
     {
         juce::ScopedLock sl (lock);
 
-        // 只在 Setup 階段允許變更
+        // Only allow changes in Setup phase
         if (state.phase != GamePhase::Setup)
             return;
 
-        // 限制數量
+        // Limit count
         count = juce::jlimit (static_cast<int> (GameState::MinCards),
                               static_cast<int> (GameState::MaxCards), count);
 
         int currentCount = state.cards.size();
 
-        // 如果數量相同，不需要變更
+        // If count is same, no need to change
         if (count == currentCount)
             return;
 
-        // 測試卡牌名稱
+        // Test card names
         juce::StringArray testNames = { "Kick Drum", "Snare", "Hi-Hat", "Bass",
                                         "Piano", "Guitar", "Synth Lead", "Vocal" };
 
         if (count > currentCount)
         {
-            // 增加卡牌：收集現有的撲克牌值，避免重複
+            // Adding cards: collect existing poker card values to avoid duplicates
             std::set<std::pair<int, int>> usedCards;
             for (const auto& card : state.cards)
                 usedCards.insert ({ card.cardValue, card.suitIndex });
 
-            // 建立剩餘可用的撲克牌
+            // Build remaining available poker cards
             std::random_device rd;
             std::mt19937 gen (rd());
 
@@ -1247,7 +1247,7 @@ void BlindCardManager::setTestCardCount (int count)
                     if (usedCards.find ({ value, suit }) == usedCards.end())
                         availableCards.add ({ value, suit });
 
-            // 洗牌
+            // Shuffle
             for (int i = availableCards.size() - 1; i > 0; --i)
             {
                 std::uniform_int_distribution<> dis (0, i);
@@ -1255,17 +1255,17 @@ void BlindCardManager::setTestCardCount (int count)
                 availableCards.swap (i, j);
             }
 
-            // 加入新卡牌
+            // Add new cards
             int cardIdx = 0;
             for (int i = currentCount; i < count; ++i)
             {
                 CardSlot card;
                 card.id = i;
-                // Standalone 模式下不自動分配軌道名稱，等用戶拖入音訊檔案
+                // In standalone mode, don't auto-assign track names, wait for user to drop audio files
                 card.realTrackName = standaloneMode ? "" : testNames[i % testNames.size()];
                 card.displayPosition = i;
 
-                // 從可用牌堆分配
+                // Assign from available deck
                 if (cardIdx < availableCards.size())
                 {
                     card.cardValue = availableCards[cardIdx].first;
@@ -1280,11 +1280,11 @@ void BlindCardManager::setTestCardCount (int count)
         }
         else
         {
-            // 減少卡牌：移除多餘的卡牌（從後面移除）
+            // Reducing cards: remove extra cards (from the end)
             while (state.cards.size() > count)
                 state.cards.removeLast();
 
-            // 確保選中的卡牌仍然有效
+            // Ensure selected card is still valid
             if (state.selectedCardId >= count)
                 state.selectedCardId = count - 1;
 
@@ -1303,7 +1303,7 @@ void BlindCardManager::setStandaloneMode (bool enabled)
     juce::ScopedLock sl (lock);
     standaloneMode = enabled;
 
-    // 清除所有現有卡牌的軌道名稱（如果切換到 Standalone 模式）
+    // Clear all existing card track names (when switching to Standalone mode)
     if (enabled)
     {
         for (auto& card : state.cards)

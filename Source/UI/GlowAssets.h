@@ -7,8 +7,8 @@ namespace blindcard
 {
 
 /**
- * 光暈素材管理類別
- * 載入並快取 PNG 貼圖資源
+ * Glow asset management class
+ * Loads and caches PNG texture resources
  */
 class GlowAssets
 {
@@ -20,8 +20,8 @@ public:
     }
 
     /**
-     * 取得暖金光暈圖片（翻牌閃爍用）
-     * @param use2x 是否使用 @2x 版本
+     * Get warm gold glow image (for flip flash)
+     * @param use2x Whether to use @2x version
      */
     const juce::Image& getGlowWarm (bool use2x = false) const
     {
@@ -29,8 +29,8 @@ public:
     }
 
     /**
-     * 取得白金光暈圖片（選中態用）
-     * @param use2x 是否使用 @2x 版本
+     * Get cool white-gold glow image (for selection state)
+     * @param use2x Whether to use @2x version
      */
     const juce::Image& getGlowCool (bool use2x = false) const
     {
@@ -38,7 +38,7 @@ public:
     }
 
     /**
-     * 取得 Compact 模式暖金光暈
+     * Get Compact mode warm gold glow
      */
     const juce::Image& getGlowWarmCompact (bool use2x = false) const
     {
@@ -46,7 +46,7 @@ public:
     }
 
     /**
-     * 取得 Compact 模式白金光暈
+     * Get Compact mode cool white-gold glow
      */
     const juce::Image& getGlowCoolCompact (bool use2x = false) const
     {
@@ -54,7 +54,7 @@ public:
     }
 
     /**
-     * 檢查素材是否已載入
+     * Check if assets are loaded
      */
     bool isLoaded() const { return loaded; }
 
@@ -66,8 +66,8 @@ private:
 
     void loadAssets()
     {
-        // 載入 Standard 尺寸素材
-        // JUCE BinaryData 將 @ 轉成底線
+        // Load Standard size assets
+        // JUCE BinaryData converts @ to underscore
         glowWarm1x = juce::ImageFileFormat::loadFrom (
             BinaryData::glow_warm1x_png,
             static_cast<size_t> (BinaryData::glow_warm1x_pngSize));
@@ -84,7 +84,7 @@ private:
             BinaryData::glow_cool2x_png,
             static_cast<size_t> (BinaryData::glow_cool2x_pngSize));
 
-        // 載入 Compact 尺寸素材
+        // Load Compact size assets
         glowWarmCompact1x = juce::ImageFileFormat::loadFrom (
             BinaryData::glow_warm_compact1x_png,
             static_cast<size_t> (BinaryData::glow_warm_compact1x_pngSize));

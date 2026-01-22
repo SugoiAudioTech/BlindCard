@@ -5,7 +5,7 @@
 BlindCardEditor::BlindCardEditor (BlindCardProcessor& p)
     : AudioProcessorEditor (&p), processorRef (p)
 {
-    // 輪數設定
+    // Rounds setting
     roundsLabel.setText ("Rounds:", juce::dontSendNotification);
     addAndMakeVisible (roundsLabel);
 
@@ -19,7 +19,7 @@ BlindCardEditor::BlindCardEditor (BlindCardProcessor& p)
     };
     addAndMakeVisible (roundsSlider);
 
-    // 按鈕
+    // Buttons
     shuffleButton.onClick = [this]() { processorRef.getManager().shuffle(); };
     addAndMakeVisible (shuffleButton);
 
@@ -29,7 +29,7 @@ BlindCardEditor::BlindCardEditor (BlindCardProcessor& p)
     revealButton.onClick = [this]()
     {
         processorRef.getManager().reveal();
-        // 揭曉時觸發所有卡牌翻牌動畫
+        // Trigger flip animation for all cards when revealing
         for (auto* card : cardComponents)
         {
             if (card->isVisible())
@@ -96,11 +96,11 @@ BlindCardEditor::BlindCardEditor (BlindCardProcessor& p)
     };
     addAndMakeVisible (modeButton);
 
-    // 狀態列
+    // Status bar
     statusLabel.setJustificationType (juce::Justification::centred);
     addAndMakeVisible (statusLabel);
 
-    // 筆記區
+    // Note area
     noteEditor.setMultiLine (true);
     noteEditor.setReturnKeyStartsNewLine (true);
     noteEditor.onTextChange = [this]()
@@ -112,7 +112,7 @@ BlindCardEditor::BlindCardEditor (BlindCardProcessor& p)
     };
     addAndMakeVisible (noteEditor);
 
-    // Q&A 模式 UI
+    // Q&A mode UI
     questionLabel.setJustificationType (juce::Justification::centred);
     questionLabel.setFont (juce::Font (20.0f).boldened());
     questionLabel.setColour (juce::Label::textColourId, juce::Colours::yellow);
@@ -127,14 +127,14 @@ BlindCardEditor::BlindCardEditor (BlindCardProcessor& p)
     resultLabel.setColour (juce::Label::textColourId, juce::Colours::lightgreen);
     addAndMakeVisible (resultLabel);
 
-    nextQuestionButton.setButtonText (juce::CharPointer_UTF8 ("\xe4\xb8\x8b\xe4\xb8\x80\xe9\xa1\x8c")); // 下一題
+    nextQuestionButton.setButtonText ("Next"); // Next question
     nextQuestionButton.onClick = [this]()
     {
         processorRef.getManager().nextQAQuestion();
     };
     addAndMakeVisible (nextQuestionButton);
 
-    playAgainButton.setButtonText (juce::CharPointer_UTF8 ("\xe5\x86\x8d\xe7\x8e\xa9\xe4\xb8\x80\xe6\xac\xa1")); // 再玩一次
+    playAgainButton.setButtonText ("Play Again"); // Play again
     playAgainButton.onClick = [this]()
     {
         processorRef.getManager().reset();
@@ -142,7 +142,7 @@ BlindCardEditor::BlindCardEditor (BlindCardProcessor& p)
     };
     addAndMakeVisible (playAgainButton);
 
-    // 建立卡牌元件（最多 8 張）
+    // Create card components (up to 8)
     for (int i = 0; i < blindcard::GameState::MaxCards; ++i)
     {
         auto* card = cardComponents.add (new blindcard::CardComponent());
@@ -189,14 +189,14 @@ BlindCardEditor::BlindCardEditor (BlindCardProcessor& p)
     debugPanel.setVisible (false);
     addAndMakeVisible (debugPanel);
 
-    // 監聽 Manager 變化
+    // Listen to Manager changes
     processorRef.getManager().addChangeListener (this);
 
-    // 啟用鍵盤焦點
+    // Enable keyboard focus
     setWantsKeyboardFocus (true);
 
-    // Standalone 測試模式：自動補足測試卡牌至 4 張
-    // addTestCards 會檢查是否需要加入更多卡牌
+    // Standalone test mode: Auto-add test cards up to 4
+    // addTestCards checks if more cards need to be added
     processorRef.getManager().addTestCards (4);
 
     setSize (800, 500);
@@ -212,7 +212,7 @@ BlindCardEditor::~BlindCardEditor()
 bool BlindCardEditor::keyPressed (const juce::KeyPress& key)
 {
 #if JUCE_DEBUG
-    // D 鍵切換 Debug Panel (僅限 Debug build)
+    // D key toggles Debug Panel (Debug build only)
     if (key.getTextCharacter() == 'd' || key.getTextCharacter() == 'D')
     {
         debugPanelVisible = !debugPanelVisible;
@@ -237,14 +237,14 @@ void BlindCardEditor::changeListenerCallback (juce::ChangeBroadcaster*)
 
 void BlindCardEditor::selectCard (int cardId, bool asPrimary)
 {
-    // 檢查是否已選中
+    // Check if already selected
     auto it = std::find (selectedIndices.begin(), selectedIndices.end(), cardId);
 
     if (asPrimary)
     {
         if (it != selectedIndices.end())
         {
-            // 已在列表中，移到最前面（設為主選）
+            // Already in list, move to front (set as primary)
             selectedIndices.erase (it);
         }
         selectedIndices.insert (selectedIndices.begin(), cardId);
@@ -253,12 +253,12 @@ void BlindCardEditor::selectCard (int cardId, bool asPrimary)
     {
         if (it == selectedIndices.end())
         {
-            // 不在列表中，加入
+            // Not in list, add it
             selectedIndices.push_back (cardId);
         }
     }
 
-    // MVP 限制：最多 2 個選中
+    // MVP limitation: max 2 selections
     while (selectedIndices.size() > MaxSelections)
     {
         selectedIndices.pop_back();
@@ -312,8 +312,8 @@ void BlindCardEditor::updateCardSelectionStates()
     {
         if (card->isVisible())
         {
-            // 這裡需要知道卡牌的 ID，但 CardComponent 沒有暴露
-            // 改用 setCard 時更新選中狀態
+            // Need to know card ID here, but CardComponent doesn't expose it
+            // Use setCard to update selection state instead
         }
     }
     repaint();
@@ -328,11 +328,11 @@ void BlindCardEditor::updateUI()
     int totalRounds = manager.getTotalRounds();
     int selectedId = manager.getSelectedCardId();
 
-    // 更新控制按鈕狀態
+    // Update control button states
     roundsSlider.setEnabled (phase == blindcard::GamePhase::Setup);
     roundsSlider.setValue (totalRounds, juce::dontSendNotification);
 
-    // Shuffle 按鈕需要至少 MinCards 張卡牌才能啟用
+    // Shuffle button requires at least MinCards cards to enable
     bool hasEnoughCards = cards.size() >= blindcard::GameState::MinCards;
     shuffleButton.setEnabled (phase == blindcard::GamePhase::Setup && hasEnoughCards);
     nextRoundButton.setEnabled (phase == blindcard::GamePhase::BlindTesting && currentRound < totalRounds - 1);
@@ -340,7 +340,7 @@ void BlindCardEditor::updateUI()
     resetButton.setEnabled (phase != blindcard::GamePhase::Setup);
     bypassButton.setToggleState (manager.isBypassAll(), juce::dontSendNotification);
 
-    // 更新模式按鈕
+    // Update mode button
     auto ratingMode = manager.getRatingMode();
     juce::String modeText;
     switch (ratingMode)
@@ -352,7 +352,7 @@ void BlindCardEditor::updateUI()
     modeButton.setButtonText (modeText);
     modeButton.setEnabled (phase == blindcard::GamePhase::Setup);
 
-    // 更新狀態列
+    // Update status bar
     juce::String statusText;
     switch (phase)
     {
@@ -372,17 +372,17 @@ void BlindCardEditor::updateUI()
     }
     statusLabel.setText (statusText, juce::dontSendNotification);
 
-    // 收集軌道名稱
+    // Collect track names
     juce::StringArray trackNames;
     for (const auto& card : cards)
         trackNames.add (card.realTrackName);
 
-    // Q&A 狀態
+    // Q&A state
     const blindcard::QAState* qaStatePtr = nullptr;
     if (ratingMode == blindcard::RatingMode::QA)
         qaStatePtr = &manager.getQAState();
 
-    // 更新卡牌
+    // Update cards
     for (int i = 0; i < cardComponents.size(); ++i)
     {
         if (i < cards.size())
@@ -395,7 +395,7 @@ void BlindCardEditor::updateUI()
             cardComponents[i]->setCard (cards.getReference(i), currentRound,
                                          isSelected, phase, ratingMode, qaStatePtr);
 
-            // 更新選中狀態
+            // Update selection state
             auto selState = getCardSelectionState (cardId);
             cardComponents[i]->setSelectionState (selState);
         }
@@ -406,10 +406,10 @@ void BlindCardEditor::updateUI()
         }
     }
 
-    // 隱藏底部筆記區
+    // Hide bottom note area
     noteEditor.setVisible (false);
 
-    // 更新 Q&A UI
+    // Update Q&A UI
     updateQAUI();
 
     resized();
@@ -423,16 +423,16 @@ void BlindCardEditor::onCardClicked (int cardId)
 
     if (currentSelectedId == cardId)
     {
-        // 點擊已選中的卡牌：取消選中
+        // Clicked already selected card: deselect
         manager.deselectCard();
         deselectCard (cardId);
     }
     else
     {
-        // 點擊新卡牌：設為主選
+        // Clicked new card: set as primary
         if (currentSelectedId >= 0)
         {
-            // 將舊主選降為副選
+            // Demote old primary to secondary
             selectCard (currentSelectedId, false);
         }
         manager.selectCard (cardId);
@@ -468,11 +468,11 @@ void BlindCardEditor::updateQAUI()
     const auto& qaState = manager.getQAState();
     int maxQuestions = manager.getQAMaxQuestions();
 
-    // 問題顯示
+    // Question display
     if (isQAMode && isBlindTesting && !qaState.isComplete (maxQuestions))
     {
         juce::String trackName = manager.getCurrentQuestionTrackName();
-        juce::String questionText = juce::String (juce::CharPointer_UTF8 ("\xe5\x93\xaa\xe8\xbb\x8c\xe6\x98\xaf ")) + trackName + "?";
+        juce::String questionText = "Which one is " + trackName + "?";
         questionLabel.setText (questionText, juce::dontSendNotification);
         questionLabel.setVisible (true);
 
@@ -488,20 +488,20 @@ void BlindCardEditor::updateQAUI()
         progressLabel.setVisible (false);
     }
 
-    // Feedback 後的 "下一題" 按鈕
+    // "Next question" button after feedback
     bool showNext = isQAMode && isBlindTesting
                     && qaState.lastFeedback != blindcard::QAState::FeedbackState::None
                     && !qaState.isComplete (maxQuestions);
     nextQuestionButton.setVisible (showNext);
 
-    // 結果顯示
+    // Results display
     if (isQAMode && isRevealed)
     {
         int correct = qaState.getCorrectCount();
         int total = static_cast<int> (qaState.answers.size());
         int percent = total > 0 ? (correct * 100 / total) : 0;
 
-        juce::String resultText = juce::String (juce::CharPointer_UTF8 ("\xe6\xad\xa3\xe7\xa2\xba\xe7\x8e\x87: ")) +
+        juce::String resultText = "Accuracy: " +
             juce::String (correct) + "/" +
             juce::String (total) + " (" + juce::String (percent) + "%)";
         resultLabel.setText (resultText, juce::dontSendNotification);
@@ -546,7 +546,7 @@ void BlindCardEditor::resized()
         bounds.removeFromRight (10);
     }
 
-    // 控制列 (上排)
+    // Control bar (top row)
     auto controlBar = bounds.removeFromTop (30);
     roundsLabel.setBounds (controlBar.removeFromLeft (60));
     roundsSlider.setBounds (controlBar.removeFromLeft (100));
@@ -561,7 +561,7 @@ void BlindCardEditor::resized()
 
     bounds.removeFromTop (5);
 
-    // 控制列 (下排)
+    // Control bar (bottom row)
     auto controlBar2 = bounds.removeFromTop (30);
     bypassButton.setBounds (controlBar2.removeFromLeft (100));
     controlBar2.removeFromLeft (20);
@@ -573,7 +573,7 @@ void BlindCardEditor::resized()
 
     bounds.removeFromTop (10);
 
-    // Q&A 問題區域
+    // Q&A question area
     auto& manager = processorRef.getManager();
     auto ratingMode = manager.getRatingMode();
     auto phase = manager.getPhase();
@@ -585,11 +585,11 @@ void BlindCardEditor::resized()
         bounds.removeFromTop (5);
     }
 
-    // 狀態列
+    // Status bar
     statusLabel.setBounds (bounds.removeFromTop (25));
     bounds.removeFromTop (5);
 
-    // Q&A 結果區域
+    // Q&A results area
     if (ratingMode == blindcard::RatingMode::QA && phase == blindcard::GamePhase::Revealed)
     {
         resultLabel.setBounds (bounds.removeFromTop (35));
@@ -599,7 +599,7 @@ void BlindCardEditor::resized()
         bounds.removeFromTop (10);
     }
 
-    // "下一題" 按鈕
+    // "Next question" button
     juce::Rectangle<int> nextButtonArea;
     if (nextQuestionButton.isVisible())
     {
@@ -607,17 +607,17 @@ void BlindCardEditor::resized()
         bounds.removeFromBottom (5);
     }
 
-    // 卡牌區域 - 固定 4+4 雙排佈局，統一靠左對齊
+    // Card area - fixed 4+4 dual row layout, left-aligned
     auto cardArea = bounds;
     const auto& cards = manager.getCards();
     int numCards = static_cast<int> (cards.size());
 
-    // 取得多卡場景配置
+    // Get multi-card scene configuration
     auto multiCardConfig = blindcard::CardComponent::getMultiCardConfig (numCards);
 
-    // 固定佈局參數
-    int hSpacing = 10;  // 水平間距
-    int vSpacing = 16;  // 垂直間距（行間）- 會議決議從 8px 改為 16px
+    // Fixed layout parameters
+    int hSpacing = 10;  // Horizontal spacing
+    int vSpacing = 16;  // Vertical spacing (between rows) - changed from 8px to 16px
     int cardsPerRow = 4;
 
     int rowHeight = (cardArea.getHeight() - vSpacing) / 2;
@@ -628,7 +628,7 @@ void BlindCardEditor::resized()
     int cardWidth = (topRow.getWidth() - (cardsPerRow - 1) * hSpacing) / cardsPerRow;
     cardWidth = juce::jmin (cardWidth, 150);
 
-    // 統一靠左對齊（會議決議：移除置中邏輯）
+    // Left-aligned layout (removed centering logic)
     for (int i = 0; i < cardComponents.size(); ++i)
     {
         if (i < numCards)
@@ -638,13 +638,13 @@ void BlindCardEditor::resized()
 
             if (i < cardsPerRow)
             {
-                // 上排 (0-3)
+                // Top row (0-3)
                 int x = i * (cardWidth + hSpacing);
                 cardComponents[i]->setBounds (topRow.getX() + x, topRow.getY(), cardWidth, rowHeight);
             }
             else
             {
-                // 下排 (4-7)
+                // Bottom row (4-7)
                 int x = (i - cardsPerRow) * (cardWidth + hSpacing);
                 cardComponents[i]->setBounds (bottomRow.getX() + x, bottomRow.getY(), cardWidth, rowHeight);
             }
@@ -655,7 +655,7 @@ void BlindCardEditor::resized()
         }
     }
 
-    // 設定 "下一題" 按鈕位置
+    // Set "Next question" button position
     if (nextQuestionButton.isVisible())
     {
         nextQuestionButton.setBounds (nextButtonArea.reduced (200, 0));
@@ -664,16 +664,16 @@ void BlindCardEditor::resized()
 
 void BlindCardEditor::startAutoScreenshot()
 {
-    // 設定截圖目錄
+    // Set screenshot directory
     screenshotDir = juce::File::getSpecialLocation (juce::File::userDesktopDirectory)
                         .getChildFile ("BlindCard_Screenshots");
     screenshotDir.createDirectory();
 
-    // 隱藏 Debug Panel 避免遮擋
+    // Hide Debug Panel to avoid obstruction
     debugPanelVisible = false;
     debugPanel.setVisible (false);
 
-    // 開始第一步
+    // Start first step
     screenshotStep = 0;
     performScreenshotStep();
 }
@@ -682,7 +682,7 @@ void BlindCardEditor::performScreenshotStep()
 {
     if (screenshotStep < 0 || screenshotStep >= 4)
     {
-        // 完成或未啟動
+        // Completed or not started
         screenshotStep = -1;
         juce::AlertWindow::showMessageBoxAsync (
             juce::AlertWindow::InfoIcon,
@@ -694,25 +694,25 @@ void BlindCardEditor::performScreenshotStep()
     auto& manager = processorRef.getManager();
     int targetCards = screenshotCardCounts[screenshotStep];
 
-    // 重置並添加指定數量的測試卡牌
+    // Reset and add specified number of test cards
     manager.reset();
     clearAllSelections();
     manager.addTestCards (targetCards);
 
-    // 設定主選（第一張）和副選（第二張）
+    // Set primary (first card) and secondary (second card) selection
     if (targetCards >= 1)
     {
-        selectCard (0, true);   // 主選
+        selectCard (0, true);   // Primary
     }
     if (targetCards >= 2)
     {
-        selectCard (1, false);  // 副選
+        selectCard (1, false);  // Secondary
     }
 
     updateUI();
     resized();
 
-    // 延遲截圖，等待動畫完成
+    // Delay screenshot to wait for animation completion
     juce::Timer::callAfterDelay (500, [this, targetCards]()
     {
         juce::String filename = juce::String::formatted ("cards_%d_primary_secondary.png", targetCards);
@@ -726,7 +726,7 @@ void BlindCardEditor::performScreenshotStep()
 
 void BlindCardEditor::saveScreenshot (const juce::String& filename)
 {
-    // 使用 JUCE 的 createComponentSnapshot 截取整個編輯器
+    // Use JUCE's createComponentSnapshot to capture the entire editor
     auto snapshot = createComponentSnapshot (getLocalBounds());
 
     if (snapshot.isValid())
