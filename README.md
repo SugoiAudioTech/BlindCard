@@ -16,17 +16,20 @@ Blind audio comparison tool with a poker card themed UI. Supports AU/VST3 plugin
 ## System Requirements
 
 - macOS 10.15+
-- JUCE 7.x
 - CMake 3.22+
-- C++17
+- C++17 compiler
 
 ## Build
 
 ```bash
+git clone https://github.com/SugoiAudioTech/BlindCard.git
+cd BlindCard
 mkdir build && cd build
 cmake ..
 cmake --build .
 ```
+
+JUCE is automatically downloaded during the CMake configure step.
 
 After building, plugins are automatically copied to system plugin directories.
 
@@ -86,4 +89,8 @@ Source/
 
 ## License
 
-Proprietary - Sugoi Audio Tech
+Copyright (c) 2026 Sugoi Audio Tech
+
+[AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.html) - See [LICENSE](LICENSE) for details.
+
+This project is based on [JUCE](https://juce.com/), which is licensed under AGPL-3.0. As a derivative work, this project must also be licensed under AGPL-3.0.
