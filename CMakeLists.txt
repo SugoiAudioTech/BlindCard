@@ -1,8 +1,17 @@
+# Copyright (c) 2026 Sugoi Audio Tech
+# SPDX-License-Identifier: AGPL-3.0-only
+
 cmake_minimum_required(VERSION 3.22)
 
 project(BlindCard VERSION 1.0.0)
 
-add_subdirectory(/Users/Mac/JUCE ${CMAKE_BINARY_DIR}/JUCE)
+# Fetch JUCE automatically
+include(FetchContent)
+FetchContent_Declare(JUCE
+    GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
+    GIT_TAG 8.0.12
+    GIT_SHALLOW TRUE)
+FetchContent_MakeAvailable(JUCE)
 
 juce_add_plugin(BlindCard
     COMPANY_NAME "Sugoi"
@@ -82,7 +91,7 @@ target_compile_definitions(BlindCard
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0
         JUCE_VST3_CAN_REPLACE_VST2=0
-        # Standalone 音訊設定
+        # Standalone audio settings
         JUCE_USE_CUSTOM_PLUGIN_STANDALONE_APP=0
         JUCE_STANDALONE_FILTER_WINDOW_USE_KIOSK_MODE=0)
 

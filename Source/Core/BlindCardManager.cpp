@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 Sugoi Audio Tech
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
 #include "BlindCardManager.h"
 #include "../PluginProcessor.h"
 #include <random>

@@ -19,3 +19,6 @@ Thumbs.db
 
 # Worktrees
 .worktrees/
+
+# Claude Code
+.claude/

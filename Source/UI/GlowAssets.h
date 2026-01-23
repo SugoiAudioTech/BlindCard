@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 Sugoi Audio Tech
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
 #pragma once
 
 #include <juce_gui_basics/juce_gui_basics.h>
