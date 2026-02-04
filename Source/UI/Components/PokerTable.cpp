@@ -14,6 +14,7 @@
 */
 
 #include "PokerTable.h"
+#include "BinaryData.h"
 
 namespace BlindCard
 {
@@ -333,6 +334,9 @@ void PokerTable::drawFeltSurface(juce::Graphics& g, juce::Rectangle<float> bound
         g.fillEllipse(x, y, size, size);
     }
 
+    // Draw "SUGOI AUDIO" branding text on the felt (like "TEXAS HOLD'EM" style)
+    drawBrandingText(g, bounds);
+
     // Vignette effect (subtle darker edges)
     juce::ColourGradient vignetteGradient(
         juce::Colours::transparentBlack,
@@ -343,6 +347,119 @@ void PokerTable::drawFeltSurface(juce::Graphics& g, juce::Rectangle<float> bound
     );
     g.setGradientFill(vignetteGradient);
     g.fillRoundedRectangle(bounds, stadiumRadius);
+}
+
+void PokerTable::drawBrandingText(juce::Graphics& g, juce::Rectangle<float> bounds)
+{
+    // Load Sugoi logo from binary data
+    static juce::Image logoImage = juce::ImageCache::getFromMemory(
+        BinaryData::sugoilogo_png, BinaryData::sugoilogo_pngSize);
+
+    if (!logoImage.isValid())
+        return;
+
+    // Create a monochrome silhouette version of the logo (darker felt color)
+    // This creates the "embossed into felt" effect like casino tables
+    static juce::Image silhouetteImage;
+    static bool silhouetteCreated = false;
+
+    if (!silhouetteCreated)
+    {
+        silhouetteImage = logoImage.createCopy();
+        // Convert to single-color silhouette (dark green, felt-like)
+        juce::Colour silhouetteColour(0xFF1A5C3A);  // Darker green than felt
+
+        juce::Image::BitmapData bitmap(silhouetteImage, juce::Image::BitmapData::readWrite);
+        for (int y = 0; y < bitmap.height; ++y)
+        {
+            for (int x = 0; x < bitmap.width; ++x)
+            {
+                auto pixel = bitmap.getPixelColour(x, y);
+
+                // Check if pixel is white or near-white (background)
+                // White = high R, G, B values
+                bool isWhiteBackground = (pixel.getRed() > 240 &&
+                                          pixel.getGreen() > 240 &&
+                                          pixel.getBlue() > 240);
+
+                if (isWhiteBackground || pixel.getAlpha() < 10)
+                {
+                    // Make background transparent
+                    bitmap.setPixelColour(x, y, juce::Colours::transparentBlack);
+                }
+                else
+                {
+                    // Convert actual logo content to silhouette color
+                    bitmap.setPixelColour(x, y, silhouetteColour.withAlpha((juce::uint8)255));
+                }
+            }
+        }
+        silhouetteCreated = true;
+    }
+
+    // Logo size (scaled to fit nicely on the table)
+    float logoHeight = bounds.getHeight() * 0.5f;
+    float aspectRatio = static_cast<float>(silhouetteImage.getWidth()) / static_cast<float>(silhouetteImage.getHeight());
+    float logoWidth = logoHeight * aspectRatio;
+
+    // Position: distance from edge
+    float chipEndOffset = 150.0f;
+
+    float leftX = bounds.getX() + chipEndOffset;
+    float rightX = bounds.getRight() - chipEndOffset;
+    float centreY = bounds.getCentreY();
+
+    // Subtle opacity for watermark effect
+    float opacity = 0.4f;
+
+    // Text setup - "Sugoi" below logo (same style as original text version)
+    float fontSize = logoHeight * 0.25f;
+    juce::Font brandFont(juce::FontOptions(fontSize).withStyle("Bold"));
+    brandFont.setHorizontalScale(0.85f);  // Slightly condensed
+    float textHeight = fontSize * 1.2f;
+    float textYOffset = logoHeight / 2.0f + 5.0f;  // Below logo
+
+    // === LEFT SIDE (facing forward) ===
+    juce::Rectangle<float> leftLogoBounds(
+        leftX - logoWidth / 2.0f,
+        centreY - logoHeight / 2.0f - textHeight / 2.0f,
+        logoWidth,
+        logoHeight
+    );
+    g.setOpacity(opacity);
+    g.drawImage(silhouetteImage, leftLogoBounds,
+                juce::RectanglePlacement::centred | juce::RectanglePlacement::onlyReduceInSize);
+
+    // "SUGOI" text below left logo (white, semi-transparent like original)
+    g.setColour(juce::Colours::white.withAlpha(0.15f));
+    g.setFont(brandFont);
+    g.drawText("SUGOI",
+               static_cast<int>(leftX - logoWidth / 2.0f),
+               static_cast<int>(centreY + textYOffset - textHeight / 2.0f),
+               static_cast<int>(logoWidth),
+               static_cast<int>(textHeight),
+               juce::Justification::centred, false);
+
+    // === RIGHT SIDE (facing forward) ===
+    juce::Rectangle<float> rightLogoBounds(
+        rightX - logoWidth / 2.0f,
+        centreY - logoHeight / 2.0f - textHeight / 2.0f,
+        logoWidth,
+        logoHeight
+    );
+    g.setOpacity(opacity);
+    g.drawImage(silhouetteImage, rightLogoBounds,
+                juce::RectanglePlacement::centred | juce::RectanglePlacement::onlyReduceInSize);
+
+    // "SUGOI" text below right logo (white, semi-transparent like original)
+    g.setColour(juce::Colours::white.withAlpha(0.15f));
+    g.setFont(brandFont);
+    g.drawText("SUGOI",
+               static_cast<int>(rightX - logoWidth / 2.0f),
+               static_cast<int>(centreY + textYOffset - textHeight / 2.0f),
+               static_cast<int>(logoWidth),
+               static_cast<int>(textHeight),
+               juce::Justification::centred, false);
 }
 
 //==============================================================================

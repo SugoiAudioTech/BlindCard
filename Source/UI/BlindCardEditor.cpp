@@ -237,32 +237,43 @@ void BlindCardEditor::resized()
     // In Standalone mode, place preset controls below header (above mode selector)
     if (isStandaloneMode && presetComboBox)
     {
-        // Preset UI takes a strip below the header
-        auto presetArea = bounds.removeFromTop(36);
-        presetArea = presetArea.reduced(16, 4);
+        // Row 1: Preset controls on left, Now Playing centered
+        auto presetRow = bounds.removeFromTop(32);
+        presetRow = presetRow.reduced(16, 2);
 
-        // Left side: [ComboBox] [Save] [Delete] [Import Files]
-        presetComboBox->setBounds(presetArea.removeFromLeft(200));
-        presetArea.removeFromLeft(8);
-        savePresetButton->setBounds(presetArea.removeFromLeft(60));
-        presetArea.removeFromLeft(4);
-        deletePresetButton->setBounds(presetArea.removeFromLeft(60));
-        presetArea.removeFromLeft(8);
-        if (importFilesButton)
-            importFilesButton->setBounds(presetArea.removeFromLeft(90));
+        // Left side: [ComboBox] [Save] [Delete]
+        auto leftControls = presetRow.removeFromLeft(340);
+        presetComboBox->setBounds(leftControls.removeFromLeft(200));
+        leftControls.removeFromLeft(8);
+        savePresetButton->setBounds(leftControls.removeFromLeft(60));
+        leftControls.removeFromLeft(4);
+        deletePresetButton->setBounds(leftControls.removeFromLeft(60));
 
-        // Right side: [Now Playing] [TrackName]
+        // Center: [Now Playing] [TrackName] - centered in FULL window width
         if (nowPlayingLabel && nowPlayingTrackName)
         {
-            auto nowPlayingArea = presetArea;
-            nowPlayingArea.removeFromLeft(20);  // Gap from delete button
+            // Calculate total width needed for Now Playing display
+            int nowPlayingWidth = 100 + 10 + 250;  // label + gap + track name
+            int windowCenterX = getWidth() / 2;
+            int nowPlayingX = windowCenterX - nowPlayingWidth / 2;
 
-            // "Now Playing" label (fixed width)
-            nowPlayingLabel->setBounds(nowPlayingArea.removeFromLeft(80));
-            nowPlayingArea.removeFromLeft(8);
+            // Ensure it doesn't overlap with left controls (340px + 20px margin)
+            int minX = 360;
+            nowPlayingX = juce::jmax(nowPlayingX, minX);
 
-            // Track name takes remaining space
+            auto nowPlayingArea = juce::Rectangle<int>(nowPlayingX, presetRow.getY(), nowPlayingWidth, presetRow.getHeight());
+
+            nowPlayingLabel->setBounds(nowPlayingArea.removeFromLeft(100));
+            nowPlayingArea.removeFromLeft(10);
             nowPlayingTrackName->setBounds(nowPlayingArea);
+        }
+
+        // Row 2: Import Files below preset combo
+        if (importFilesButton)
+        {
+            auto importRow = bounds.removeFromTop(28);
+            importRow = importRow.reduced(16, 2);
+            importFilesButton->setBounds(importRow.removeFromLeft(110));
         }
     }
 
@@ -1113,14 +1124,30 @@ bool BlindCardEditor::keyPressed(const juce::KeyPress& key, juce::Component*)
         return true;
     }
 
-    // Arrow keys to navigate between cards
+    // Card navigation helper lambda
+    auto selectCardAtIndex = [this](int newIndex, const std::vector<std::pair<int, int>>& sortedCards, int cardCount)
+    {
+        if (newIndex >= 0 && newIndex < cardCount)
+        {
+            manager->selectCard(sortedCards[newIndex].second);
+
+            // In Standalone mode, switch audio playback to selected card
+            if (isStandaloneMode && audioEngine)
+            {
+                audioEngine->switchToCard(sortedCards[newIndex].first);
+            }
+            return true;
+        }
+        return false;
+    };
+
+    // Get card info for navigation
     auto cards = manager->getCards();
     int cardCount = static_cast<int>(cards.size());
     if (cardCount < 2)
         return false;
 
     // Build a sorted list of cards by displayPosition
-    // This handles non-contiguous positions after track deletion
     std::vector<std::pair<int, int>> sortedCards;  // (displayPosition, cardId)
     for (const auto& card : cards)
     {
@@ -1129,8 +1156,27 @@ bool BlindCardEditor::keyPressed(const juce::KeyPress& key, juce::Component*)
     std::sort(sortedCards.begin(), sortedCards.end(),
               [](const auto& a, const auto& b) { return a.first < b.first; });
 
+    // =========================================================================
+    // Number keys 1-8: Direct card selection by display position
+    // (Logic Pro compatible - number keys are not intercepted for transport)
+    // =========================================================================
+    char keyChar = static_cast<char>(key.getTextCharacter());
+    if (keyChar >= '1' && keyChar <= '8')
+    {
+        int targetPosition = keyChar - '1';  // Convert '1'-'8' to 0-7
+        if (targetPosition < cardCount)
+        {
+            return selectCardAtIndex(targetPosition, sortedCards, cardCount);
+        }
+        return true;  // Consumed even if position doesn't exist
+    }
+
+    // =========================================================================
+    // Tab / Shift+Tab: Next / Previous card
+    // (Logic Pro compatible alternative to arrow keys)
+    // =========================================================================
     int currentSelectedId = manager->getSelectedCardId();
-    int currentIndex = -1;  // Index in sortedCards
+    int currentIndex = -1;
 
     // Find current selected card's index in sorted list
     for (int i = 0; i < static_cast<int>(sortedCards.size()); ++i)
@@ -1142,6 +1188,49 @@ bool BlindCardEditor::keyPressed(const juce::KeyPress& key, juce::Component*)
         }
     }
 
+    if (key.isKeyCode(juce::KeyPress::tabKey))
+    {
+        if (currentIndex < 0)
+        {
+            return selectCardAtIndex(0, sortedCards, cardCount);
+        }
+
+        int newIndex;
+        if (key.getModifiers().isShiftDown())
+        {
+            // Shift+Tab: Previous card
+            newIndex = (currentIndex - 1 + cardCount) % cardCount;
+        }
+        else
+        {
+            // Tab: Next card
+            newIndex = (currentIndex + 1) % cardCount;
+        }
+        return selectCardAtIndex(newIndex, sortedCards, cardCount);
+    }
+
+    // =========================================================================
+    // [ and ]: Previous / Next card
+    // (Pro Tools style navigation, Logic Pro compatible)
+    // =========================================================================
+    if (keyChar == '[')
+    {
+        if (currentIndex < 0)
+            return selectCardAtIndex(0, sortedCards, cardCount);
+        int newIndex = (currentIndex - 1 + cardCount) % cardCount;
+        return selectCardAtIndex(newIndex, sortedCards, cardCount);
+    }
+    else if (keyChar == ']')
+    {
+        if (currentIndex < 0)
+            return selectCardAtIndex(0, sortedCards, cardCount);
+        int newIndex = (currentIndex + 1) % cardCount;
+        return selectCardAtIndex(newIndex, sortedCards, cardCount);
+    }
+
+    // =========================================================================
+    // Arrow keys: Standard navigation (may be intercepted by Logic Pro)
+    // =========================================================================
     // If no card selected, select first card
     if (currentIndex < 0)
     {
@@ -1150,9 +1239,7 @@ bool BlindCardEditor::keyPressed(const juce::KeyPress& key, juce::Component*)
             key.isKeyCode(juce::KeyPress::upKey) ||
             key.isKeyCode(juce::KeyPress::downKey))
         {
-            if (!sortedCards.empty())
-                manager->selectCard(sortedCards[0].second);
-            return true;
+            return selectCardAtIndex(0, sortedCards, cardCount);
         }
         return false;
     }
@@ -1197,20 +1284,13 @@ bool BlindCardEditor::keyPressed(const juce::KeyPress& key, juce::Component*)
     }
     else
     {
-        return false;  // Not an arrow key
+        return false;  // Not a navigation key
     }
 
     // Select the card at new index
-    if (newIndex != currentIndex && newIndex >= 0 && newIndex < cardCount)
+    if (newIndex != currentIndex)
     {
-        manager->selectCard(sortedCards[newIndex].second);
-
-        // In Standalone mode, switch audio playback to selected card
-        if (isStandaloneMode && audioEngine)
-        {
-            // sortedCards[newIndex].first is the displayPosition (table position)
-            audioEngine->switchToCard(sortedCards[newIndex].first);
-        }
+        return selectCardAtIndex(newIndex, sortedCards, cardCount);
     }
 
     return true;
@@ -1534,7 +1614,7 @@ void BlindCardEditor::updateNowPlayingDisplay()
     else
     {
         nowPlayingTrackName->setText("No audio loaded", juce::dontSendNotification);
-        nowPlayingTrackName->setColour(juce::Label::textColourId, juce::Colour(0xFF888888));  // Gray
+        nowPlayingTrackName->setColour(juce::Label::textColourId, juce::Colour(0xFFAAAAAA));  // Light gray
     }
 }
 
@@ -1591,7 +1671,7 @@ void BlindCardEditor::setupPresetUI()
     nowPlayingLabel = std::make_unique<juce::Label>();
     nowPlayingLabel->setText("Now Playing", juce::dontSendNotification);
     nowPlayingLabel->setColour(juce::Label::textColourId, juce::Colour(0xFFD4AF37));  // Gold
-    nowPlayingLabel->setFont(FontManager::getInstance().getMedium(12.0f));
+    nowPlayingLabel->setFont(FontManager::getInstance().getMedium(15.0f));
     nowPlayingLabel->setJustificationType(juce::Justification::centredRight);
     addAndMakeVisible(*nowPlayingLabel);
 
@@ -1599,7 +1679,7 @@ void BlindCardEditor::setupPresetUI()
     nowPlayingTrackName = std::make_unique<juce::Label>();
     nowPlayingTrackName->setText("No audio loaded", juce::dontSendNotification);
     nowPlayingTrackName->setColour(juce::Label::textColourId, juce::Colours::white);
-    nowPlayingTrackName->setFont(FontManager::getInstance().getMedium(14.0f));
+    nowPlayingTrackName->setFont(FontManager::getInstance().getMedium(16.0f));
     nowPlayingTrackName->setJustificationType(juce::Justification::centredLeft);
     addAndMakeVisible(*nowPlayingTrackName);
 

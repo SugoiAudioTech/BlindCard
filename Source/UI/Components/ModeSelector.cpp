@@ -17,6 +17,7 @@
 
 #include "ModeSelector.h"
 #include "../Theme/FontManager.h"
+#include "../Localization/LocalizationManager.h"
 
 namespace BlindCard
 {
@@ -109,6 +110,9 @@ ModeSelector::ModeSelector()
     // Subscribe to theme changes
     ThemeManager::getInstance().addChangeListener(this);
 
+    // Subscribe to language changes
+    LocalizationManager::getInstance().addListener(this);
+
     // Enable mouse tracking for hover effects
     setMouseCursor(juce::MouseCursor::PointingHandCursor);
 }
@@ -116,6 +120,7 @@ ModeSelector::ModeSelector()
 ModeSelector::~ModeSelector()
 {
     ThemeManager::getInstance().removeChangeListener(this);
+    LocalizationManager::getInstance().removeListener(this);
 }
 
 //==============================================================================
@@ -182,17 +187,22 @@ void ModeSelector::paint(juce::Graphics& g)
         guessOptionBounds.getRight() + Layout::optionGap, contentBounds.getY(),
         contentBounds.getRight() - guessOptionBounds.getRight() - Layout::optionGap, contentBounds.getHeight());
 
-    drawModeOption(g, starsOptionBounds, Icons::Stars, "Stars",
+    // Get localized mode labels
+    juce::String starsLabel = LOCALIZE(ModeStars);
+    juce::String guessLabel = LOCALIZE(ModeGuess);
+    juce::String qaLabel = LOCALIZE(ModeQA);
+
+    drawModeOption(g, starsOptionBounds, Icons::Stars, starsLabel,
                    currentMode == blindcard::RatingMode::Stars,
                    currentHover == HoverState::Stars,
                    blindcard::RatingMode::Stars, isDark);
 
-    drawModeOption(g, guessOptionBounds, Icons::Guess, "Guess",
+    drawModeOption(g, guessOptionBounds, Icons::Guess, guessLabel,
                    currentMode == blindcard::RatingMode::Guess,
                    currentHover == HoverState::Guess,
                    blindcard::RatingMode::Guess, isDark);
 
-    drawModeOption(g, qaOptionBounds, Icons::QA, "Q&A",
+    drawModeOption(g, qaOptionBounds, Icons::QA, qaLabel,
                    currentMode == blindcard::RatingMode::QA,
                    currentHover == HoverState::QA,
                    blindcard::RatingMode::QA, isDark);
@@ -265,6 +275,11 @@ void ModeSelector::changeListenerCallback(juce::ChangeBroadcaster* source)
     {
         repaint();
     }
+}
+
+void ModeSelector::languageChanged()
+{
+    repaint();
 }
 
 //==============================================================================
@@ -351,7 +366,7 @@ void ModeSelector::drawModeOption(juce::Graphics& g,
     // Draw icon as path (more reliable than Unicode fonts)
     g.setColour(textColour);
 
-    if (label == "Stars")
+    if (mode == blindcard::RatingMode::Stars)
     {
         // Draw 5-pointed star
         juce::Path star;
@@ -371,7 +386,7 @@ void ModeSelector::drawModeOption(juce::Graphics& g,
         star.closeSubPath();
         g.fillPath(star);
     }
-    else if (label == "Guess")
+    else if (mode == blindcard::RatingMode::Guess)
     {
         // Draw question mark circle
         float circleR = iconSize / 2.0f - 1.0f;
@@ -380,7 +395,7 @@ void ModeSelector::drawModeOption(juce::Graphics& g,
         g.drawText("?", juce::Rectangle<float>(contentStartX, bounds.getY(), iconSize, bounds.getHeight()),
                    juce::Justification::centred);
     }
-    else if (label == "Q&A")
+    else if (mode == blindcard::RatingMode::QA)
     {
         // Draw speech bubble
         juce::Path bubble;

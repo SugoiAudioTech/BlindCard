@@ -50,6 +50,21 @@ QuickStartGuide::QuickStartGuide()
     viewport->getVerticalScrollBar().setColour(juce::ScrollBar::thumbColourId, juce::Colour(0xFF4A5568));
     viewport->getVerticalScrollBar().setAutoHide(false); // Always show scrollbar
     addAndMakeVisible(viewport.get());
+
+    // Register for language changes
+    LocalizationManager::getInstance().addListener(this);
+}
+
+QuickStartGuide::~QuickStartGuide()
+{
+    LocalizationManager::getInstance().removeListener(this);
+}
+
+void QuickStartGuide::languageChanged()
+{
+    repaint();
+    if (contentComponent)
+        contentComponent->repaint();
 }
 
 void QuickStartGuide::showOverlay(juce::Component* parent)
@@ -95,7 +110,7 @@ void QuickStartGuide::paint(juce::Graphics& g)
     g.setFont(getSystemFont(28.0f, true));
     auto titleTextBounds = headerArea.reduced(kPadding, 0);
     titleTextBounds.removeFromRight(50); // Space for X button
-    g.drawText("Quick Start Guide", titleTextBounds, juce::Justification::centredLeft);
+    g.drawText(LOCALIZE(GuideTitle), titleTextBounds, juce::Justification::centredLeft);
 
     // Separator line below title
     g.setColour(borderColor);
@@ -117,7 +132,7 @@ void QuickStartGuide::paint(juce::Graphics& g)
     g.fillRoundedRectangle(gotItButtonBounds.toFloat(), 12.0f);
     g.setColour(buttonTextColor);
     g.setFont(getSystemFont(20.0f, true));
-    g.drawText("Got it!", gotItButtonBounds, juce::Justification::centred);
+    g.drawText(LOCALIZE(GuideGotIt), gotItButtonBounds, juce::Justification::centred);
 
     // Close button (X)
     g.setColour(textColor.withAlpha(0.6f));
@@ -158,7 +173,7 @@ void QuickStartGuide::resized()
     viewport->setBounds(scrollAreaBounds);
 
     // Set content component size (taller than viewport for scrolling)
-    int contentHeight = 980; // Enough for all larger content including Tip box
+    int contentHeight = 1150; // Enough for all content including Tip box and Keyboard Shortcuts
     contentComponent->setSize(scrollAreaBounds.getWidth() - 16, contentHeight); // -16 for scrollbar
     contentComponent->setContentHeight(contentHeight);
 }
@@ -208,32 +223,36 @@ void QuickStartGuide::ContentComponent::paint(juce::Graphics& g)
     bounds.removeFromTop(32);
 
     // Steps with large fonts
-    parent.drawStep(g, bounds, 1, "Insert Blind Card on each track you want to compare (2-8 tracks)");
+    parent.drawStep(g, bounds, 1, LOCALIZE(GuideStep1Full));
     bounds.removeFromTop(parent.kStepSpacing);
 
     // Step 2 with sub-items
     std::vector<std::pair<juce::String, juce::String>> modeItems = {
-        { "Stars", "Rate each track from 1-5 stars" },
-        { "Guess", "Identify which plugin/mix is on each card" },
-        { "Q&A", "Find a specific track when prompted" }
+        { LOCALIZE(ModeStars), LOCALIZE(GuideModeStarsDesc) },
+        { LOCALIZE(ModeGuess), LOCALIZE(GuideModeGuessDesc) },
+        { LOCALIZE(ModeQA), LOCALIZE(GuideModeQADesc) }
     };
-    parent.drawStepWithSubitems(g, bounds, 2, "Choose a rating mode:", modeItems);
+    parent.drawStepWithSubitems(g, bounds, 2, LOCALIZE(GuideStep2Intro), modeItems);
     bounds.removeFromTop(parent.kStepSpacing);
 
-    parent.drawStep(g, bounds, 3, "Click \"SHUFFLE\" to randomize and hide track identities");
+    parent.drawStep(g, bounds, 3, LOCALIZE(GuideStep3Full));
     bounds.removeFromTop(parent.kStepSpacing);
 
-    parent.drawStep(g, bounds, 4, "Click cards to listen and rate (or use arrow keys)");
+    parent.drawStep(g, bounds, 4, LOCALIZE(GuideStep4Full));
     bounds.removeFromTop(parent.kStepSpacing);
 
-    parent.drawStep(g, bounds, 5, "Click \"REVEAL\" to see results and actual track names");
+    parent.drawStep(g, bounds, 5, LOCALIZE(GuideStep5Full));
     bounds.removeFromTop(parent.kStepSpacing);
 
-    parent.drawStep(g, bounds, 6, "Click \"RESET\" to start a new test");
+    parent.drawStep(g, bounds, 6, LOCALIZE(GuideStep6Full));
     bounds.removeFromTop(44);
 
     // Tip box
     parent.drawTipBox(g, bounds);
+    bounds.removeFromTop(32);
+
+    // Keyboard shortcuts
+    parent.drawKeyboardShortcuts(g, bounds);
 }
 
 //==============================================================================
@@ -246,7 +265,7 @@ void QuickStartGuide::drawDescription(juce::Graphics& g, juce::Rectangle<int>& b
 
     auto descBounds = bounds.removeFromTop(60);
     g.drawFittedText(
-        "Blind Card lets you compare audio tracks without knowing which is which - eliminating bias from your decisions.",
+        LOCALIZE(GuideDescription),
         descBounds,
         juce::Justification::topLeft,
         3
@@ -347,15 +366,62 @@ void QuickStartGuide::drawTipBox(juce::Graphics& g, juce::Rectangle<int>& bounds
     // Tip label
     g.setColour(juce::Colour(0xFFFBBF24)); // Yellow
     g.setFont(getSystemFont(19.0f, true));
-    g.drawText("Tip", contentBounds.removeFromTop(30), juce::Justification::centredLeft);
+    g.drawText(LOCALIZE(GuideTip), contentBounds.removeFromTop(30), juce::Justification::centredLeft);
 
     // Tip text - two lines
     g.setColour(textColor);
     g.setFont(getSystemFont(18.0f));
-    g.drawText("Enable \"Auto Gain\" to level-match all tracks,",
+    g.drawText(LOCALIZE(GuideTipText1),
                contentBounds.removeFromTop(26), juce::Justification::centredLeft);
-    g.drawText("ensuring fair comparison without volume bias.",
+    g.drawText(LOCALIZE(GuideTipText2),
                contentBounds, juce::Justification::centredLeft);
+}
+
+void QuickStartGuide::drawKeyboardShortcuts(juce::Graphics& g, juce::Rectangle<int>& bounds)
+{
+    auto shortcutsBounds = bounds.removeFromTop(160);
+
+    // Background
+    g.setColour(tipBgColor);
+    g.fillRoundedRectangle(shortcutsBounds.toFloat(), 12.0f);
+
+    // Left accent border (cyan/teal color for keyboard shortcuts)
+    g.setColour(juce::Colour(0xFF22D3EE));
+    g.fillRoundedRectangle(shortcutsBounds.removeFromLeft(6).toFloat(), 12.0f);
+
+    auto contentBounds = shortcutsBounds.reduced(20, 16);
+
+    // Title
+    g.setColour(juce::Colour(0xFF22D3EE)); // Cyan
+    g.setFont(getSystemFont(19.0f, true));
+    g.drawText(LOCALIZE(GuideKeyboardShortcuts), contentBounds.removeFromTop(30), juce::Justification::centredLeft);
+
+    // Shortcuts list
+    g.setColour(textColor);
+    g.setFont(getSystemFont(17.0f));
+
+    auto drawShortcut = [&](const juce::String& keys, const juce::String& desc)
+    {
+        auto lineBounds = contentBounds.removeFromTop(26);
+        auto keyBounds = lineBounds.removeFromLeft(180);
+
+        // Keys in bold
+        g.setFont(getSystemFont(17.0f, true));
+        g.setColour(juce::Colour(0xFFE2E8F0)); // Lighter text for keys
+        g.drawText(keys, keyBounds, juce::Justification::centredLeft);
+
+        // Description
+        g.setFont(getSystemFont(17.0f));
+        g.setColour(textColor.withAlpha(0.85f));
+        g.drawText(desc, lineBounds, juce::Justification::centredLeft);
+    };
+
+    drawShortcut("1-8", LOCALIZE(GuideShortcutSelectCard));
+    drawShortcut("Tab / Shift+Tab", LOCALIZE(GuideShortcutNextPrev));
+    drawShortcut("[ / ]", LOCALIZE(GuideShortcutBrackets));
+    drawShortcut(juce::String::charToString(0x2190) + " " + juce::String::charToString(0x2191) + " " +
+                 juce::String::charToString(0x2192) + " " + juce::String::charToString(0x2193),
+                 LOCALIZE(GuideShortcutArrows));
 }
 
 } // namespace BlindCard

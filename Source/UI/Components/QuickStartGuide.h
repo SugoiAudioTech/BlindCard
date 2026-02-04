@@ -20,6 +20,7 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "../Theme/ThemeManager.h"
+#include "../Localization/LocalizationManager.h"
 
 namespace BlindCard
 {
@@ -30,15 +31,19 @@ namespace BlindCard
  * Design: Scrollable dark background with numbered steps (blue circles),
  * a tip section with light background, and a blue CTA button fixed at bottom.
  */
-class QuickStartGuide : public juce::Component
+class QuickStartGuide : public juce::Component,
+                        public LocalizationManager::Listener
 {
 public:
     QuickStartGuide();
-    ~QuickStartGuide() override = default;
+    ~QuickStartGuide() override;
 
     void paint(juce::Graphics& g) override;
     void resized() override;
     void mouseDown(const juce::MouseEvent& event) override;
+
+    // LocalizationManager::Listener
+    void languageChanged() override;
 
     /** Callback when the dialog should be closed */
     std::function<void()> onClose;
@@ -104,6 +109,7 @@ private:
                                const juce::String& intro,
                                const std::vector<std::pair<juce::String, juce::String>>& items);
     void drawTipBox(juce::Graphics& g, juce::Rectangle<int>& bounds);
+    void drawKeyboardShortcuts(juce::Graphics& g, juce::Rectangle<int>& bounds);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(QuickStartGuide)
 };

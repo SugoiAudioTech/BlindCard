@@ -21,6 +21,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <functional>
 #include "../Theme/ThemeManager.h"
+#include "../Localization/LocalizationManager.h"
 #include "../../Core/Types.h"
 
 namespace BlindCard
@@ -42,7 +43,8 @@ namespace BlindCard
  *   selector.setLocked(true); // During BlindTesting phase
  */
 class ModeSelector : public juce::Component,
-                     public juce::ChangeListener
+                     public juce::ChangeListener,
+                     public LocalizationManager::Listener
 {
 public:
     //==========================================================================
@@ -86,6 +88,9 @@ public:
 
     // ChangeListener override (for ThemeManager)
     void changeListenerCallback(juce::ChangeBroadcaster* source) override;
+
+    // LocalizationManager::Listener override
+    void languageChanged() override;
 
     //==========================================================================
     /** Standard dimensions */

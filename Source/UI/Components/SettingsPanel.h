@@ -19,26 +19,34 @@
 #pragma once
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "../Localization/LocalizationManager.h"
 
 namespace BlindCard
 {
 
 /**
- * SettingsPanel is a modal overlay showing version info and links.
+ * SettingsPanel is a modal overlay showing version info, language settings, and links.
  * Similar to AirCheck's Settings & License panel but simplified (no license key).
  */
-class SettingsPanel : public juce::Component
+class SettingsPanel : public juce::Component,
+                      public LocalizationManager::Listener
 {
 public:
     SettingsPanel();
-    ~SettingsPanel() override = default;
+    ~SettingsPanel() override;
 
     void paint(juce::Graphics& g) override;
     void resized() override;
     void mouseDown(const juce::MouseEvent& event) override;
 
+    // LocalizationManager::Listener
+    void languageChanged() override;
+
     /** Callback when the dialog should be closed */
     std::function<void()> onClose;
+
+    /** Callback when language changes (for parent to refresh UI) */
+    std::function<void()> onLanguageChanged;
 
     /** Show the panel as an overlay on a parent component */
     void showOverlay(juce::Component* parent);
@@ -49,7 +57,7 @@ public:
 private:
     // Layout constants
     static constexpr int kDialogWidth = 420;
-    static constexpr int kDialogHeight = 340;
+    static constexpr int kDialogHeight = 420;  // Increased for language selector
     static constexpr int kCornerRadius = 16;
     static constexpr int kPadding = 28;
     static constexpr int kHeaderHeight = 60;
@@ -76,6 +84,12 @@ private:
 
     // Helper to get system font
     juce::Font getSystemFont(float height, bool bold = false) const;
+
+    // Language selector
+    std::unique_ptr<juce::ComboBox> languageComboBox;
+    juce::Rectangle<int> languageLabelBounds;
+    void setupLanguageSelector();
+    void onLanguageSelected();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SettingsPanel)
 };

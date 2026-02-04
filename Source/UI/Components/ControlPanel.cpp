@@ -20,6 +20,20 @@ namespace BlindCard
 {
 
 //==============================================================================
+// Helper to check if current language needs CJK-compatible font
+namespace
+{
+    bool isCJKLanguage()
+    {
+        auto lang = LocalizationManager::getInstance().getCurrentLanguage();
+        return lang == Language::TraditionalChinese ||
+               lang == Language::SimplifiedChinese ||
+               lang == Language::Japanese ||
+               lang == Language::Korean;
+    }
+}
+
+//==============================================================================
 // Custom slider look and feel
 void ControlPanel::CustomSliderLookAndFeel::drawLinearSlider(
     juce::Graphics& g, int x, int y, int width, int height,
@@ -105,6 +119,7 @@ void ControlPanel::CustomToggleLookAndFeel::drawToggleButton(
 ControlPanel::ControlPanel()
 {
     ThemeManager::getInstance().addChangeListener(this);
+    LocalizationManager::getInstance().addListener(this);
 
     // Create custom look and feels
     sliderLookAndFeel = std::make_unique<CustomSliderLookAndFeel>();
@@ -190,6 +205,7 @@ ControlPanel::ControlPanel()
 ControlPanel::~ControlPanel()
 {
     ThemeManager::getInstance().removeChangeListener(this);
+    LocalizationManager::getInstance().removeListener(this);
     roundsSlider->setLookAndFeel(nullptr);
     if (qaQuestionsSlider)
         qaQuestionsSlider->setLookAndFeel(nullptr);
@@ -300,6 +316,16 @@ void ControlPanel::changeListenerCallback(juce::ChangeBroadcaster*)
     repaint();
 }
 
+void ControlPanel::languageChanged()
+{
+    // Update button labels with localized text
+    shuffleButton->setLabel(LOCALIZE(ButtonShuffle));
+    revealButton->setLabel(LOCALIZE(ButtonReveal));
+    resetButton->setLabel(LOCALIZE(ButtonReset));
+    nextRoundButton->setLabel(LOCALIZE(ButtonNextRound));
+    repaint();
+}
+
 //==============================================================================
 void ControlPanel::paint(juce::Graphics& g)
 {
@@ -319,12 +345,9 @@ void ControlPanel::paint(juce::Graphics& g)
 
     contentBounds.removeFromTop(16.0f);  // Gap
 
-    // Auto gain row (skip in Standalone mode - Level-Match doesn't work without DAW)
-    if (!isStandaloneModeActive)
-    {
-        auto autoGainRow = contentBounds.removeFromTop(40.0f);
-        drawAutoGainRow(g, autoGainRow);
-    }
+    // Auto gain row (Level-Match works in both DAW and Standalone modes)
+    auto autoGainRow = contentBounds.removeFromTop(40.0f);
+    drawAutoGainRow(g, autoGainRow);
 }
 
 void ControlPanel::drawInfoRow(juce::Graphics& g, juce::Rectangle<float> bounds)
@@ -332,8 +355,11 @@ void ControlPanel::drawInfoRow(juce::Graphics& g, juce::Rectangle<float> bounds)
     auto& tm = ThemeManager::getInstance();
     auto& fonts = FontManager::getInstance();
 
+    // Reserve space for round counter on the right first (50px)
+    auto counterBounds = bounds.removeFromRight(50.0f);
+
     // Left section: Current Tracks
-    auto leftSection = bounds.removeFromLeft(bounds.getWidth() * 0.35f);
+    auto leftSection = bounds.removeFromLeft(bounds.getWidth() * 0.4f);
 
     // Music note icon
     g.setColour(tm.getColour(ColourId::Primary));
@@ -343,11 +369,14 @@ void ControlPanel::drawInfoRow(juce::Graphics& g, juce::Rectangle<float> bounds)
 
     leftSection.removeFromLeft(8.0f);  // Gap
 
-    // "TRACKS" label - Casino style: Bebas Neue, uppercase
+    // "TRACKS" label - Casino style for English, CJK-compatible for Asian languages
     g.setColour(tm.getColour(ColourId::TextMuted));
-    g.setFont(fonts.getBebasNeue(14.0f));
+    if (isCJKLanguage())
+        g.setFont(fonts.getMedium(16.0f));
+    else
+        g.setFont(fonts.getBebasNeue(14.0f));
     auto labelBounds = leftSection.removeFromLeft(60.0f);
-    g.drawText("TRACKS", labelBounds, juce::Justification::centredLeft);
+    g.drawText(LOCALIZE(LabelCards), labelBounds, juce::Justification::centredLeft);
 
     // Track count - Casino style: Bebas Neue
     int trackCount = static_cast<int>(trackNames.size());
@@ -358,25 +387,26 @@ void ControlPanel::drawInfoRow(juce::Graphics& g, juce::Rectangle<float> bounds)
     auto countBounds = leftSection.removeFromLeft(30.0f);
     g.drawText(juce::String(trackCount), countBounds, juce::Justification::centredLeft);
 
-    bounds.removeFromLeft(24.0f);  // Gap
+    bounds.removeFromLeft(16.0f);  // Gap
 
     // Right section: Rounds (or Questions in Q&A mode)
-    // "ROUNDS" / "QUESTIONS" label - Casino style: Bebas Neue
+    // "ROUNDS" / "QUESTIONS" label - Casino style for English, CJK-compatible for Asian languages
     g.setColour(tm.getColour(ColourId::TextMuted));
-    g.setFont(fonts.getBebasNeue(14.0f));
-    auto roundsLabelBounds = bounds.removeFromLeft(75.0f);
-    juce::String labelText = isQAModeActive ? "QUESTIONS" : "ROUNDS";
-    g.drawText(labelText, roundsLabelBounds, juce::Justification::centredLeft);
+    if (isCJKLanguage())
+        g.setFont(fonts.getMedium(16.0f));
+    else
+        g.setFont(fonts.getBebasNeue(14.0f));
+    juce::String labelText = isQAModeActive ? LOCALIZE(LabelQuestions) : LOCALIZE(LabelRounds);
+    g.drawText(labelText, bounds.removeFromLeft(70.0f), juce::Justification::centredLeft);
 
-    // Slider area is handled in resized()
-    bounds.removeFromLeft(sliderWidth + 16.0f);
+    // Slider area is handled in resized() - no need to draw here
 
     // Round counter (e.g., "1/3") - Casino style: Cinzel Art Deco font
     int totalRounds = static_cast<int>(roundsSlider->getValue());
     g.setColour(tm.getColour(ColourId::TextPrimary));
     g.setFont(fonts.getCasinoTitle(24.0f));  // Cinzel Bold - Art Deco luxury feel
     g.drawText(juce::String(currentRound) + "/" + juce::String(totalRounds),
-               bounds, juce::Justification::centredRight);
+               counterBounds, juce::Justification::centredRight);
 }
 
 void ControlPanel::drawAutoGainRow(juce::Graphics& g, juce::Rectangle<float> bounds)
@@ -398,11 +428,14 @@ void ControlPanel::drawAutoGainRow(juce::Graphics& g, juce::Rectangle<float> bou
 
     contentBounds.removeFromLeft(8.0f);  // Gap
 
-    // "LEVEL-MATCH" label - Casino style: Bebas Neue
+    // "LEVEL-MATCH" label - Casino style for English, CJK-compatible for Asian languages
     g.setColour(tm.getColour(ColourId::TextMuted));
-    g.setFont(fonts.getBebasNeue(14.0f));
-    auto labelBounds = contentBounds.removeFromLeft(100.0f);
-    g.drawText("LEVEL-MATCH", labelBounds, juce::Justification::centredLeft);
+    if (isCJKLanguage())
+        g.setFont(fonts.getMedium(16.0f));
+    else
+        g.setFont(fonts.getBebasNeue(14.0f));
+    auto labelBounds = contentBounds.removeFromLeft(110.0f);
+    g.drawText(LOCALIZE(LabelAutoGain), labelBounds, juce::Justification::centredLeft);
 
     // Status indicator (between label and toggle)
     // Reserve space for toggle on the right (60px)
@@ -425,8 +458,11 @@ void ControlPanel::drawAutoGainRow(juce::Graphics& g, juce::Rectangle<float> bou
 
             // "Detecting..." text with time
             g.setColour(tm.getColour(ColourId::Primary));
-            g.setFont(fonts.getBebasNeue(12.0f));
-            juce::String statusText = "Detecting...";
+            if (isCJKLanguage())
+                g.setFont(fonts.getMedium(16.0f));
+            else
+                g.setFont(fonts.getBebasNeue(12.0f));
+            juce::String statusText = LOCALIZE(StatusDetecting);
             if (calibrationTimeRemaining > 0.0f)
                 statusText = juce::String::formatted("%.1fs", calibrationTimeRemaining);
             g.drawText(statusText, statusArea, juce::Justification::centredLeft);
@@ -435,15 +471,21 @@ void ControlPanel::drawAutoGainRow(juce::Graphics& g, juce::Rectangle<float> bou
         {
             // Calibrated: show checkmark
             g.setColour(tm.getColour(ColourId::Success));
-            g.setFont(fonts.getBebasNeue(12.0f));
-            g.drawText(juce::String::fromUTF8("✓ READY"), statusArea, juce::Justification::centredLeft);
+            if (isCJKLanguage())
+                g.setFont(fonts.getMedium(16.0f));
+            else
+                g.setFont(fonts.getBebasNeue(12.0f));
+            g.drawText(juce::String::fromUTF8("\xe2\x9c\x93 ") + LOCALIZE(StatusReady), statusArea, juce::Justification::centredLeft);
         }
         else
         {
             // Enabled but waiting for audio
             g.setColour(tm.getColour(ColourId::TextMuted));
-            g.setFont(fonts.getBebasNeue(12.0f));
-            g.drawText("WAITING...", statusArea, juce::Justification::centredLeft);
+            if (isCJKLanguage())
+                g.setFont(fonts.getMedium(16.0f));
+            else
+                g.setFont(fonts.getBebasNeue(12.0f));
+            g.drawText(LOCALIZE(StatusWaiting), statusArea, juce::Justification::centredLeft);
         }
     }
 
@@ -467,14 +509,11 @@ void ControlPanel::resized()
 
     contentBounds.removeFromTop(16);  // Gap
 
-    // Auto gain row (skip in Standalone mode)
-    if (!isStandaloneModeActive)
-    {
-        auto autoGainRow = contentBounds.removeFromTop(40);
-        auto toggleArea = autoGainRow.removeFromRight(60).reduced(8, 8);
-        autoGainToggle->setBounds(toggleArea);
-        contentBounds.removeFromTop(20);  // Gap
-    }
+    // Auto gain row (Level-Match works in both DAW and Standalone modes)
+    auto autoGainRow = contentBounds.removeFromTop(40);
+    auto toggleArea = autoGainRow.removeFromRight(60).reduced(8, 8);
+    autoGainToggle->setBounds(toggleArea);
+    contentBounds.removeFromTop(20);  // Gap
 
     // Button area
     auto buttonArea = contentBounds;

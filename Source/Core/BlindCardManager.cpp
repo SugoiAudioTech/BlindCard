@@ -782,8 +782,9 @@ void BlindCardManager::startCalibration()
     {
         juce::ScopedLock sl (lock);
 
-        // Only allow calibration start in Setup phase
-        if (state.phase != GamePhase::Setup)
+        // Allow calibration in Setup and BlindTesting phases
+        // Users may want to enable Level-Match after starting blind test
+        if (state.phase != GamePhase::Setup && state.phase != GamePhase::BlindTesting)
             return;
 
         // Reset all measurement data

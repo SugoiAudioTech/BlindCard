@@ -23,6 +23,7 @@
 #include <string>
 #include <functional>
 #include "../Theme/ThemeManager.h"
+#include "../Localization/LocalizationManager.h"
 #include "ChipButton.h"
 
 namespace BlindCard
@@ -54,7 +55,8 @@ namespace BlindCard
  *   panel.onRoundsChanged = [this](int rounds) { setRounds(rounds); };
  */
 class ControlPanel : public juce::Component,
-                     public juce::ChangeListener
+                     public juce::ChangeListener,
+                     public LocalizationManager::Listener
 {
 public:
     //==========================================================================
@@ -182,6 +184,9 @@ public:
 
     // ChangeListener override (for ThemeManager)
     void changeListenerCallback(juce::ChangeBroadcaster* source) override;
+
+    // LocalizationManager::Listener override
+    void languageChanged() override;
 
     //==========================================================================
     /** Dimensions */

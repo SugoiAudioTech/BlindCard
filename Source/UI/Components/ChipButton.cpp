@@ -17,10 +17,25 @@
 
 #include "ChipButton.h"
 #include "../Theme/FontManager.h"
+#include "../Localization/LocalizationManager.h"
 #include <cmath>
 
 namespace BlindCard
 {
+
+//==============================================================================
+// Helper to check if current language needs CJK-compatible font
+namespace
+{
+    bool isCJKLanguage()
+    {
+        auto lang = LocalizationManager::getInstance().getCurrentLanguage();
+        return lang == Language::TraditionalChinese ||
+               lang == Language::SimplifiedChinese ||
+               lang == Language::Japanese ||
+               lang == Language::Korean;
+    }
+}
 
 //==============================================================================
 // Layout and design constants
@@ -479,7 +494,11 @@ void ChipButton::drawLabel(juce::Graphics& g, juce::Rectangle<float> labelBounds
     auto adjustedBounds = labelBounds.withTrimmedTop(4.0f);
 
     g.setColour(theme.getColour(ColourId::TextSecondary));
-    g.setFont(fonts.getCasinoButton(ChipLayout::labelFontSize));  // Bebas Neue - neon sign casino style
+    // Use CJK-compatible font for Asian languages, casino style for English
+    if (isCJKLanguage())
+        g.setFont(fonts.getMedium(16.0f));
+    else
+        g.setFont(fonts.getCasinoButton(ChipLayout::labelFontSize));  // Bebas Neue - neon sign casino style
     g.drawText(label, adjustedBounds, juce::Justification::centredTop);
 }
 

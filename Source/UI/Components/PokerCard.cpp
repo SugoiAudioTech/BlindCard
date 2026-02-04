@@ -17,11 +17,26 @@
 
 #include "PokerCard.h"
 #include "../Theme/FontManager.h"
+#include "../Localization/LocalizationManager.h"
 #include <cmath>
 #include "BinaryData.h"
 
 namespace BlindCard
 {
+
+//==============================================================================
+// Helper to check if current language needs CJK-compatible font
+namespace
+{
+    bool isCJKLanguage()
+    {
+        auto lang = LocalizationManager::getInstance().getCurrentLanguage();
+        return lang == Language::TraditionalChinese ||
+               lang == Language::SimplifiedChinese ||
+               lang == Language::Japanese ||
+               lang == Language::Korean;
+    }
+}
 
 //==============================================================================
 // Suit Unicode symbols
@@ -1057,10 +1072,15 @@ void PokerCard::drawEmptyCardState(juce::Graphics& g, juce::Rectangle<float> bou
     // "Drop audio file" text
     auto& fonts = FontManager::getInstance();
     g.setColour(theme.getColour(ColourId::TextPrimary).withAlpha(0.5f));
-    g.setFont(fonts.getBebasNeue(18.0f));
+
+    // Use CJK-compatible font for non-English languages
+    if (isCJKLanguage())
+        g.setFont(fonts.getBold(16.0f));
+    else
+        g.setFont(fonts.getBebasNeue(18.0f));
 
     auto textBounds = bounds.reduced(10.0f);
-    g.drawFittedText("DROP\nAUDIO FILE", textBounds.toNearestInt(),
+    g.drawFittedText(LOCALIZE(CardDragFile), textBounds.toNearestInt(),
                      juce::Justification::centred, 2);
 }
 
@@ -1079,10 +1099,15 @@ void PokerCard::drawDragHoverOverlay(juce::Graphics& g, juce::Rectangle<float> b
     // "Drop Here" text with music note
     auto& fonts = FontManager::getInstance();
     g.setColour(juce::Colours::white);
-    g.setFont(fonts.getBebasNeue(14.0f));
+
+    // Use CJK-compatible font for non-English languages
+    if (isCJKLanguage())
+        g.setFont(fonts.getBold(14.0f));
+    else
+        g.setFont(fonts.getBebasNeue(14.0f));
 
     auto textBounds = bounds.reduced(10.0f);
-    g.drawFittedText("DROP HERE\n\u266B", textBounds.toNearestInt(),
+    g.drawFittedText(LOCALIZE(CardDropHere) + "\n\u266B", textBounds.toNearestInt(),
                      juce::Justification::centred, 2);
 }
 

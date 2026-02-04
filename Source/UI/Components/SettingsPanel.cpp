@@ -25,6 +25,61 @@ SettingsPanel::SettingsPanel()
     setOpaque(false);
     setAlwaysOnTop(true);
     setInterceptsMouseClicks(true, true);
+
+    setupLanguageSelector();
+    LocalizationManager::getInstance().addListener(this);
+}
+
+SettingsPanel::~SettingsPanel()
+{
+    LocalizationManager::getInstance().removeListener(this);
+}
+
+void SettingsPanel::setupLanguageSelector()
+{
+    languageComboBox = std::make_unique<juce::ComboBox>();
+    languageComboBox->addItem("English", 1);
+    languageComboBox->addItem(juce::CharPointer_UTF8("\xe7\xb9\x81\xe9\xab\x94\xe4\xb8\xad\xe6\x96\x87"), 2);  // 繁體中文
+    languageComboBox->addItem(juce::CharPointer_UTF8("\xe7\xae\x80\xe4\xbd\x93\xe4\xb8\xad\xe6\x96\x87"), 3);  // 简体中文
+    languageComboBox->addItem(juce::CharPointer_UTF8("\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e"), 4);  // 日本語
+    languageComboBox->addItem(juce::CharPointer_UTF8("\xed\x95\x9c\xea\xb5\xad\xec\x96\xb4"), 5);  // 한국어
+
+    // Set current selection based on current language
+    auto currentLang = LocalizationManager::getInstance().getCurrentLanguage();
+    switch (currentLang)
+    {
+        case Language::English:            languageComboBox->setSelectedId(1, juce::dontSendNotification); break;
+        case Language::TraditionalChinese: languageComboBox->setSelectedId(2, juce::dontSendNotification); break;
+        case Language::SimplifiedChinese:  languageComboBox->setSelectedId(3, juce::dontSendNotification); break;
+        case Language::Japanese:           languageComboBox->setSelectedId(4, juce::dontSendNotification); break;
+        case Language::Korean:             languageComboBox->setSelectedId(5, juce::dontSendNotification); break;
+    }
+
+    languageComboBox->onChange = [this]() { onLanguageSelected(); };
+    addAndMakeVisible(*languageComboBox);
+}
+
+void SettingsPanel::onLanguageSelected()
+{
+    int selectedId = languageComboBox->getSelectedId();
+    Language newLang = Language::English;
+
+    switch (selectedId)
+    {
+        case 1: newLang = Language::English; break;
+        case 2: newLang = Language::TraditionalChinese; break;
+        case 3: newLang = Language::SimplifiedChinese; break;
+        case 4: newLang = Language::Japanese; break;
+        case 5: newLang = Language::Korean; break;
+    }
+
+    LocalizationManager::getInstance().setLanguage(newLang);
+}
+
+void SettingsPanel::languageChanged()
+{
+    repaint();
+    if (onLanguageChanged) onLanguageChanged();
 }
 
 void SettingsPanel::showOverlay(juce::Component* parent)
@@ -70,7 +125,7 @@ void SettingsPanel::paint(juce::Graphics& g)
     g.setFont(getSystemFont(24.0f, true));
     auto titleBounds = dialogBounds.withHeight(kHeaderHeight).reduced(kPadding, 0);
     titleBounds.removeFromRight(40); // Space for X button
-    g.drawText("About", titleBounds, juce::Justification::centredLeft);
+    g.drawText(LOCALIZE(AboutTitle), titleBounds, juce::Justification::centredLeft);
 
     // Close button (X)
     g.setColour(textColor.withAlpha(0.6f));
@@ -95,12 +150,12 @@ void SettingsPanel::paint(juce::Graphics& g)
     // Free Software label
     g.setColour(accentColor);
     g.setFont(getSystemFont(18.0f, true));
-    g.drawText("It's Free Software", badgeContent.removeFromTop(28), juce::Justification::centredLeft);
+    g.drawText(LOCALIZE(AboutFreeSoftware), badgeContent.removeFromTop(28), juce::Justification::centredLeft);
 
     // Subtitle
     g.setColour(juce::Colour(0xFF4ADE80)); // Green color
     g.setFont(getSystemFont(15.0f));
-    g.drawText("No license key required", badgeContent, juce::Justification::centredLeft);
+    g.drawText(LOCALIZE(AboutNoLicense), badgeContent, juce::Justification::centredLeft);
 
     // Bottom info section
     auto bottomSection = dialogBounds.reduced(kPadding);
@@ -111,18 +166,30 @@ void SettingsPanel::paint(juce::Graphics& g)
     g.fillRect(bottomSection.removeFromTop(1));
     bottomSection.removeFromTop(20);
 
+    // Language selector label
+    g.setColour(textColor.withAlpha(0.7f));
+    g.setFont(getSystemFont(15.0f));
+    g.drawText(LOCALIZE(SettingsLanguage), languageLabelBounds, juce::Justification::centredLeft);
+
+    bottomSection.removeFromTop(48); // Space for language combo
+
+    // Separator line before info
+    g.setColour(borderColor);
+    g.fillRect(bottomSection.removeFromTop(1));
+    bottomSection.removeFromTop(16);
+
     // Version row
     g.setColour(textColor.withAlpha(0.7f));
     g.setFont(getSystemFont(15.0f));
     auto versionRow = bottomSection.removeFromTop(24);
-    g.drawText("Version:", versionRow.removeFromLeft(100), juce::Justification::centredLeft);
+    g.drawText(LOCALIZE(AboutVersion), versionRow.removeFromLeft(100), juce::Justification::centredLeft);
     g.setColour(textColor);
     g.drawText(versionString, versionRow, juce::Justification::centredRight);
 
     // Developer row
     g.setColour(textColor.withAlpha(0.7f));
     auto devRow = bottomSection.removeFromTop(24);
-    g.drawText("Developer:", devRow.removeFromLeft(100), juce::Justification::centredLeft);
+    g.drawText(LOCALIZE(AboutDeveloper), devRow.removeFromLeft(100), juce::Justification::centredLeft);
     g.setColour(textColor);
     g.drawText(developerName, devRow, juce::Justification::centredRight);
 
@@ -131,7 +198,7 @@ void SettingsPanel::paint(juce::Graphics& g)
     // Website link
     g.setColour(linkColor);
     g.setFont(getSystemFont(15.0f));
-    g.drawText("Visit Official Website", websiteLinkBounds, juce::Justification::centredLeft);
+    g.drawText(LOCALIZE(AboutVisitWebsite), websiteLinkBounds, juce::Justification::centredLeft);
 
     // External link indicator arrow
     auto arrowBounds = websiteLinkBounds.withLeft(websiteLinkBounds.getX() + 155).withWidth(20);
@@ -159,6 +226,26 @@ void SettingsPanel::resized()
         dialogBounds.getWidth() - kPadding * 2,
         80
     );
+
+    // Language selector section (after badge + separator)
+    int languageSectionY = versionBadgeBounds.getBottom() + 50;
+    languageLabelBounds = juce::Rectangle<int>(
+        dialogBounds.getX() + kPadding,
+        languageSectionY,
+        100,
+        24
+    );
+
+    // Language ComboBox
+    if (languageComboBox != nullptr)
+    {
+        languageComboBox->setBounds(
+            dialogBounds.getX() + kPadding + 110,
+            languageSectionY - 2,
+            dialogBounds.getWidth() - kPadding * 2 - 110,
+            28
+        );
+    }
 
     // Website link bounds (for click detection)
     websiteLinkBounds = juce::Rectangle<int>(

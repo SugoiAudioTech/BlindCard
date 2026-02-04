@@ -367,7 +367,7 @@ void ResultsPanel::drawStarsRow(juce::Graphics& g, juce::Rectangle<float> bounds
     }
 
     g.setColour(textColor);
-    g.setFont(fonts.getBebasNeue(16.0f));
+    g.setFont(fonts.getMedium(15.0f));  // Match ModeSelector font style
 
     // During BlindTesting, hide track name - show "Card X" instead
     juce::String displayName;
@@ -435,7 +435,7 @@ void ResultsPanel::drawStarsRow(juce::Graphics& g, juce::Rectangle<float> bounds
         );
 
         g.setColour(filledStarColor);
-        g.setFont(fonts.getBebasNeue(18.0f));  // Casino style: Bebas Neue for values
+        g.setFont(fonts.getBold(16.0f));  // Match ModeSelector font style
 
         // Format average rating with one decimal place
         juce::String avgText = juce::String(result.averageRating, 1);
@@ -532,8 +532,8 @@ void ResultsPanel::drawGuessPending(juce::Graphics& g, juce::Rectangle<float> bo
         // Card number column (fixed width, right-aligned)
         auto cardCol = contentBounds.removeFromLeft(cardColWidth);
         g.setColour(tm.getColour(ColourId::TextSecondary));
-        g.setFont(fonts.getBebasNeue(14.0f));
-        g.drawText("CARD " + juce::String(result.cardPosition + 1) + ":",
+        g.setFont(fonts.getMedium(13.0f));
+        g.drawText("Card " + juce::String(result.cardPosition + 1) + ":",
                    cardCol, juce::Justification::centredRight);
 
         contentBounds.removeFromLeft(gapWidth);
@@ -542,14 +542,14 @@ void ResultsPanel::drawGuessPending(juce::Graphics& g, juce::Rectangle<float> bo
         if (!result.guessedTrack.empty())
         {
             g.setColour(tm.getColour(ColourId::TextPrimary));
-            g.setFont(fonts.getBebasNeue(14.0f));
-            g.drawText(juce::String(result.guessedTrack).toUpperCase(), contentBounds, juce::Justification::centredLeft);
+            g.setFont(fonts.getMedium(13.0f));
+            g.drawText(juce::String(result.guessedTrack), contentBounds, juce::Justification::centredLeft);
         }
         else
         {
             g.setColour(tm.getColour(ColourId::TextMuted));
-            g.setFont(fonts.getBebasNeue(14.0f));
-            g.drawText("NOT GUESSED", contentBounds, juce::Justification::centredLeft);
+            g.setFont(fonts.getMedium(13.0f));
+            g.drawText("Not guessed", contentBounds, juce::Justification::centredLeft);
         }
 
         if (i < guessResults.size() - 1)
@@ -565,7 +565,7 @@ void ResultsPanel::drawGuessRow(juce::Graphics& g, juce::Rectangle<float> bounds
 
     // Correct/wrong icon
     auto iconArea = bounds.removeFromLeft(22.0f);
-    g.setFont(fonts.getBebasNeue(14.0f));
+    g.setFont(fonts.getMedium(14.0f));
     if (result.isCorrect)
     {
         g.setColour(tm.getColour(ColourId::Success));
@@ -582,14 +582,14 @@ void ResultsPanel::drawGuessRow(juce::Graphics& g, juce::Rectangle<float> bounds
     // Card number column (fixed width, right-aligned for alignment)
     auto cardCol = bounds.removeFromLeft(70.0f);
     g.setColour(tm.getColour(ColourId::TextSecondary));
-    g.setFont(fonts.getBebasNeue(13.0f));
-    g.drawText("CARD " + juce::String(result.cardPosition + 1) + ":",
+    g.setFont(fonts.getMedium(12.0f));
+    g.drawText("Card " + juce::String(result.cardPosition + 1) + ":",
                cardCol, juce::Justification::centredRight);
 
     bounds.removeFromLeft(8.0f);
 
     // Result text
-    g.setFont(fonts.getBebasNeue(13.0f));
+    g.setFont(fonts.getMedium(12.0f));
     if (result.isCorrect)
     {
         g.setColour(tm.getColour(ColourId::Success));
@@ -639,13 +639,13 @@ void ResultsPanel::drawGuessScore(juce::Graphics& g, juce::Rectangle<float> boun
         // Title
         auto titleRow = contentBounds.removeFromTop(20.0f);
         g.setColour(tm.getColour(ColourId::Success));
-        g.setFont(fonts.getBebasNeue(14.0f));
-        g.drawText("FINAL SCORE", titleRow, juce::Justification::centred);
+        g.setFont(fonts.getBold(13.0f));
+        g.drawText("Final Score", titleRow, juce::Justification::centred);
 
         // Total score
         auto scoreRow = contentBounds;
         g.setColour(tm.getColour(ColourId::Accent));
-        g.setFont(fonts.getBebasNeue(20.0f));
+        g.setFont(fonts.getBold(18.0f));
         juce::String totalScoreText = juce::String(totalCorrectGuesses) + "/" + juce::String(totalGuessAttempts) +
                                       " (" + juce::String(totalPercentage) + "%)";
         g.drawText(totalScoreText, scoreRow, juce::Justification::centred);
@@ -656,16 +656,16 @@ void ResultsPanel::drawGuessScore(juce::Graphics& g, juce::Rectangle<float> boun
         auto scoreRow = contentBounds;
 
         // Round indicator
-        juce::String roundLabel = "ROUND " + juce::String(currentRoundNumber) + "/" + juce::String(totalRounds) + ": ";
+        juce::String roundLabel = "Round " + juce::String(currentRoundNumber) + "/" + juce::String(totalRounds) + ": ";
 
         g.setColour(tm.getColour(ColourId::TextSecondary));
-        g.setFont(fonts.getBebasNeue(14.0f));
+        g.setFont(fonts.getMedium(13.0f));
         float labelWidth = 80.0f;
         g.drawText(roundLabel, scoreRow.removeFromLeft(labelWidth), juce::Justification::centredRight);
 
         // Score
         g.setColour(tm.getColour(ColourId::Accent));
-        g.setFont(fonts.getBebasNeue(16.0f));
+        g.setFont(fonts.getBold(15.0f));
         juce::String scoreText = juce::String(roundCorrect) + "/" + juce::String(roundTotal) +
                                  " (" + juce::String(roundPercentage) + "%)";
 
@@ -720,15 +720,15 @@ void ResultsPanel::drawQARow(juce::Graphics& g, juce::Rectangle<float> bounds,
 
     bounds.removeFromLeft(4.0f);
 
-    // Plugin name - Casino style
+    // Plugin name
     g.setColour(tm.getColour(ColourId::TextPrimary));
-    g.setFont(fonts.getBebasNeue(14.0f));
+    g.setFont(fonts.getMedium(13.0f));
     auto nameArea = bounds.removeFromLeft(bounds.getWidth() - 60.0f);
-    g.drawText(juce::String(result.pluginName).toUpperCase(), nameArea, juce::Justification::centredLeft);
+    g.drawText(juce::String(result.pluginName), nameArea, juce::Justification::centredLeft);
 
     // Card position
     g.setColour(tm.getColour(ColourId::TextMuted));
-    g.drawText("CARD " + juce::String(result.cardPosition + 1), bounds, juce::Justification::centredRight);
+    g.drawText("Card " + juce::String(result.cardPosition + 1), bounds, juce::Justification::centredRight);
 }
 
 void ResultsPanel::drawQAScore(juce::Graphics& g, juce::Rectangle<float> bounds)
@@ -746,11 +746,11 @@ void ResultsPanel::drawQAScore(juce::Graphics& g, juce::Rectangle<float> bounds)
     int total = static_cast<int>(qaResults.size());
     int percentage = total > 0 ? (correct * 100 / total) : 0;
 
-    juce::String scoreText = "SCORE: " + juce::String(correct) + "/" + juce::String(total) +
+    juce::String scoreText = "Score: " + juce::String(correct) + "/" + juce::String(total) +
                              " (" + juce::String(percentage) + "%)";
 
     g.setColour(tm.getColour(ColourId::Accent));
-    g.setFont(fonts.getBebasNeue(18.0f));  // Casino style: Bebas Neue for score
+    g.setFont(fonts.getBold(16.0f));
     g.drawText(scoreText, bounds, juce::Justification::centred);
 }
 

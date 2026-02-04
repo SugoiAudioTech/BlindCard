@@ -205,6 +205,7 @@ private:
     void drawTableRail(juce::Graphics& g, juce::Rectangle<float> bounds);
     void drawNeonBorder(juce::Graphics& g, juce::Rectangle<float> bounds);
     void drawFeltSurface(juce::Graphics& g, juce::Rectangle<float> bounds);
+    void drawBrandingText(juce::Graphics& g, juce::Rectangle<float> bounds);
 
     //==========================================================================
     // Layout helpers

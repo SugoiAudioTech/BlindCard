@@ -23,9 +23,10 @@ juce_add_plugin(BlindCard
     ICON_SMALL "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon_256.png"
     COPY_PLUGIN_AFTER_BUILD TRUE)
 
-# Binary assets (card images and fonts)
+# Binary assets (card images, fonts, and logo)
 juce_add_binary_data(BlindCardAssets SOURCES
     assets/cards/card-back.png
+    assets/sugoi-logo.png
     assets/fonts/NotoSansTC-Regular.otf
     assets/fonts/NotoSansTC-Medium.otf
     assets/fonts/NotoSansTC-Bold.otf
@@ -84,7 +85,11 @@ target_sources(BlindCard
         Source/UI/Components/TransportBar.h
         Source/UI/Components/TransportBar.cpp
         Source/UI/Components/CardCountControl.h
-        Source/UI/Components/CardCountControl.cpp)
+        Source/UI/Components/CardCountControl.cpp
+
+        # Localization
+        Source/UI/Localization/LocalizationManager.h
+        Source/UI/Localization/LocalizationManager.cpp)
 
 target_compile_definitions(BlindCard
     PUBLIC

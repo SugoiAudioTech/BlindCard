@@ -125,7 +125,7 @@ public:
     //==========================================================================
     /** Window dimensions */
     static constexpr int kMinWidth = 900;
-    static constexpr int kMinHeight = 676;  // Adjusted for QuestionBanner space reservation
+    static constexpr int kMinHeight = 750;  // Taller default for better card spacing
     static constexpr int kMaxWidth = 1400;
     static constexpr int kMaxHeight = 900;
 
