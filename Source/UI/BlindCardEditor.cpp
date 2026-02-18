@@ -328,29 +328,35 @@ void BlindCardEditor::resized()
 //==============================================================================
 void BlindCardEditor::changeListenerCallback(juce::ChangeBroadcaster* source)
 {
+    // Use SafePointer to prevent dangling pointer if editor is destroyed before callback runs
+    juce::Component::SafePointer<BlindCardEditor> safeThis(this);
+
     // Handle theme changes
     if (source == &ThemeManager::getInstance())
     {
-        juce::MessageManager::callAsync([this]()
+        juce::MessageManager::callAsync([safeThis]()
         {
+            if (safeThis == nullptr) return;
+
             // Update preset UI colors for current theme
-            if (presetUILookAndFeel)
+            if (safeThis->presetUILookAndFeel)
             {
-                presetUILookAndFeel->updateColours(ThemeManager::getInstance().isDark());
-                if (presetComboBox) presetComboBox->repaint();
-                if (savePresetButton) savePresetButton->repaint();
-                if (deletePresetButton) deletePresetButton->repaint();
-                if (importFilesButton) importFilesButton->repaint();
+                safeThis->presetUILookAndFeel->updateColours(ThemeManager::getInstance().isDark());
+                if (safeThis->presetComboBox) safeThis->presetComboBox->repaint();
+                if (safeThis->savePresetButton) safeThis->savePresetButton->repaint();
+                if (safeThis->deletePresetButton) safeThis->deletePresetButton->repaint();
+                if (safeThis->importFilesButton) safeThis->importFilesButton->repaint();
             }
-            repaint();
+            safeThis->repaint();
         });
         return;
     }
 
     // Called when BlindCardManager state changes
-    juce::MessageManager::callAsync([this]()
+    juce::MessageManager::callAsync([safeThis]()
     {
-        updateFromManager();
+        if (safeThis != nullptr)
+            safeThis->updateFromManager();
     });
 }
 

@@ -356,7 +356,22 @@ void ModeSelector::drawModeOption(juce::Graphics& g,
     // Larger icon size
     float iconSize = 18.0f;
     float labelWidth = labelFont.getStringWidthFloat(label);
-    float totalContentWidth = iconSize + Layout::iconSpacing + labelWidth;
+
+    // CJK character width correction
+    // getStringWidthFloat tends to underestimate CJK character widths
+    bool hasNonAscii = false;
+    for (int i = 0; i < label.length(); ++i)
+    {
+        if (static_cast<unsigned int>(label[i]) > 127)
+        {
+            hasNonAscii = true;
+            break;
+        }
+    }
+
+    // Use fixed padding instead of percentage to keep icon-text spacing consistent
+    float cjkPadding = hasNonAscii ? 1.0f : 0.0f;
+    float totalContentWidth = iconSize + Layout::iconSpacing + labelWidth + cjkPadding;
 
     // Center the content horizontally
     float contentStartX = bounds.getX() + (bounds.getWidth() - totalContentWidth) / 2.0f;

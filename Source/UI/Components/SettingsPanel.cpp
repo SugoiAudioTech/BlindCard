@@ -198,11 +198,7 @@ void SettingsPanel::paint(juce::Graphics& g)
     // Website link
     g.setColour(linkColor);
     g.setFont(getSystemFont(15.0f));
-    g.drawText(LOCALIZE(AboutVisitWebsite), websiteLinkBounds, juce::Justification::centredLeft);
-
-    // External link indicator arrow
-    auto arrowBounds = websiteLinkBounds.withLeft(websiteLinkBounds.getX() + 155).withWidth(20);
-    g.drawText("->", arrowBounds, juce::Justification::centredLeft);
+    g.drawText(websiteUrl, websiteLinkBounds, juce::Justification::centredLeft);
 }
 
 void SettingsPanel::resized()
@@ -251,7 +247,7 @@ void SettingsPanel::resized()
     websiteLinkBounds = juce::Rectangle<int>(
         dialogBounds.getX() + kPadding,
         dialogBounds.getBottom() - kPadding - 30,
-        180,
+        220,
         24
     );
 }

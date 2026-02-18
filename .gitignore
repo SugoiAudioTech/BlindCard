@@ -22,3 +22,8 @@ Thumbs.db
 
 # Claude Code
 .claude/
+
+# Private/Internal docs
+.ideas/
+.logs/
+docs/plans/

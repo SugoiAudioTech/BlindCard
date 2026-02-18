@@ -15,6 +15,7 @@
 
 #include "ResultsPanel.h"
 #include "../Theme/FontManager.h"
+#include "../Localization/LocalizationManager.h"
 #include <algorithm>
 
 namespace BlindCard
@@ -241,7 +242,9 @@ void ResultsPanel::drawSectionHeader(juce::Graphics& g, juce::Rectangle<float> b
     g.setColour(titleColor);
     g.setFont(fonts.getCinzelBold(20.0f));
 
-    g.drawText(showFinalResults ? "FINAL RESULTS" : "CURRENT ROUND",
+    // Show "FINAL RESULTS" when revealed or when explicitly showing final results
+    bool isFinal = showFinalResults || (currentPhase == blindcard::GamePhase::Revealed);
+    g.drawText(isFinal ? LOCALIZE(ResultsFinalResults) : LOCALIZE(ResultsCurrentRound),
                bounds, juce::Justification::centredLeft);
 }
 
@@ -287,7 +290,7 @@ void ResultsPanel::drawEmptyState(juce::Graphics& g, juce::Rectangle<float> boun
             message = "Make guesses to see results";
             break;
         case blindcard::RatingMode::QA:
-            message = "Answer questions to see results";
+            message = LOCALIZE(ResultsAnswerQuestions);
             break;
     }
 
@@ -333,9 +336,9 @@ void ResultsPanel::drawStarsResults(juce::Graphics& g, juce::Rectangle<float> bo
         g.setColour(rowBgColor);
         g.fillRoundedRectangle(rowBounds, 6.0f);  // rounded-lg
 
-        // First row is the winner (results are sorted by rating, highest first)
-        bool isWinner = (i == 0);
-        drawStarsRow(g, rowBounds.reduced(6.0f, 2.0f), starsResults[i], isWinner);
+        // Pass rank (1-based) - results are sorted by rating (highest first)
+        int rank = static_cast<int>(i) + 1;
+        drawStarsRow(g, rowBounds.reduced(6.0f, 2.0f), starsResults[i], rank);
 
         if (i < starsResults.size() - 1)
             bounds.removeFromTop(rowGap);
@@ -343,7 +346,7 @@ void ResultsPanel::drawStarsResults(juce::Graphics& g, juce::Rectangle<float> bo
 }
 
 void ResultsPanel::drawStarsRow(juce::Graphics& g, juce::Rectangle<float> bounds,
-                                 const StarsResult& result, bool isWinner)
+                                 const StarsResult& result, int rank)
 {
     auto& tm = ThemeManager::getInstance();
     auto& fonts = FontManager::getInstance();
@@ -357,13 +360,37 @@ void ResultsPanel::drawStarsRow(juce::Graphics& g, juce::Rectangle<float> bounds
     // Track name on left - Original: text-sm, white (dark) / #1A1A1A (light)
     juce::Colour textColor = isDark ? juce::Colours::white : juce::Colour(0xFF1A1A1A);
 
-    // Winner gets a medal icon (only in Revealed phase)
-    if (isWinner && currentPhase == blindcard::GamePhase::Revealed)
+    // Always reserve space for rank indicator to maintain alignment
+    auto rankArea = bounds.removeFromLeft(24.0f);
+
+    // Show rank indicator only in Revealed phase
+    if (currentPhase == blindcard::GamePhase::Revealed)
     {
-        auto medalArea = bounds.removeFromLeft(20.0f);
-        g.setColour(filledStarColor);
-        g.setFont(fonts.getRegular(16.0f));
-        g.drawText(juce::String::fromUTF8("🥇"), medalArea, juce::Justification::centred);
+        g.setFont(fonts.getMedium(14.0f));
+        if (rank == 1)
+        {
+            // Winner gets gold medal
+            g.setColour(filledStarColor);
+            g.drawText(juce::String::fromUTF8("🥇"), rankArea, juce::Justification::centred);
+        }
+        else if (rank == 2)
+        {
+            // Second place gets silver medal
+            g.setColour(textColor.withAlpha(0.8f));
+            g.drawText(juce::String::fromUTF8("🥈"), rankArea, juce::Justification::centred);
+        }
+        else if (rank == 3)
+        {
+            // Third place gets bronze medal
+            g.setColour(textColor.withAlpha(0.7f));
+            g.drawText(juce::String::fromUTF8("🥉"), rankArea, juce::Justification::centred);
+        }
+        else
+        {
+            // Other ranks show number
+            g.setColour(textColor.withAlpha(0.5f));
+            g.drawText(juce::String(rank), rankArea, juce::Justification::centred);
+        }
     }
 
     g.setColour(textColor);

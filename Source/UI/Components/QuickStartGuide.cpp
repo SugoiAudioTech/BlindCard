@@ -292,7 +292,7 @@ void QuickStartGuide::drawStep(juce::Graphics& g, juce::Rectangle<int>& bounds, 
     // Step text
     stepBounds.removeFromLeft(20); // Gap
     g.setColour(textColor);
-    g.setFont(getSystemFont(20.0f));
+    g.setFont(getSystemFont(24.0f));
     g.drawFittedText(text, stepBounds, juce::Justification::centredLeft, 2);
 }
 

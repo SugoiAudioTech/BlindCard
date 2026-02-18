@@ -54,17 +54,28 @@ void LocalizationManager::initializeStrings()
     stringsEn[StringKey::ResultsCorrect] = "Correct";
     stringsEn[StringKey::ResultsIncorrect] = "Incorrect";
     stringsEn[StringKey::ResultsTotal] = "Total";
+    stringsEn[StringKey::ResultsCurrentRound] = "CURRENT ROUND";
+    stringsEn[StringKey::ResultsFinalResults] = "FINAL RESULTS";
+    stringsEn[StringKey::ResultsAnswerQuestions] = "Answer questions to see results";
 
     // Question Banner (Q&A mode)
     stringsEn[StringKey::QAQuestion] = "Question";
     stringsEn[StringKey::QASelectCard] = "Select a card";
     stringsEn[StringKey::QAWhichBetter] = "Which sounds better?";
     stringsEn[StringKey::QAPreference] = "Your preference";
+    stringsEn[StringKey::QAWhichCardIs] = "Which card is ";      // + trackName + "?"
+    stringsEn[StringKey::QAWhichOneIs] = "Which one is ";        // + trackName + "?"
+    stringsEn[StringKey::QARemaining] = "remaining";
+    stringsEn[StringKey::QAQuestionProgress] = "Question";
+    stringsEn[StringKey::QAAnswer] = "Answer: ";
+    stringsEn[StringKey::QAScoreLabel] = "Score: ";
+    stringsEn[StringKey::QAPressResetToPlayAgain] = "Press Reset to play again";
 
     // Poker Card
     stringsEn[StringKey::CardDropHere] = "Drop audio file here";
     stringsEn[StringKey::CardDragFile] = "Drag & drop audio";
     stringsEn[StringKey::CardTrack] = "Track";
+    stringsEn[StringKey::CardSelect] = "Select";
 
     // Card Count Control
     stringsEn[StringKey::CardCountLabel] = "Number of Cards";
@@ -178,7 +189,7 @@ void LocalizationManager::initializeStrings()
     // Control Panel - Status
     stringsZhTw[StringKey::StatusReady] = juce::CharPointer_UTF8("\xe5\xb0\xb1\xe7\xb7\x92");  // 就緒
     stringsZhTw[StringKey::StatusShuffled] = juce::CharPointer_UTF8("\xe5\xb7\xb2\xe6\xb4\x97\xe7\x89\x8c");  // 已洗牌
-    stringsZhTw[StringKey::StatusRevealed] = juce::CharPointer_UTF8("\xe5\xb7\xb2\xe6\x8f\xad\xe7\xa4\xba");  // 已揭示
+    stringsZhTw[StringKey::StatusRevealed] = juce::CharPointer_UTF8("\xe5\xb7\xb2\xe9\x96\x8b\xe7\x89\x8c");  // 已開牌
     stringsZhTw[StringKey::StatusRound] = juce::CharPointer_UTF8("\xe7\xac\xac");  // 第
     stringsZhTw[StringKey::StatusOf] = juce::CharPointer_UTF8("\xe5\x9b\x9e\xe5\x90\x88\xef\xbc\x8c\xe5\x85\xb1");  // 回合，共
     stringsZhTw[StringKey::StatusDetecting] = juce::CharPointer_UTF8("\xe6\xaa\xa2\xe6\xb8\xac\xe4\xb8\xad...");  // 檢測中...
@@ -193,17 +204,28 @@ void LocalizationManager::initializeStrings()
     stringsZhTw[StringKey::ResultsCorrect] = juce::CharPointer_UTF8("\xe6\xad\xa3\xe7\xa2\xba");  // 正確
     stringsZhTw[StringKey::ResultsIncorrect] = juce::CharPointer_UTF8("\xe9\x8c\xaf\xe8\xaa\xa4");  // 錯誤
     stringsZhTw[StringKey::ResultsTotal] = juce::CharPointer_UTF8("\xe7\xb8\xbd\xe8\xa8\x88");  // 總計
+    stringsZhTw[StringKey::ResultsCurrentRound] = juce::CharPointer_UTF8("\xe7\x95\xb6\xe5\x89\x8d\xe5\x9b\x9e\xe5\x90\x88");  // 當前回合
+    stringsZhTw[StringKey::ResultsFinalResults] = juce::CharPointer_UTF8("\xe6\x9c\x80\xe7\xb5\x82\xe7\xb5\x90\xe6\x9e\x9c");  // 最終結果
+    stringsZhTw[StringKey::ResultsAnswerQuestions] = juce::CharPointer_UTF8("\xe5\x9b\x9e\xe7\xad\x94\xe5\x95\x8f\xe9\xa1\x8c\xe4\xbb\xa5\xe6\x9f\xa5\xe7\x9c\x8b\xe7\xb5\x90\xe6\x9e\x9c");  // 回答問題以查看結果
 
     // Question Banner (Q&A mode)
     stringsZhTw[StringKey::QAQuestion] = juce::CharPointer_UTF8("\xe5\x95\x8f\xe9\xa1\x8c");  // 問題
     stringsZhTw[StringKey::QASelectCard] = juce::CharPointer_UTF8("\xe8\xab\x8b\xe9\x81\xb8\xe6\x93\x87\xe4\xb8\x80\xe5\xbc\xb5\xe5\x8d\xa1\xe7\x89\x87");  // 請選擇一張卡片
     stringsZhTw[StringKey::QAWhichBetter] = juce::CharPointer_UTF8("\xe5\x93\xaa\xe5\x80\x8b\xe8\x81\xbd\xe8\xb5\xb7\xe4\xbe\x86\xe6\x9b\xb4\xe5\xa5\xbd\xef\xbc\x9f");  // 哪個聽起來更好？
     stringsZhTw[StringKey::QAPreference] = juce::CharPointer_UTF8("\xe4\xbd\xa0\xe7\x9a\x84\xe5\x81\x8f\xe5\xa5\xbd");  // 你的偏好
+    stringsZhTw[StringKey::QAWhichCardIs] = juce::CharPointer_UTF8("\xe5\x93\xaa\xe5\xbc\xb5\xe6\x98\xaf ");  // 哪張是 (+ trackName + ？)
+    stringsZhTw[StringKey::QAWhichOneIs] = juce::CharPointer_UTF8("\xe5\x93\xaa\xe5\x80\x8b\xe6\x98\xaf ");  // 哪個是 (+ trackName + ？)
+    stringsZhTw[StringKey::QARemaining] = juce::CharPointer_UTF8("\xe5\x89\xa9\xe9\xa4\x98");  // 剩餘
+    stringsZhTw[StringKey::QAQuestionProgress] = juce::CharPointer_UTF8("\xe5\x95\x8f\xe9\xa1\x8c");  // 問題
+    stringsZhTw[StringKey::QAAnswer] = juce::CharPointer_UTF8("\xe7\xad\x94\xe6\xa1\x88\xef\xbc\x9a");  // 答案：
+    stringsZhTw[StringKey::QAScoreLabel] = juce::CharPointer_UTF8("\xe5\xbe\x97\xe5\x88\x86\xef\xbc\x9a");  // 得分：
+    stringsZhTw[StringKey::QAPressResetToPlayAgain] = juce::CharPointer_UTF8("\xe9\xbb\x9e\xe6\x93\x8a\xe9\x87\x8d\xe7\xbd\xae\xe9\x96\x8b\xe5\xa7\x8b\xe6\x96\xb0\xe9\x81\x8a\xe6\x88\xb2");  // 點擊重置開始新遊戲
 
     // Poker Card
     stringsZhTw[StringKey::CardDropHere] = juce::CharPointer_UTF8("\xe6\x8b\x96\xe6\x9b\xb3\xe9\x9f\xb3\xe8\xa8\x8a\xe6\xaa\x94\xe6\xa1\x88\xe8\x87\xb3\xe6\xad\xa4");  // 拖曳音訊檔案至此
     stringsZhTw[StringKey::CardDragFile] = juce::CharPointer_UTF8("\xe6\x8b\x96\xe6\x9b\xb3\xe9\x9f\xb3\xe8\xa8\x8a");  // 拖曳音訊
     stringsZhTw[StringKey::CardTrack] = juce::CharPointer_UTF8("\xe9\x9f\xb3\xe8\xbb\x8c");  // 音軌
+    stringsZhTw[StringKey::CardSelect] = juce::CharPointer_UTF8("\xe9\x81\xb8\xe6\x93\x87");  // 選擇
 
     // Card Count Control
     stringsZhTw[StringKey::CardCountLabel] = juce::CharPointer_UTF8("\xe5\x8d\xa1\xe7\x89\x87\xe6\x95\xb8\xe9\x87\x8f");  // 卡片數量
@@ -234,7 +256,7 @@ void LocalizationManager::initializeStrings()
     stringsZhTw[StringKey::GuideStep2Intro] = juce::CharPointer_UTF8("\xe9\x81\xb8\xe6\x93\x87\xe8\xa9\x95\xe5\x88\x86\xe6\xa8\xa1\xe5\xbc\x8f\xef\xbc\x9a");  // 選擇評分模式：
     stringsZhTw[StringKey::GuideStep3Full] = juce::CharPointer_UTF8("\xe9\xbb\x9e\xe6\x93\x8a\xe3\x80\x8c\xe6\xb4\x97\xe7\x89\x8c\xe3\x80\x8d\xe9\x9a\xa8\xe6\xa9\x9f\xe6\x8e\x92\xe5\x88\x97\xe4\xb8\xa6\xe9\x9a\xb1\xe8\x97\x8f\xe9\x9f\xb3\xe8\xbb\x8c\xe8\xba\xab\xe4\xbb\xbd");  // 點擊「洗牌」隨機排列並隱藏音軌身份
     stringsZhTw[StringKey::GuideStep4Full] = juce::CharPointer_UTF8("\xe9\xbb\x9e\xe6\x93\x8a\xe5\x8d\xa1\xe7\x89\x87\xe8\x81\x86\xe8\x81\xbd\xe4\xb8\xa6\xe8\xa9\x95\xe5\x88\x86\xef\xbc\x88\xe6\x88\x96\xe4\xbd\xbf\xe7\x94\xa8\xe6\x96\xb9\xe5\x90\x91\xe9\x8d\xb5\xef\xbc\x89");  // 點擊卡片聆聽並評分（或使用方向鍵）
-    stringsZhTw[StringKey::GuideStep5Full] = juce::CharPointer_UTF8("\xe9\xbb\x9e\xe6\x93\x8a\xe3\x80\x8c\xe6\x8f\xad\xe7\xa4\xba\xe3\x80\x8d\xe6\x9f\xa5\xe7\x9c\x8b\xe7\xb5\x90\xe6\x9e\x9c\xe5\x92\x8c\xe5\xaf\xa6\xe9\x9a\x9b\xe9\x9f\xb3\xe8\xbb\x8c\xe5\x90\x8d\xe7\xa8\xb1");  // 點擊「揭示」查看結果和實際音軌名稱
+    stringsZhTw[StringKey::GuideStep5Full] = juce::CharPointer_UTF8("\xe9\xbb\x9e\xe6\x93\x8a\xe3\x80\x8c\xe9\x96\x8b\xe7\x89\x8c\xe3\x80\x8d\xe6\x9f\xa5\xe7\x9c\x8b\xe7\xb5\x90\xe6\x9e\x9c\xe5\x92\x8c\xe5\xaf\xa6\xe9\x9a\x9b\xe9\x9f\xb3\xe8\xbb\x8c\xe5\x90\x8d\xe7\xa8\xb1");  // 點擊「開牌」查看結果和實際音軌名稱
     stringsZhTw[StringKey::GuideStep6Full] = juce::CharPointer_UTF8("\xe9\xbb\x9e\xe6\x93\x8a\xe3\x80\x8c\xe9\x87\x8d\xe7\xbd\xae\xe3\x80\x8d\xe9\x96\x8b\xe5\xa7\x8b\xe6\x96\xb0\xe7\x9a\x84\xe6\xb8\xac\xe8\xa9\xa6");  // 點擊「重置」開始新的測試
 
     // Mode descriptions in guide
@@ -332,17 +354,28 @@ void LocalizationManager::initializeStrings()
     stringsJa[StringKey::ResultsCorrect] = juce::CharPointer_UTF8("\xe6\xad\xa3\xe8\xa7\xa3");  // 正解
     stringsJa[StringKey::ResultsIncorrect] = juce::CharPointer_UTF8("\xe4\xb8\x8d\xe6\xad\xa3\xe8\xa7\xa3");  // 不正解
     stringsJa[StringKey::ResultsTotal] = juce::CharPointer_UTF8("\xe5\x90\x88\xe8\xa8\x88");  // 合計
+    stringsJa[StringKey::ResultsCurrentRound] = juce::CharPointer_UTF8("\xe7\x8f\xbe\xe5\x9c\xa8\xe3\x81\xae\xe3\x83\xa9\xe3\x82\xa6\xe3\x83\xb3\xe3\x83\x89");  // 現在のラウンド
+    stringsJa[StringKey::ResultsFinalResults] = juce::CharPointer_UTF8("\xe6\x9c\x80\xe7\xb5\x82\xe7\xb5\x90\xe6\x9e\x9c");  // 最終結果
+    stringsJa[StringKey::ResultsAnswerQuestions] = juce::CharPointer_UTF8("\xe8\xb3\xaa\xe5\x95\x8f\xe3\x81\xab\xe7\xad\x94\xe3\x81\x88\xe3\x81\xa6\xe7\xb5\x90\xe6\x9e\x9c\xe3\x82\x92\xe8\xa6\x8b\xe3\x82\x8b");  // 質問に答えて結果を見る
 
     // Question Banner (Q&A mode)
     stringsJa[StringKey::QAQuestion] = juce::CharPointer_UTF8("\xe8\xb3\xaa\xe5\x95\x8f");  // 質問
     stringsJa[StringKey::QASelectCard] = juce::CharPointer_UTF8("\xe3\x82\xab\xe3\x83\xbc\xe3\x83\x89\xe3\x82\x92\xe9\x81\xb8\xe6\x8a\x9e");  // カードを選択
     stringsJa[StringKey::QAWhichBetter] = juce::CharPointer_UTF8("\xe3\x81\xa9\xe3\x81\xa1\xe3\x82\x89\xe3\x81\x8c\xe8\x89\xaf\xe3\x81\x84\xe3\x81\xa7\xe3\x81\x99\xe3\x81\x8b\xef\xbc\x9f");  // どちらが良いですか？
     stringsJa[StringKey::QAPreference] = juce::CharPointer_UTF8("\xe3\x81\x82\xe3\x81\xaa\xe3\x81\x9f\xe3\x81\xae\xe9\x81\xb8\xe6\x8a\x9e");  // あなたの選択
+    stringsJa[StringKey::QAWhichCardIs] = juce::CharPointer_UTF8("\xe3\x81\xa9\xe3\x81\xae\xe3\x82\xab\xe3\x83\xbc\xe3\x83\x89\xe3\x81\x8c ");  // どのカードが (+ trackName + ？)
+    stringsJa[StringKey::QAWhichOneIs] = juce::CharPointer_UTF8("\xe3\x81\xa9\xe3\x82\x8c\xe3\x81\x8c ");  // どれが (+ trackName + ？)
+    stringsJa[StringKey::QARemaining] = juce::CharPointer_UTF8("\xe6\xae\x8b\xe3\x82\x8a");  // 残り
+    stringsJa[StringKey::QAQuestionProgress] = juce::CharPointer_UTF8("\xe8\xb3\xaa\xe5\x95\x8f");  // 質問
+    stringsJa[StringKey::QAAnswer] = juce::CharPointer_UTF8("\xe7\xad\x94\xe3\x81\x88\xef\xbc\x9a");  // 答え：
+    stringsJa[StringKey::QAScoreLabel] = juce::CharPointer_UTF8("\xe3\x82\xb9\xe3\x82\xb3\xe3\x82\xa2\xef\xbc\x9a");  // スコア：
+    stringsJa[StringKey::QAPressResetToPlayAgain] = juce::CharPointer_UTF8("\xe3\x83\xaa\xe3\x82\xbb\xe3\x83\x83\xe3\x83\x88\xe3\x82\x92\xe6\x8a\xbc\xe3\x81\x97\xe3\x81\xa6\xe5\x86\x8d\xe3\x83\x97\xe3\x83\xac\xe3\x82\xa4");  // リセットを押して再プレイ
 
     // Poker Card
     stringsJa[StringKey::CardDropHere] = juce::CharPointer_UTF8("\xe3\x81\x93\xe3\x81\x93\xe3\x81\xab\xe3\x83\x95\xe3\x82\xa1\xe3\x82\xa4\xe3\x83\xab\xe3\x82\x92\xe3\x83\x89\xe3\x83\xad\xe3\x83\x83\xe3\x83\x97");  // ここにファイルをドロップ
     stringsJa[StringKey::CardDragFile] = juce::CharPointer_UTF8("\xe3\x83\x89\xe3\x83\xa9\xe3\x83\x83\xe3\x82\xb0\xef\xbc\x86\xe3\x83\x89\xe3\x83\xad\xe3\x83\x83\xe3\x83\x97");  // ドラッグ＆ドロップ
     stringsJa[StringKey::CardTrack] = juce::CharPointer_UTF8("\xe3\x83\x88\xe3\x83\xa9\xe3\x83\x83\xe3\x82\xaf");  // トラック
+    stringsJa[StringKey::CardSelect] = juce::CharPointer_UTF8("\xe9\x81\xb8\xe6\x8a\x9e");  // 選択
 
     // Card Count Control
     stringsJa[StringKey::CardCountLabel] = juce::CharPointer_UTF8("\xe3\x82\xab\xe3\x83\xbc\xe3\x83\x89\xe6\x95\xb0");  // カード数
@@ -471,17 +504,28 @@ void LocalizationManager::initializeStrings()
     stringsZhCn[StringKey::ResultsCorrect] = juce::CharPointer_UTF8("\xe6\xad\xa3\xe7\xa1\xae");  // 正确
     stringsZhCn[StringKey::ResultsIncorrect] = juce::CharPointer_UTF8("\xe9\x94\x99\xe8\xaf\xaf");  // 错误
     stringsZhCn[StringKey::ResultsTotal] = juce::CharPointer_UTF8("\xe6\x80\xbb\xe8\xae\xa1");  // 总计
+    stringsZhCn[StringKey::ResultsCurrentRound] = juce::CharPointer_UTF8("\xe5\xbd\x93\xe5\x89\x8d\xe5\x9b\x9e\xe5\x90\x88");  // 当前回合
+    stringsZhCn[StringKey::ResultsFinalResults] = juce::CharPointer_UTF8("\xe6\x9c\x80\xe7\xbb\x88\xe7\xbb\x93\xe6\x9e\x9c");  // 最终结果
+    stringsZhCn[StringKey::ResultsAnswerQuestions] = juce::CharPointer_UTF8("\xe5\x9b\x9e\xe7\xad\x94\xe9\x97\xae\xe9\xa2\x98\xe4\xbb\xa5\xe6\x9f\xa5\xe7\x9c\x8b\xe7\xbb\x93\xe6\x9e\x9c");  // 回答问题以查看结果
 
     // Question Banner (Q&A mode)
     stringsZhCn[StringKey::QAQuestion] = juce::CharPointer_UTF8("\xe9\x97\xae\xe9\xa2\x98");  // 问题
     stringsZhCn[StringKey::QASelectCard] = juce::CharPointer_UTF8("\xe8\xaf\xb7\xe9\x80\x89\xe6\x8b\xa9\xe4\xb8\x80\xe5\xbc\xa0\xe5\x8d\xa1\xe7\x89\x87");  // 请选择一张卡片
     stringsZhCn[StringKey::QAWhichBetter] = juce::CharPointer_UTF8("\xe5\x93\xaa\xe4\xb8\xaa\xe5\x90\xac\xe8\xb5\xb7\xe6\x9d\xa5\xe6\x9b\xb4\xe5\xa5\xbd\xef\xbc\x9f");  // 哪个听起来更好？
     stringsZhCn[StringKey::QAPreference] = juce::CharPointer_UTF8("\xe4\xbd\xa0\xe7\x9a\x84\xe5\x81\x8f\xe5\xa5\xbd");  // 你的偏好
+    stringsZhCn[StringKey::QAWhichCardIs] = juce::CharPointer_UTF8("\xe5\x93\xaa\xe5\xbc\xa0\xe6\x98\xaf ");  // 哪张是 (+ trackName + ？)
+    stringsZhCn[StringKey::QAWhichOneIs] = juce::CharPointer_UTF8("\xe5\x93\xaa\xe4\xb8\xaa\xe6\x98\xaf ");  // 哪个是 (+ trackName + ？)
+    stringsZhCn[StringKey::QARemaining] = juce::CharPointer_UTF8("\xe5\x89\xa9\xe4\xbd\x99");  // 剩余
+    stringsZhCn[StringKey::QAQuestionProgress] = juce::CharPointer_UTF8("\xe9\x97\xae\xe9\xa2\x98");  // 问题
+    stringsZhCn[StringKey::QAAnswer] = juce::CharPointer_UTF8("\xe7\xad\x94\xe6\xa1\x88\xef\xbc\x9a");  // 答案：
+    stringsZhCn[StringKey::QAScoreLabel] = juce::CharPointer_UTF8("\xe5\xbe\x97\xe5\x88\x86\xef\xbc\x9a");  // 得分：
+    stringsZhCn[StringKey::QAPressResetToPlayAgain] = juce::CharPointer_UTF8("\xe7\x82\xb9\xe5\x87\xbb\xe9\x87\x8d\xe7\xbd\xae\xe5\xbc\x80\xe5\xa7\x8b\xe6\x96\xb0\xe6\xb8\xb8\xe6\x88\x8f");  // 点击重置开始新游戏
 
     // Poker Card
     stringsZhCn[StringKey::CardDropHere] = juce::CharPointer_UTF8("\xe6\x8b\x96\xe6\x8b\xbd\xe9\x9f\xb3\xe9\xa2\x91\xe6\x96\x87\xe4\xbb\xb6\xe8\x87\xb3\xe6\xad\xa4");  // 拖拽音频文件至此
     stringsZhCn[StringKey::CardDragFile] = juce::CharPointer_UTF8("\xe6\x8b\x96\xe6\x8b\xbd\xe9\x9f\xb3\xe9\xa2\x91");  // 拖拽音频
     stringsZhCn[StringKey::CardTrack] = juce::CharPointer_UTF8("\xe9\x9f\xb3\xe8\xbd\xa8");  // 音轨
+    stringsZhCn[StringKey::CardSelect] = juce::CharPointer_UTF8("\xe9\x80\x89\xe6\x8b\xa9");  // 选择
 
     // Card Count Control
     stringsZhCn[StringKey::CardCountLabel] = juce::CharPointer_UTF8("\xe5\x8d\xa1\xe7\x89\x87\xe6\x95\xb0\xe9\x87\x8f");  // 卡片数量
@@ -610,17 +654,28 @@ void LocalizationManager::initializeStrings()
     stringsKo[StringKey::ResultsCorrect] = juce::CharPointer_UTF8("\xec\xa0\x95\xeb\x8b\xb5");  // 정답
     stringsKo[StringKey::ResultsIncorrect] = juce::CharPointer_UTF8("\xec\x98\xa4\xeb\x8b\xb5");  // 오답
     stringsKo[StringKey::ResultsTotal] = juce::CharPointer_UTF8("\xec\xb4\x9d\xea\xb3\x84");  // 총계
+    stringsKo[StringKey::ResultsCurrentRound] = juce::CharPointer_UTF8("\xed\x98\x84\xec\x9e\xac \xeb\x9d\xbc\xec\x9a\xb4\xeb\x93\x9c");  // 현재 라운드
+    stringsKo[StringKey::ResultsFinalResults] = juce::CharPointer_UTF8("\xec\xb5\x9c\xec\xa2\x85 \xea\xb2\xb0\xea\xb3\xbc");  // 최종 결과
+    stringsKo[StringKey::ResultsAnswerQuestions] = juce::CharPointer_UTF8("\xec\xa7\x88\xeb\xac\xb8\xec\x97\x90 \xeb\x8b\xb5\xed\x95\x98\xec\x97\xac \xea\xb2\xb0\xea\xb3\xbc \xeb\xb3\xb4\xea\xb8\xb0");  // 질문에 답하여 결과 보기
 
     // Question Banner (Q&A mode)
     stringsKo[StringKey::QAQuestion] = juce::CharPointer_UTF8("\xec\xa7\x88\xeb\xac\xb8");  // 질문
     stringsKo[StringKey::QASelectCard] = juce::CharPointer_UTF8("\xec\xb9\xb4\xeb\x93\x9c\xeb\xa5\xbc \xec\x84\xa0\xed\x83\x9d\xed\x95\x98\xec\x84\xb8\xec\x9a\x94");  // 카드를 선택하세요
     stringsKo[StringKey::QAWhichBetter] = juce::CharPointer_UTF8("\xec\x96\xb4\xeb\x8a\x90 \xec\xaa\xbd\xec\x9d\xb4 \xeb\x8d\x94 \xec\xa2\x8b\xec\x9d\x80\xea\xb0\x80\xec\x9a\x94?");  // 어느 쪽이 더 좋은가요?
     stringsKo[StringKey::QAPreference] = juce::CharPointer_UTF8("\xeb\x8b\xb9\xec\x8b\xa0\xec\x9d\x98 \xec\x84\xa0\xed\x98\xb8");  // 당신의 선호
+    stringsKo[StringKey::QAWhichCardIs] = juce::CharPointer_UTF8("\xec\x96\xb4\xeb\x8a\x90 \xec\xb9\xb4\xeb\x93\x9c\xea\xb0\x80 ");  // 어느 카드가 (+ trackName + ？)
+    stringsKo[StringKey::QAWhichOneIs] = juce::CharPointer_UTF8("\xec\x96\xb4\xeb\x8a\x90 \xea\xb2\x83\xec\x9d\xb4 ");  // 어느 것이 (+ trackName + ？)
+    stringsKo[StringKey::QARemaining] = juce::CharPointer_UTF8("\xeb\x82\xa8\xec\x9d\x8c");  // 남음
+    stringsKo[StringKey::QAQuestionProgress] = juce::CharPointer_UTF8("\xec\xa7\x88\xeb\xac\xb8");  // 질문
+    stringsKo[StringKey::QAAnswer] = juce::CharPointer_UTF8("\xec\xa0\x95\xeb\x8b\xb5: ");  // 정답:
+    stringsKo[StringKey::QAScoreLabel] = juce::CharPointer_UTF8("\xec\xa0\x90\xec\x88\x98: ");  // 점수:
+    stringsKo[StringKey::QAPressResetToPlayAgain] = juce::CharPointer_UTF8("\xeb\xa6\xac\xec\x85\x8b\xec\x9d\x84 \xeb\x88\x8c\xeb\x9f\xac \xeb\x8b\xa4\xec\x8b\x9c \xed\x94\x8c\xeb\xa0\x88\xec\x9d\xb4");  // 리셋을 눌러 다시 플레이
 
     // Poker Card
     stringsKo[StringKey::CardDropHere] = juce::CharPointer_UTF8("\xec\x97\xac\xea\xb8\xb0\xec\x97\x90 \xed\x8c\x8c\xec\x9d\xbc\xec\x9d\x84 \xeb\x93\x9c\xeb\xa1\xad\xed\x95\x98\xec\x84\xb8\xec\x9a\x94");  // 여기에 파일을 드롭하세요
     stringsKo[StringKey::CardDragFile] = juce::CharPointer_UTF8("\xeb\x93\x9c\xeb\x9e\x98\xea\xb7\xb8 \xec\x95\xa4 \xeb\x93\x9c\xeb\xa1\xad");  // 드래그 앤 드롭
     stringsKo[StringKey::CardTrack] = juce::CharPointer_UTF8("\xed\x8a\xb8\xeb\x9e\x99");  // 트랙
+    stringsKo[StringKey::CardSelect] = juce::CharPointer_UTF8("\xec\x84\xa0\xed\x83\x9d");  // 선택
 
     // Card Count Control
     stringsKo[StringKey::CardCountLabel] = juce::CharPointer_UTF8("\xec\xb9\xb4\xeb\x93\x9c \xec\x88\x98");  // 카드 수

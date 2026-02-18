@@ -5,13 +5,14 @@
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "UI/Localization/LocalizationManager.h"
 #include <algorithm>
 
 BlindCardEditor::BlindCardEditor (BlindCardProcessor& p)
     : AudioProcessorEditor (&p), processorRef (p)
 {
-    // Rounds setting
-    roundsLabel.setText ("Rounds:", juce::dontSendNotification);
+    // Rounds setting (localized)
+    roundsLabel.setText (LOCALIZE(LabelRounds) + ":", juce::dontSendNotification);
     addAndMakeVisible (roundsLabel);
 
     roundsSlider.setRange (1, 10, 1);
@@ -369,10 +370,10 @@ void BlindCardEditor::updateUI()
                 statusText += " (max reached)";
             break;
         case blindcard::GamePhase::BlindTesting:
-            statusText = "Round " + juce::String (currentRound + 1) + " / " + juce::String (totalRounds);
+            statusText = LOCALIZE(StatusRound) + " " + juce::String (currentRound + 1) + " / " + juce::String (totalRounds);
             break;
         case blindcard::GamePhase::Revealed:
-            statusText = "Results";
+            statusText = LOCALIZE(ResultsTitle);
             break;
     }
     statusLabel.setText (statusText, juce::dontSendNotification);
@@ -473,16 +474,16 @@ void BlindCardEditor::updateQAUI()
     const auto& qaState = manager.getQAState();
     int maxQuestions = manager.getQAMaxQuestions();
 
-    // Question display
+    // Question display (localized)
     if (isQAMode && isBlindTesting && !qaState.isComplete (maxQuestions))
     {
         juce::String trackName = manager.getCurrentQuestionTrackName();
-        juce::String questionText = "Which one is " + trackName + "?";
+        juce::String questionText = LOCALIZE(QAWhichOneIs) + trackName + "?";
         questionLabel.setText (questionText, juce::dontSendNotification);
         questionLabel.setVisible (true);
 
         progressLabel.setText (
-            "Question " + juce::String (qaState.currentQuestion + 1) +
+            LOCALIZE(QAQuestionProgress) + " " + juce::String (qaState.currentQuestion + 1) +
             "/" + juce::String (maxQuestions),
             juce::dontSendNotification);
         progressLabel.setVisible (true);

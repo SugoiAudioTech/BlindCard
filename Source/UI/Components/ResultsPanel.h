@@ -257,7 +257,7 @@ private:
     // Drawing helpers - Stars mode
     void drawStarsResults(juce::Graphics& g, juce::Rectangle<float> bounds);
     void drawStarsRow(juce::Graphics& g, juce::Rectangle<float> bounds,
-                      const StarsResult& result, bool isWinner);
+                      const StarsResult& result, int rank);
 
     // Drawing helpers - Guess mode
     void drawGuessResults(juce::Graphics& g, juce::Rectangle<float> bounds);

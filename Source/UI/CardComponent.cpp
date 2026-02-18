@@ -4,6 +4,7 @@
  */
 
 #include "CardComponent.h"
+#include "Localization/LocalizationManager.h"
 #include <cmath>
 
 namespace blindcard
@@ -71,7 +72,7 @@ CardComponent::CardComponent()
     addAndMakeVisible (guessComboBox);
 
     // Q&A selection button
-    selectButton.setButtonText ("Select"); // Select this
+    selectButton.setButtonText (LOCALIZE(CardSelect)); // Select this
     selectButton.setColour (juce::TextButton::buttonColourId, juce::Colours::orange.darker());
     selectButton.onClick = [this]()
     {

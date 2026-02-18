@@ -127,7 +127,7 @@ PokerCard::PokerCard()
     };
     addChildComponent(guessDropdown.get());
 
-    qaSelectButton = std::make_unique<juce::TextButton>("Select");
+    qaSelectButton = std::make_unique<juce::TextButton>(LOCALIZE(CardSelect));
     qaSelectButton->onClick = [this]() {
         if (onQASelected)
             onQASelected();

@@ -85,17 +85,28 @@ namespace StringKey
     constexpr const char* ResultsCorrect = "results_correct";
     constexpr const char* ResultsIncorrect = "results_incorrect";
     constexpr const char* ResultsTotal = "results_total";
+    constexpr const char* ResultsCurrentRound = "results_current_round";    // "CURRENT ROUND"
+    constexpr const char* ResultsFinalResults = "results_final_results";    // "FINAL RESULTS"
+    constexpr const char* ResultsAnswerQuestions = "results_answer_questions";  // "Answer questions to see results"
 
     // Question Banner (Q&A mode)
     constexpr const char* QAQuestion = "qa_question";
     constexpr const char* QASelectCard = "qa_select_card";
     constexpr const char* QAWhichBetter = "qa_which_better";
     constexpr const char* QAPreference = "qa_preference";
+    constexpr const char* QAWhichCardIs = "qa_which_card_is";      // "Which card is [name]?"
+    constexpr const char* QAWhichOneIs = "qa_which_one_is";        // "Which one is [name]?"
+    constexpr const char* QARemaining = "qa_remaining";            // "remaining"
+    constexpr const char* QAQuestionProgress = "qa_question_progress";  // "Question"
+    constexpr const char* QAAnswer = "qa_answer";                  // "Answer:"
+    constexpr const char* QAScoreLabel = "qa_score_label";         // "Score:"
+    constexpr const char* QAPressResetToPlayAgain = "qa_press_reset";  // "Press Reset to play again"
 
     // Poker Card
     constexpr const char* CardDropHere = "card_drop_here";
     constexpr const char* CardDragFile = "card_drag_file";
     constexpr const char* CardTrack = "card_track";
+    constexpr const char* CardSelect = "card_select";           // "Select" button
 
     // Card Count Control
     constexpr const char* CardCountLabel = "card_count_label";

@@ -14,6 +14,7 @@
 */
 
 #include "QuestionBanner.h"
+#include "../Localization/LocalizationManager.h"
 
 namespace BlindCard
 {
@@ -233,8 +234,8 @@ void QuestionBanner::drawQuestion(juce::Graphics& g, juce::Rectangle<float> boun
 {
     auto& tm = ThemeManager::getInstance();
 
-    // Question text
-    juce::String questionText = "Which card is " + juce::String(currentPluginName) + "?";
+    // Question text (localized)
+    juce::String questionText = LOCALIZE(QAWhichCardIs) + juce::String(currentPluginName) + "?";
 
     g.setColour(tm.getColour(ColourId::TextPrimary));
     g.setFont(juce::Font(16.0f, juce::Font::bold));
@@ -247,9 +248,9 @@ void QuestionBanner::drawProgress(juce::Graphics& g, juce::Rectangle<float> boun
 
     if (totalQuestions > 0)
     {
-        int remaining = totalQuestions - currentQuestion + 1;
-        juce::String progressText = juce::String(remaining) + "/" +
-                                    juce::String(totalQuestions) + " remaining";
+        int remainingCount = totalQuestions - currentQuestion + 1;
+        juce::String progressText = juce::String(remainingCount) + "/" +
+                                    juce::String(totalQuestions) + " " + LOCALIZE(QARemaining);
 
         g.setColour(tm.getColour(ColourId::TextSecondary));
         g.setFont(juce::Font(12.0f));
@@ -335,8 +336,8 @@ void QuestionBanner::drawCorrectAnswer(juce::Graphics& g, juce::Rectangle<float>
 {
     auto& tm = ThemeManager::getInstance();
 
-    // Show "Answer: [Track Name]" with emphasis
-    juce::String answerText = "Answer: " + juce::String(correctAnswerName);
+    // Show "Answer: [Track Name]" with emphasis (localized)
+    juce::String answerText = LOCALIZE(QAAnswer) + juce::String(correctAnswerName);
 
     // Use success/error color based on feedback
     juce::Colour textColor = tm.getColour(ColourId::TextPrimary);
@@ -366,16 +367,16 @@ void QuestionBanner::drawCompletion(juce::Graphics& g, juce::Rectangle<float> bo
     else
         scoreColor = tm.getColour(ColourId::Error);    // Red for below 50%
 
-    // Draw score on the left
-    juce::String scoreText = "Score: " + juce::String(correctCount) + "/" + juce::String(totalCount);
+    // Draw score on the left (localized)
+    juce::String scoreText = LOCALIZE(QAScoreLabel) + juce::String(correctCount) + "/" + juce::String(totalCount);
     g.setColour(scoreColor);
     g.setFont(juce::Font(18.0f, juce::Font::bold));
 
     auto scoreArea = bounds.removeFromLeft(bounds.getWidth() * 0.4f);
     g.drawText(scoreText, scoreArea, juce::Justification::centredLeft);
 
-    // Draw reset prompt on the right
-    juce::String resetText = "Press Reset to play again";
+    // Draw reset prompt on the right (localized)
+    juce::String resetText = LOCALIZE(QAPressResetToPlayAgain);
     g.setColour(tm.getColour(ColourId::TextSecondary));
     g.setFont(juce::Font(14.0f));
     g.drawText(resetText, bounds, juce::Justification::centredRight);
