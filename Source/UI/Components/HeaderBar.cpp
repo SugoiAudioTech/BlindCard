@@ -137,7 +137,7 @@ void HeaderBar::paint(juce::Graphics& g)
     // Brand text (to the right of logo)
     float brandX = logoX + Layout::logoSize + Layout::brandLeftMargin;
     float brandY = logoY;
-    drawBrandText(g, { brandX, brandY, 150.0f, static_cast<float>(Layout::logoSize) });
+    drawBrandText(g, { brandX, brandY, 200.0f, static_cast<float>(Layout::logoSize) });
 
     // Track info (centered) - hidden in standalone mode (TransportBar shows playback info)
     if (!standaloneMode)
@@ -281,16 +281,42 @@ void HeaderBar::drawLogo(juce::Graphics& g, juce::Rectangle<float> bounds)
     g.setGradientFill(gradient);
     g.fillRoundedRectangle(bounds, Layout::logoCornerRadius);
 
-    // White spade symbol
+    // White spade symbol - standard SVG spade path for cross-platform consistency
     g.setColour(juce::Colours::white);
-    g.setFont(juce::Font(juce::FontOptions().withHeight(24.0f)));
 
-    // Draw spade symbol centered
-    g.drawText(juce::String::charToString(0x2660), // Unicode spade
-               bounds.toNearestInt(),
-               juce::Justification::centred);
+    {
+        // Use a padded inner rect so the spade doesn't touch the rounded corners
+        float pad = bounds.getWidth() * 0.18f;
+        auto inner = bounds.reduced(pad);
+        float x0 = inner.getX();
+        float y0 = inner.getY();
+        float w = inner.getWidth();
+        float h = inner.getHeight();
 
-    // Gold accent dot removed per user request
+        // Map from 0-100 SVG coordinate space to local pixel coordinates
+        auto sx = [&](float v) { return x0 + v * w / 100.0f; };
+        auto sy = [&](float v) { return y0 + v * h / 100.0f; };
+
+        // Spade body (classic playing card spade outline)
+        juce::Path spade;
+        spade.startNewSubPath(sx(50), sy(0));                                       // top tip
+        spade.cubicTo(sx(50), sy(0),  sx(0),  sy(40), sx(0),  sy(60));              // tip -> left lobe
+        spade.cubicTo(sx(0),  sy(80), sx(25), sy(85), sx(50), sy(70));              // left lobe -> bottom center
+        spade.cubicTo(sx(75), sy(85), sx(100),sy(80), sx(100),sy(60));              // bottom center -> right lobe
+        spade.cubicTo(sx(100),sy(40), sx(50), sy(0),  sx(50), sy(0));               // right lobe -> tip
+        spade.closeSubPath();
+
+        // Stem (small trapezoid at bottom)
+        juce::Path stem;
+        stem.startNewSubPath(sx(45), sy(65));
+        stem.lineTo(sx(38), sy(100));
+        stem.lineTo(sx(62), sy(100));
+        stem.lineTo(sx(55), sy(65));
+        stem.closeSubPath();
+
+        g.fillPath(spade);
+        g.fillPath(stem);
+    }
 }
 
 void HeaderBar::drawBrandText(juce::Graphics& g, juce::Rectangle<float> bounds)
@@ -310,13 +336,14 @@ void HeaderBar::drawBrandText(juce::Graphics& g, juce::Rectangle<float> bounds)
     auto brandFont = fonts.getCinzelBold(Layout::brandNameFontSize);
     g.setFont(brandFont);
 
-    float blindWidth = 60.0f;  // Approximate width for "Blind"
-    float cardWidth = 50.0f;   // Approximate width for "Card"
+    // Measure actual text widths from the font for cross-platform accuracy
+    float blindWidth = brandFont.getStringWidthFloat("Blind ");
+    float cardWidth = brandFont.getStringWidthFloat("Card");
 
     // Draw "Blind" in white/black
     g.setColour(textColor);
     auto blindArea = nameArea.withWidth(blindWidth);
-    g.drawText("Blind", blindArea, juce::Justification::centredLeft);
+    g.drawText("Blind ", blindArea, juce::Justification::centredLeft);
 
     // Draw "Card" in red
     g.setColour(redColor);
