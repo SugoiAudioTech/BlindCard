@@ -127,6 +127,11 @@ namespace StringKey
     constexpr const char* AboutDeveloper = "about_developer";
     constexpr const char* AboutVisitWebsite = "about_visit_website";
 
+    // Update Checker
+    constexpr const char* UpdateAvailable = "update_available";
+    constexpr const char* UpdateUpToDate = "update_up_to_date";
+    constexpr const char* UpdateDownload = "update_download";
+
     // Quick Start Guide
     constexpr const char* GuideTitle = "guide_title";
     constexpr const char* GuideGotIt = "guide_got_it";

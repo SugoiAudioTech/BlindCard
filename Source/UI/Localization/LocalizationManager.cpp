@@ -96,6 +96,11 @@ void LocalizationManager::initializeStrings()
     stringsEn[StringKey::AboutDeveloper] = "Developer:";
     stringsEn[StringKey::AboutVisitWebsite] = "Visit Official Website";
 
+    // Update Checker
+    stringsEn[StringKey::UpdateAvailable] = "New version available:";
+    stringsEn[StringKey::UpdateUpToDate] = "Up to date";
+    stringsEn[StringKey::UpdateDownload] = "Download";
+
     // Quick Start Guide
     stringsEn[StringKey::GuideTitle] = "Quick Start Guide";
     stringsEn[StringKey::GuideGotIt] = "Got it!";
@@ -245,6 +250,11 @@ void LocalizationManager::initializeStrings()
     stringsZhTw[StringKey::AboutVersion] = juce::CharPointer_UTF8("\xe7\x89\x88\xe6\x9c\xac\xef\xbc\x9a");  // 版本：
     stringsZhTw[StringKey::AboutDeveloper] = juce::CharPointer_UTF8("\xe9\x96\x8b\xe7\x99\xbc\xe8\x80\x85\xef\xbc\x9a");  // 開發者：
     stringsZhTw[StringKey::AboutVisitWebsite] = juce::CharPointer_UTF8("\xe9\x80\xa0\xe8\xa8\xaa\xe5\xae\x98\xe6\x96\xb9\xe7\xb6\xb2\xe7\xab\x99");  // 造訪官方網站
+
+    // Update Checker
+    stringsZhTw[StringKey::UpdateAvailable] = juce::CharPointer_UTF8("\xe6\x9c\x89\xe6\x96\xb0\xe7\x89\x88\xe6\x9c\xac\xe5\x8f\xaf\xe7\x94\xa8\xef\xbc\x9a");  // 有新版本可用：
+    stringsZhTw[StringKey::UpdateUpToDate] = juce::CharPointer_UTF8("\xe5\xb7\xb2\xe6\x98\xaf\xe6\x9c\x80\xe6\x96\xb0\xe7\x89\x88\xe6\x9c\xac");  // 已是最新版本
+    stringsZhTw[StringKey::UpdateDownload] = juce::CharPointer_UTF8("\xe4\xb8\x8b\xe8\xbc\x89");  // 下載
 
     // Quick Start Guide
     stringsZhTw[StringKey::GuideTitle] = juce::CharPointer_UTF8("\xe5\xbf\xab\xe9\x80\x9f\xe9\x96\x8b\xe5\xa7\x8b\xe6\x8c\x87\xe5\x8d\x97");  // 快速開始指南
@@ -396,6 +406,11 @@ void LocalizationManager::initializeStrings()
     stringsJa[StringKey::AboutDeveloper] = juce::CharPointer_UTF8("\xe9\x96\x8b\xe7\x99\xba\xe8\x80\x85\xef\xbc\x9a");  // 開発者：
     stringsJa[StringKey::AboutVisitWebsite] = juce::CharPointer_UTF8("\xe5\x85\xac\xe5\xbc\x8f\xe3\x82\xb5\xe3\x82\xa4\xe3\x83\x88\xe3\x82\x92\xe8\xa8\xaa\xe5\x95\x8f");  // 公式サイトを訪問
 
+    // Update Checker
+    stringsJa[StringKey::UpdateAvailable] = juce::CharPointer_UTF8("\xe6\x96\xb0\xe3\x83\x90\xe3\x83\xbc\xe3\x82\xb8\xe3\x83\xa7\xe3\x83\xb3\xe3\x81\x82\xe3\x82\x8a\xef\xbc\x9a");  // 新バージョンあり：
+    stringsJa[StringKey::UpdateUpToDate] = juce::CharPointer_UTF8("\xe6\x9c\x80\xe6\x96\xb0\xe7\x89\x88\xe3\x81\xa7\xe3\x81\x99");  // 最新版です
+    stringsJa[StringKey::UpdateDownload] = juce::CharPointer_UTF8("\xe3\x83\x80\xe3\x82\xa6\xe3\x83\xb3\xe3\x83\xad\xe3\x83\xbc\xe3\x83\x89");  // ダウンロード
+
     // Quick Start Guide
     stringsJa[StringKey::GuideTitle] = juce::CharPointer_UTF8("\xe3\x82\xaf\xe3\x82\xa4\xe3\x83\x83\xe3\x82\xaf\xe3\x82\xb9\xe3\x82\xbf\xe3\x83\xbc\xe3\x83\x88");  // クイックスタート
     stringsJa[StringKey::GuideGotIt] = juce::CharPointer_UTF8("\xe4\xba\x86\xe8\xa7\xa3");  // 了解
@@ -546,6 +561,11 @@ void LocalizationManager::initializeStrings()
     stringsZhCn[StringKey::AboutDeveloper] = juce::CharPointer_UTF8("\xe5\xbc\x80\xe5\x8f\x91\xe8\x80\x85\xef\xbc\x9a");  // 开发者：
     stringsZhCn[StringKey::AboutVisitWebsite] = juce::CharPointer_UTF8("\xe8\xae\xbf\xe9\x97\xae\xe5\xae\x98\xe6\x96\xb9\xe7\xbd\x91\xe7\xab\x99");  // 访问官方网站
 
+    // Update Checker
+    stringsZhCn[StringKey::UpdateAvailable] = juce::CharPointer_UTF8("\xe6\x9c\x89\xe6\x96\xb0\xe7\x89\x88\xe6\x9c\xac\xe5\x8f\xaf\xe7\x94\xa8\xef\xbc\x9a");  // 有新版本可用：
+    stringsZhCn[StringKey::UpdateUpToDate] = juce::CharPointer_UTF8("\xe5\xb7\xb2\xe6\x98\xaf\xe6\x9c\x80\xe6\x96\xb0\xe7\x89\x88\xe6\x9c\xac");  // 已是最新版本
+    stringsZhCn[StringKey::UpdateDownload] = juce::CharPointer_UTF8("\xe4\xb8\x8b\xe8\xbd\xbd");  // 下载
+
     // Quick Start Guide
     stringsZhCn[StringKey::GuideTitle] = juce::CharPointer_UTF8("\xe5\xbf\xab\xe9\x80\x9f\xe5\x85\xa5\xe9\x97\xa8\xe6\x8c\x87\xe5\x8d\x97");  // 快速入门指南
     stringsZhCn[StringKey::GuideGotIt] = juce::CharPointer_UTF8("\xe6\x88\x91\xe7\x9f\xa5\xe9\x81\x93\xe4\xba\x86\xef\xbc\x81");  // 我知道了！
@@ -695,6 +715,11 @@ void LocalizationManager::initializeStrings()
     stringsKo[StringKey::AboutVersion] = juce::CharPointer_UTF8("\xeb\xb2\x84\xec\xa0\x84:");  // 버전:
     stringsKo[StringKey::AboutDeveloper] = juce::CharPointer_UTF8("\xea\xb0\x9c\xeb\xb0\x9c\xec\x9e\x90:");  // 개발자:
     stringsKo[StringKey::AboutVisitWebsite] = juce::CharPointer_UTF8("\xea\xb3\xb5\xec\x8b\x9d \xec\x9b\xb9\xec\x82\xac\xec\x9d\xb4\xed\x8a\xb8 \xeb\xb0\xa9\xeb\xac\xb8");  // 공식 웹사이트 방문
+
+    // Update Checker
+    stringsKo[StringKey::UpdateAvailable] = juce::CharPointer_UTF8("\xec\x83\x88 \xeb\xb2\x84\xec\xa0\x84 \xec\x82\xac\xec\x9a\xa9 \xea\xb0\x80\xeb\x8a\xa5:");  // 새 버전 사용 가능:
+    stringsKo[StringKey::UpdateUpToDate] = juce::CharPointer_UTF8("\xec\xb5\x9c\xec\x8b\xa0 \xeb\xb2\x84\xec\xa0\x84\xec\x9e\x85\xeb\x8b\x88\xeb\x8b\xa4");  // 최신 버전입니다
+    stringsKo[StringKey::UpdateDownload] = juce::CharPointer_UTF8("\xeb\x8b\xa4\xec\x9a\xb4\xeb\xa1\x9c\xeb\x93\x9c");  // 다운로드
 
     // Quick Start Guide
     stringsKo[StringKey::GuideTitle] = juce::CharPointer_UTF8("\xeb\xb9\xa0\xeb\xa5\xb8 \xec\x8b\x9c\xec\x9e\x91 \xea\xb0\x80\xec\x9d\xb4\xeb\x93\x9c");  // 빠른 시작 가이드

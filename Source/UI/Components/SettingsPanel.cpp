@@ -16,6 +16,7 @@
 */
 
 #include "SettingsPanel.h"
+#include <juce_audio_plugin_client/juce_audio_plugin_client.h>
 
 namespace BlindCard
 {
@@ -26,6 +27,8 @@ SettingsPanel::SettingsPanel()
     setAlwaysOnTop(true);
     setInterceptsMouseClicks(true, true);
 
+    versionString = JucePlugin_VersionString;
+
     setupLanguageSelector();
     LocalizationManager::getInstance().addListener(this);
 }
@@ -33,6 +36,14 @@ SettingsPanel::SettingsPanel()
 SettingsPanel::~SettingsPanel()
 {
     LocalizationManager::getInstance().removeListener(this);
+}
+
+void SettingsPanel::setUpdateInfo(bool available, const juce::String& latestVer, const juce::String& url)
+{
+    updateAvailable = available;
+    latestVersionString = latestVer;
+    downloadUrl = url;
+    repaint();
 }
 
 void SettingsPanel::setupLanguageSelector()
@@ -186,6 +197,28 @@ void SettingsPanel::paint(juce::Graphics& g)
     g.setColour(textColor);
     g.drawText(versionString, versionRow, juce::Justification::centredRight);
 
+    // Update status row
+    auto updateRow = bottomSection.removeFromTop(24);
+    if (updateAvailable && latestVersionString.isNotEmpty())
+    {
+        g.setColour(juce::Colour(0xFF22C55E));  // Green
+        g.setFont(getSystemFont(14.0f, true));
+        juce::String updateText = LOCALIZE(UpdateAvailable) + " v" + latestVersionString;
+        g.drawText(updateText, updateRow.removeFromLeft(updateRow.getWidth() - 80), juce::Justification::centredLeft);
+
+        updateLinkBounds = updateRow;
+        g.setColour(linkColor);
+        g.setFont(getSystemFont(14.0f));
+        g.drawText(LOCALIZE(UpdateDownload), updateLinkBounds, juce::Justification::centredRight);
+    }
+    else
+    {
+        g.setColour(textColor.withAlpha(0.5f));
+        g.setFont(getSystemFont(13.0f));
+        g.drawText(LOCALIZE(UpdateUpToDate), updateRow, juce::Justification::centredLeft);
+        updateLinkBounds = {};
+    }
+
     // Developer row
     g.setColour(textColor.withAlpha(0.7f));
     auto devRow = bottomSection.removeFromTop(24);
@@ -261,6 +294,14 @@ void SettingsPanel::mouseDown(const juce::MouseEvent& event)
     {
         hideOverlay();
         if (onClose) onClose();
+        return;
+    }
+
+    // Open update download link
+    if (updateLinkBounds.getWidth() > 0 && updateLinkBounds.contains(pos))
+    {
+        if (downloadUrl.isNotEmpty())
+            juce::URL(downloadUrl).launchInDefaultBrowser();
         return;
     }
 

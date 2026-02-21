@@ -78,9 +78,10 @@ BlindCardEditor::BlindCardEditor(BlindCardProcessor& processor)
     : AudioProcessorEditor(processor)
     , processorRef(processor)
 {
-    // Subscribe to manager and theme changes
+    // Subscribe to manager, theme, and update checker changes
     manager->addChangeListener(this);
     ThemeManager::getInstance().addChangeListener(this);
+    UpdateChecker::getInstance().addChangeListener(this);
 
     // Create UI components BEFORE setting size (setResizeLimits triggers resized())
     headerBar = std::make_unique<HeaderBar>();
@@ -157,6 +158,9 @@ BlindCardEditor::BlindCardEditor(BlindCardProcessor& processor)
 
     // Ensure mouse clicks can be captured (for obtaining keyboard focus)
     setInterceptsMouseClicks(true, true);
+
+    // Check for updates in background (runs once per process)
+    UpdateChecker::getInstance().checkForUpdate();
 }
 
 BlindCardEditor::~BlindCardEditor()
@@ -165,6 +169,7 @@ BlindCardEditor::~BlindCardEditor()
     stopTimer();
     manager->removeChangeListener(this);
     ThemeManager::getInstance().removeChangeListener(this);
+    UpdateChecker::getInstance().removeChangeListener(this);
 
     // Clear LookAndFeel before destruction to avoid crashes
     if (presetComboBox) presetComboBox->setLookAndFeel(nullptr);
@@ -330,6 +335,23 @@ void BlindCardEditor::changeListenerCallback(juce::ChangeBroadcaster* source)
 {
     // Use SafePointer to prevent dangling pointer if editor is destroyed before callback runs
     juce::Component::SafePointer<BlindCardEditor> safeThis(this);
+
+    // Handle update checker results
+    if (source == &UpdateChecker::getInstance())
+    {
+        juce::MessageManager::callAsync([safeThis]()
+        {
+            if (safeThis == nullptr) return;
+
+            auto& checker = UpdateChecker::getInstance();
+            safeThis->headerBar->setUpdateAvailable(checker.isUpdateAvailable());
+            safeThis->settingsPanel->setUpdateInfo(
+                checker.isUpdateAvailable(),
+                checker.getLatestVersion(),
+                checker.getReleaseURL());
+        });
+        return;
+    }
 
     // Handle theme changes
     if (source == &ThemeManager::getInstance())
@@ -749,6 +771,11 @@ void BlindCardEditor::updateResultsPanel()
 
 void BlindCardEditor::onSettingsClicked()
 {
+    auto& checker = UpdateChecker::getInstance();
+    settingsPanel->setUpdateInfo(
+        checker.isUpdateAvailable(),
+        checker.getLatestVersion(),
+        checker.getReleaseURL());
     settingsPanel->showOverlay(this);
 }
 

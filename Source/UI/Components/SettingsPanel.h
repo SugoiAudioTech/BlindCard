@@ -48,6 +48,9 @@ public:
     /** Callback when language changes (for parent to refresh UI) */
     std::function<void()> onLanguageChanged;
 
+    /** Set the update check state for display */
+    void setUpdateInfo(bool available, const juce::String& latestVer, const juce::String& url);
+
     /** Show the panel as an overlay on a parent component */
     void showOverlay(juce::Component* parent);
 
@@ -57,7 +60,7 @@ public:
 private:
     // Layout constants
     static constexpr int kDialogWidth = 420;
-    static constexpr int kDialogHeight = 420;  // Increased for language selector
+    static constexpr int kDialogHeight = 450;  // Increased for language selector + update row
     static constexpr int kCornerRadius = 16;
     static constexpr int kPadding = 28;
     static constexpr int kHeaderHeight = 60;
@@ -78,9 +81,15 @@ private:
     juce::Rectangle<int> websiteLinkBounds;
 
     // Version info
-    juce::String versionString = "1.0.0";
+    juce::String versionString;
     juce::String developerName = "Sugoi Audio";
     juce::String websiteUrl = "https://sugoiaudio.com";
+
+    // Update check state
+    bool updateAvailable = false;
+    juce::String latestVersionString;
+    juce::String downloadUrl;
+    juce::Rectangle<int> updateLinkBounds;
 
     // Helper to get system font
     juce::Font getSystemFont(float height, bool bold = false) const;

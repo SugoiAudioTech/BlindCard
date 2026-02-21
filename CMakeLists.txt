@@ -41,6 +41,8 @@ target_sources(BlindCard
         Source/Core/Types.h
         Source/Core/BlindCardManager.h
         Source/Core/BlindCardManager.cpp
+        Source/Core/UpdateChecker.h
+        Source/Core/UpdateChecker.cpp
 
         # Standalone Audio Engine
         Source/Standalone/StandaloneAudioEngine.h
@@ -94,7 +96,7 @@ target_sources(BlindCard
 target_compile_definitions(BlindCard
     PUBLIC
         JUCE_WEB_BROWSER=0
-        JUCE_USE_CURL=0
+        JUCE_USE_CURL=1
         JUCE_VST3_CAN_REPLACE_VST2=0
         # Standalone audio settings
         JUCE_USE_CUSTOM_PLUGIN_STANDALONE_APP=0

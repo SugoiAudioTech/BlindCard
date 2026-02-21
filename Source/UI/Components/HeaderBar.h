@@ -82,6 +82,9 @@ public:
     /** Returns the current track name */
     juce::String getCurrentTrackName() const { return currentTrackName; }
 
+    /** Show/hide update notification dot on the settings gear icon */
+    void setUpdateAvailable(bool available);
+
     /**
      * Sets standalone mode - hides "Now Playing" info to save space for TransportBar.
      * @param enabled true to hide track info display
@@ -113,6 +116,7 @@ private:
     //==========================================================================
     // State
     bool standaloneMode = false;
+    bool showUpdateDot = false;
 
     // Current track info
     float currentRMSdB = -100.0f;

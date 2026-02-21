@@ -33,6 +33,7 @@
 #include "Components/TransportBar.h"
 #include "Components/CardCountControl.h"
 #include "../Core/BlindCardManager.h"
+#include "../Core/UpdateChecker.h"
 #include "../Standalone/StandaloneAudioEngine.h"
 #include "../Standalone/StandalonePresetManager.h"
 

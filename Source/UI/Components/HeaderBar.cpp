@@ -77,6 +77,15 @@ HeaderBar::~HeaderBar()
 }
 
 //==============================================================================
+void HeaderBar::setUpdateAvailable(bool available)
+{
+    if (showUpdateDot != available)
+    {
+        showUpdateDot = available;
+        repaint(settingsButtonBounds);
+    }
+}
+
 void HeaderBar::setStandaloneMode(bool enabled)
 {
     if (standaloneMode != enabled)
@@ -579,6 +588,19 @@ void HeaderBar::drawSettingsButton(juce::Graphics& g, juce::Rectangle<float> bou
     // Draw center circle outline
     g.drawEllipse(centerX - innerRadius, centerY - innerRadius,
                   innerRadius * 2.0f, innerRadius * 2.0f, 2.0f);
+
+    // Update notification dot (top-right of gear icon)
+    if (showUpdateDot)
+    {
+        float dotSize = 8.0f;
+        float dotX = bounds.getRight() - dotSize / 2.0f - 1.0f;
+        float dotY = bounds.getY() - dotSize / 2.0f + 3.0f;
+
+        g.setColour(juce::Colours::white);
+        g.fillEllipse(dotX - 1.0f, dotY - 1.0f, dotSize + 2.0f, dotSize + 2.0f);
+        g.setColour(isDark ? juce::Colour(0xFF22C55E) : juce::Colour(0xFF16A34A));
+        g.fillEllipse(dotX, dotY, dotSize, dotSize);
+    }
 }
 
 void HeaderBar::drawResetButton(juce::Graphics& g, juce::Rectangle<float> bounds, bool isHovered)
