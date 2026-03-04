@@ -60,7 +60,7 @@ private:
     static constexpr int kDialogHeight = 720;
     static constexpr int kCornerRadius = 20;
     static constexpr int kPadding = 36;
-    static constexpr int kStepNumberSize = 52;
+    static constexpr int kStepNumberSize = 32;
     static constexpr int kStepSpacing = 36;
     static constexpr int kButtonHeight = 56;
     static constexpr int kButtonWidth = 240;

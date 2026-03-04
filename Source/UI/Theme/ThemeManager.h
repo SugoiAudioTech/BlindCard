@@ -117,7 +117,7 @@ private:
     ThemeManager() = default;
     ~ThemeManager() override = default;
 
-    Theme currentTheme = Theme::Dark;
+    Theme currentTheme = Theme::Light;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ThemeManager)
 };

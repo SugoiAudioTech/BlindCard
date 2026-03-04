@@ -348,7 +348,8 @@ void BlindCardEditor::changeListenerCallback(juce::ChangeBroadcaster* source)
             safeThis->settingsPanel->setUpdateInfo(
                 checker.isUpdateAvailable(),
                 checker.getLatestVersion(),
-                checker.getReleaseURL());
+                checker.getReleaseURL(),
+                checker.getChangelog());
         });
         return;
     }
@@ -775,7 +776,8 @@ void BlindCardEditor::onSettingsClicked()
     settingsPanel->setUpdateInfo(
         checker.isUpdateAvailable(),
         checker.getLatestVersion(),
-        checker.getReleaseURL());
+        checker.getReleaseURL(),
+        checker.getChangelog());
     settingsPanel->showOverlay(this);
 }
 
@@ -982,12 +984,15 @@ void BlindCardEditor::onNextRoundClicked()
 
 void BlindCardEditor::onRoundsChanged(int rounds)
 {
-    manager->setTotalRounds(rounds);
-
-    // Q&A 模式時，Rounds 同時控制問題數量
     if (manager->getRatingMode() == blindcard::RatingMode::QA)
     {
+        // Q&A mode: slider controls question count only, always 1 round
+        manager->setTotalRounds(1);
         manager->setQAQuestionCount(rounds);
+    }
+    else
+    {
+        manager->setTotalRounds(rounds);
     }
 }
 

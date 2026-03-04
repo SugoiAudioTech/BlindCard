@@ -275,6 +275,7 @@ void ControlPanel::setQAMode(bool isQA)
     isQAModeActive = isQA;
     if (qaQuestionsSlider)
         qaQuestionsSlider->setVisible(isQA);
+    roundsSlider->setVisible(!isQA);
     resized();
     repaint();
 }
@@ -401,12 +402,25 @@ void ControlPanel::drawInfoRow(juce::Graphics& g, juce::Rectangle<float> bounds)
 
     // Slider area is handled in resized() - no need to draw here
 
-    // Round counter (e.g., "1/3") - Casino style: Cinzel Art Deco font
-    int totalRounds = static_cast<int>(roundsSlider->getValue());
+    // Round counter (e.g., "1/3") or question count - Casino style: Cinzel Art Deco font
+    int displayTotal = isQAModeActive
+        ? static_cast<int>(qaQuestionsSlider->getValue())
+        : static_cast<int>(roundsSlider->getValue());
     g.setColour(tm.getColour(ColourId::TextPrimary));
     g.setFont(fonts.getCasinoTitle(24.0f));  // Cinzel Bold - Art Deco luxury feel
-    g.drawText(juce::String(currentRound) + "/" + juce::String(totalRounds),
-               counterBounds, juce::Justification::centredRight);
+
+    if (isQAModeActive)
+    {
+        // Q&A mode: just show the question count
+        g.drawText(juce::String(displayTotal),
+                   counterBounds, juce::Justification::centredRight);
+    }
+    else
+    {
+        // Stars/Guess mode: show current/total rounds
+        g.drawText(juce::String(currentRound) + "/" + juce::String(displayTotal),
+                   counterBounds, juce::Justification::centredRight);
+    }
 }
 
 void ControlPanel::drawAutoGainRow(juce::Graphics& g, juce::Rectangle<float> bounds)
@@ -500,12 +514,14 @@ void ControlPanel::resized()
     // Top info row
     auto infoRow = contentBounds.removeFromTop(32);
 
-    // Position rounds slider within info row
+    // Position slider within info row (rounds or Q&A questions depending on mode)
     auto sliderArea = infoRow;
     sliderArea.removeFromLeft(static_cast<int>(infoRow.getWidth() * 0.35f) + 24 + 75 + 8);  // Skip left section + label
     sliderArea.removeFromRight(50);  // Leave space for counter
     sliderArea = sliderArea.withSizeKeepingCentre(sliderWidth, 20);
     roundsSlider->setBounds(sliderArea);
+    if (qaQuestionsSlider)
+        qaQuestionsSlider->setBounds(sliderArea);
 
     contentBounds.removeFromTop(16);  // Gap
 

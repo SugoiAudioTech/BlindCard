@@ -933,6 +933,17 @@ void BlindCardManager::selectNextQAQuestion()
             availableIds.add (card.id);
     }
 
+    // All cards asked once — reset cycle so cards can be asked again
+    if (availableIds.isEmpty())
+    {
+        state.qaState.askedCardIds.clear();
+        for (const auto& card : state.cards)
+        {
+            if (!card.isRemoved)
+                availableIds.add (card.id);
+        }
+    }
+
     if (availableIds.isEmpty())
         return;
 
@@ -1036,14 +1047,7 @@ bool BlindCardManager::canStartQAMode() const
 int BlindCardManager::getQAMaxQuestions() const
 {
     juce::ScopedLock sl (lock);
-    int activeCount = 0;
-    for (const auto& card : state.cards)
-    {
-        if (!card.isRemoved)
-            activeCount++;
-    }
-    // Use user-set question count, but not more than active card count
-    return juce::jmin (state.qaQuestionCount, activeCount);
+    return state.qaQuestionCount;
 }
 
 void BlindCardManager::setQAQuestionCount (int count)

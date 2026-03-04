@@ -107,6 +107,9 @@ ChipButton::ChipButton(const juce::String& labelText, ChipVariant chipVariant)
     // Subscribe to theme changes
     ThemeManager::getInstance().addChangeListener(this);
 
+    // Allow glow/hover effects to paint outside component bounds
+    setPaintingIsUnclipped(true);
+
     // Enable mouse tracking for hover effects
     setMouseCursor(juce::MouseCursor::PointingHandCursor);
 

@@ -38,11 +38,13 @@ SettingsPanel::~SettingsPanel()
     LocalizationManager::getInstance().removeListener(this);
 }
 
-void SettingsPanel::setUpdateInfo(bool available, const juce::String& latestVer, const juce::String& url)
+void SettingsPanel::setUpdateInfo(bool available, const juce::String& latestVer, const juce::String& url,
+                                   const juce::String& changelog)
 {
     updateAvailable = available;
     latestVersionString = latestVer;
     downloadUrl = url;
+    changelogText = changelog;
     repaint();
 }
 
@@ -217,6 +219,15 @@ void SettingsPanel::paint(juce::Graphics& g)
         g.setFont(getSystemFont(13.0f));
         g.drawText(LOCALIZE(UpdateUpToDate), updateRow, juce::Justification::centredLeft);
         updateLinkBounds = {};
+    }
+
+    // Changelog row (if update available and changelog exists)
+    if (updateAvailable && changelogText.isNotEmpty())
+    {
+        auto changelogRow = bottomSection.removeFromTop(20);
+        g.setColour(textColor.withAlpha(0.5f));
+        g.setFont(getSystemFont(12.0f));
+        g.drawText(changelogText, changelogRow, juce::Justification::centredLeft);
     }
 
     // Developer row

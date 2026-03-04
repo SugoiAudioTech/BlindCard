@@ -49,7 +49,8 @@ public:
     std::function<void()> onLanguageChanged;
 
     /** Set the update check state for display */
-    void setUpdateInfo(bool available, const juce::String& latestVer, const juce::String& url);
+    void setUpdateInfo(bool available, const juce::String& latestVer, const juce::String& url,
+                       const juce::String& changelog = {});
 
     /** Show the panel as an overlay on a parent component */
     void showOverlay(juce::Component* parent);
@@ -89,6 +90,7 @@ private:
     bool updateAvailable = false;
     juce::String latestVersionString;
     juce::String downloadUrl;
+    juce::String changelogText;
     juce::Rectangle<int> updateLinkBounds;
 
     // Helper to get system font

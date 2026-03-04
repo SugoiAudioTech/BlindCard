@@ -286,7 +286,7 @@ void QuickStartGuide::drawStep(juce::Graphics& g, juce::Rectangle<int>& bounds, 
 
     // Number text
     g.setColour(stepNumberText);
-    g.setFont(getSystemFont(24.0f, true));
+    g.setFont(getSystemFont(15.0f, true));
     g.drawText(juce::String(stepNumber), circleBounds.toNearestInt(), juce::Justification::centred);
 
     // Step text
@@ -312,7 +312,7 @@ void QuickStartGuide::drawStepWithSubitems(juce::Graphics& g, juce::Rectangle<in
 
     // Number text
     g.setColour(stepNumberText);
-    g.setFont(getSystemFont(24.0f, true));
+    g.setFont(getSystemFont(15.0f, true));
     g.drawText(juce::String(stepNumber), circleBounds.toNearestInt(), juce::Justification::centred);
 
     // Content area
