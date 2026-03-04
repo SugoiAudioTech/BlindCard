@@ -476,16 +476,104 @@ void ChipButton::drawInnerCircle(juce::Graphics& g, juce::Point<float> center, f
 void ChipButton::drawIcon(juce::Graphics& g, juce::Point<float> center, float radius)
 {
     g.setColour(ChipLayout::iconColor);
-    g.setFont(juce::Font(ChipLayout::iconFontSize));
 
-    auto iconBounds = juce::Rectangle<float>(
-        center.x - radius,
-        center.y - radius,
-        radius * 2.0f,
-        radius * 2.0f
-    );
+    // Draw icons as paths to avoid Windows emoji rendering issues
+    float iconSize = radius * 0.7f;
 
-    g.drawText(icon, iconBounds, juce::Justification::centred);
+    if (icon == ChipIcons::Next)
+    {
+        // Right arrow: triangle pointing right
+        juce::Path arrow;
+        float arrowW = iconSize * 0.8f;
+        float arrowH = iconSize * 0.9f;
+        arrow.addTriangle(
+            center.x - arrowW * 0.4f, center.y - arrowH * 0.5f,
+            center.x - arrowW * 0.4f, center.y + arrowH * 0.5f,
+            center.x + arrowW * 0.6f, center.y
+        );
+        g.fillPath(arrow);
+    }
+    else if (icon == ChipIcons::Shuffle)
+    {
+        // Shuffle: two crossing arrows drawn as paths
+        float w = iconSize * 0.8f;
+        float h = iconSize * 0.5f;
+        float thick = iconSize * 0.12f;
+        float tipSize = iconSize * 0.2f;
+
+        // Top-left to bottom-right line
+        g.drawLine(center.x - w * 0.5f, center.y - h * 0.5f,
+                    center.x + w * 0.5f, center.y + h * 0.5f, thick);
+        // Bottom-left to top-right line
+        g.drawLine(center.x - w * 0.5f, center.y + h * 0.5f,
+                    center.x + w * 0.5f, center.y - h * 0.5f, thick);
+
+        // Right arrowheads
+        juce::Path tip1;
+        tip1.addTriangle(
+            center.x + w * 0.5f, center.y - h * 0.5f,
+            center.x + w * 0.25f, center.y - h * 0.5f - tipSize * 0.4f,
+            center.x + w * 0.25f, center.y - h * 0.5f + tipSize * 0.4f);
+        g.fillPath(tip1);
+
+        juce::Path tip2;
+        tip2.addTriangle(
+            center.x + w * 0.5f, center.y + h * 0.5f,
+            center.x + w * 0.25f, center.y + h * 0.5f - tipSize * 0.4f,
+            center.x + w * 0.25f, center.y + h * 0.5f + tipSize * 0.4f);
+        g.fillPath(tip2);
+    }
+    else if (icon == ChipIcons::Reset)
+    {
+        // Counter-clockwise circular arrow
+        float arcRadius = iconSize * 0.4f;
+        juce::Path arc;
+        arc.addArc(center.x - arcRadius, center.y - arcRadius,
+                   arcRadius * 2.0f, arcRadius * 2.0f,
+                   juce::degreesToRadians(-30.0f),
+                   juce::degreesToRadians(250.0f), true);
+        g.strokePath(arc, juce::PathStrokeType(iconSize * 0.12f));
+
+        // Arrowhead at start of arc
+        float tipAngle = juce::degreesToRadians(-30.0f - 90.0f);
+        float tipX = center.x + arcRadius * std::cos(tipAngle + juce::MathConstants<float>::halfPi);
+        float tipY = center.y + arcRadius * std::sin(tipAngle + juce::MathConstants<float>::halfPi);
+        float tipSize = iconSize * 0.25f;
+
+        juce::Path tip;
+        tip.addTriangle(
+            tipX, tipY - tipSize * 0.6f,
+            tipX - tipSize * 0.5f, tipY + tipSize * 0.3f,
+            tipX + tipSize * 0.5f, tipY + tipSize * 0.3f);
+        g.fillPath(tip);
+    }
+    else if (icon == ChipIcons::Reveal)
+    {
+        // Eye icon
+        float eyeW = iconSize * 0.9f;
+        float eyeH = iconSize * 0.45f;
+
+        juce::Path eyePath;
+        eyePath.addArc(center.x - eyeW * 0.5f, center.y - eyeH * 0.5f,
+                       eyeW, eyeH, 0, juce::MathConstants<float>::pi, true);
+        eyePath.addArc(center.x - eyeW * 0.5f, center.y - eyeH * 0.5f,
+                       eyeW, eyeH, juce::MathConstants<float>::pi, juce::MathConstants<float>::twoPi, true);
+        eyePath.closeSubPath();
+        g.strokePath(eyePath, juce::PathStrokeType(iconSize * 0.1f));
+
+        // Pupil
+        float pupilR = iconSize * 0.15f;
+        g.fillEllipse(center.x - pupilR, center.y - pupilR, pupilR * 2.0f, pupilR * 2.0f);
+    }
+    else
+    {
+        // Fallback: draw as text with text presentation selector (U+FE0E)
+        g.setFont(juce::Font(ChipLayout::iconFontSize));
+        auto iconBounds = juce::Rectangle<float>(
+            center.x - radius, center.y - radius,
+            radius * 2.0f, radius * 2.0f);
+        g.drawText(icon + juce::String::charToString(0xFE0E), iconBounds, juce::Justification::centred);
+    }
 }
 
 void ChipButton::drawLabel(juce::Graphics& g, juce::Rectangle<float> labelBounds)
