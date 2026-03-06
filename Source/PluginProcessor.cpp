@@ -6,7 +6,6 @@
 #include "PluginProcessor.h"
 #include "UI/BlindCardEditor.h"
 #include <cmath>
-#include <fstream>
 
 BlindCardProcessor::BlindCardProcessor()
     : AudioProcessor (BusesProperties()
@@ -210,27 +209,7 @@ bool BlindCardProcessor::hasEditor() const { return true; }
 
 juce::AudioProcessorEditor* BlindCardProcessor::createEditor()
 {
-    // File logging for AU sandbox debugging
-    {
-        std::ofstream logFile("/tmp/blindcard_debug.log", std::ios::app);
-        auto now = juce::Time::getCurrentTime().toString(true, true, true, true);
-        logFile << "[" << now.toStdString() << "] createEditor() called, wrapperType="
-                << static_cast<int>(wrapperType) << std::endl;
-        logFile.flush();
-    }
-
-    auto* editor = new BlindCard::BlindCardEditor(*this);
-
-    {
-        std::ofstream logFile("/tmp/blindcard_debug.log", std::ios::app);
-        auto now = juce::Time::getCurrentTime().toString(true, true, true, true);
-        logFile << "[" << now.toStdString() << "] createEditor() returning editor "
-                << (editor != nullptr ? "OK" : "NULL")
-                << " size=" << editor->getWidth() << "x" << editor->getHeight() << std::endl;
-        logFile.flush();
-    }
-
-    return editor;
+    return new BlindCard::BlindCardEditor(*this);
 }
 
 void BlindCardProcessor::getStateInformation (juce::MemoryBlock& destData)

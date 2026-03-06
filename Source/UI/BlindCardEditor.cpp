@@ -17,17 +17,6 @@
 #include "../PluginProcessor.h"
 #include "Theme/FontManager.h"
 #include <algorithm>
-#include <fstream>
-
-// File-based diagnostic logging for AU sandbox debugging
-// (DBG output may not be visible when running inside Logic Pro's AUHostingServiceXPC)
-static void logToFile(const juce::String& message)
-{
-    static std::ofstream logFile("/tmp/blindcard_debug.log", std::ios::app);
-    auto now = juce::Time::getCurrentTime().toString(true, true, true, true);
-    logFile << "[" << now.toStdString() << "] " << message.toStdString() << std::endl;
-    logFile.flush();
-}
 
 namespace BlindCard
 {
@@ -89,12 +78,7 @@ BlindCardEditor::BlindCardEditor(BlindCardProcessor& processor)
     : AudioProcessorEditor(processor)
     , processorRef(processor)
 {
-    logToFile("Constructor called, language="
-        + juce::String(static_cast<int>(LocalizationManager::getInstance().getCurrentLanguage()))
-        + " wrapperType=" + juce::String(static_cast<int>(processor.wrapperType)));
-
-    // Tell AU host this is an opaque window — critical for Logic Pro to handle
-    // AU plugin windows correctly, especially when reopening after ComboBox popups
+    // Tell AU host this is an opaque window — helps Logic Pro handle AU plugin windows correctly
     setOpaque(true);
 
     // Subscribe to manager, theme, and update checker changes
@@ -181,15 +165,10 @@ BlindCardEditor::BlindCardEditor(BlindCardProcessor& processor)
     // Check for updates in background (runs once per process)
     UpdateChecker::getInstance().checkForUpdate();
 
-    logToFile("Constructor completed, size=" + juce::String(getWidth()) + "x" + juce::String(getHeight())
-        + " isVisible=" + juce::String(isVisible() ? "YES" : "NO")
-        + " parent=" + juce::String(getParentComponent() != nullptr ? "YES" : "NO"));
 }
 
 BlindCardEditor::~BlindCardEditor()
 {
-    logToFile("Destructor called, size=" + juce::String(getWidth()) + "x" + juce::String(getHeight()));
-
     removeKeyListener(this);
     stopTimer();
 
@@ -197,10 +176,7 @@ BlindCardEditor::~BlindCardEditor()
     // Lingering modal components from language ComboBox can corrupt Logic Pro's
     // AU window management, preventing the editor from reopening.
     if (juce::Component::getCurrentlyModalComponent() != nullptr)
-    {
-        logToFile("Dismissing modal component in destructor");
         juce::Component::getCurrentlyModalComponent()->exitModalState(0);
-    }
 
     manager->removeChangeListener(this);
     ThemeManager::getInstance().removeChangeListener(this);
@@ -216,23 +192,15 @@ BlindCardEditor::~BlindCardEditor()
     if (deletePresetButton) deletePresetButton->setLookAndFeel(nullptr);
     if (importFilesButton) importFilesButton->setLookAndFeel(nullptr);
 
-    logToFile("Destructor completed");
 }
 
 //==============================================================================
 void BlindCardEditor::parentHierarchyChanged()
 {
-    logToFile("parentHierarchyChanged: parent=" + juce::String(getParentComponent() != nullptr ? "YES" : "NO")
-        + " size=" + juce::String(getWidth()) + "x" + juce::String(getHeight())
-        + " isVisible=" + juce::String(isVisible() ? "YES" : "NO")
-        + " isShowing=" + juce::String(isShowing() ? "YES" : "NO"));
-
     // When re-added to AU window hierarchy, force complete re-initialization.
-    // Logic Pro can give zero-size bounds when reopening AU plugin windows,
-    // especially after ComboBox popups (language selector, etc.).
+    // Logic Pro can give zero-size bounds when reopening AU plugin windows.
     if (getParentComponent() != nullptr)
     {
-        logToFile("parentHierarchyChanged: re-attached to AU window, forcing setSize + resized + repaint");
 
         // Force size first
         setSize(kMinWidth, kMinHeight);
@@ -256,24 +224,14 @@ void BlindCardEditor::parentHierarchyChanged()
 
         // Force repaint
         repaint();
-
-        logToFile("parentHierarchyChanged: recovery complete, size=" + juce::String(getWidth()) + "x" + juce::String(getHeight()));
     }
 }
 
 void BlindCardEditor::visibilityChanged()
 {
-    bool vis = isVisible();
-    bool showing = isShowing();
-    logToFile("visibilityChanged: visible=" + juce::String(vis ? "YES" : "NO")
-        + " showing=" + juce::String(showing ? "YES" : "NO")
-        + " size=" + juce::String(getWidth()) + "x" + juce::String(getHeight())
-        + " parent=" + juce::String(getParentComponent() != nullptr ? "YES" : "NO"));
-
     // When Logic Pro re-shows the AU window, force a full repaint
-    if (vis)
+    if (isVisible())
     {
-        logToFile("visibilityChanged: becoming visible, forcing repaint");
         repaint();
 
         // Also force all children to repaint
@@ -286,10 +244,7 @@ void BlindCardEditor::paint(juce::Graphics& g)
 {
     // Prevent zero-size rendering (can happen when Logic Pro AU reopens window)
     if (getWidth() <= 0 || getHeight() <= 0)
-    {
-        logToFile("paint() called with zero size: " + juce::String(getWidth()) + "x" + juce::String(getHeight()));
         return;
-    }
 
     auto& tm = ThemeManager::getInstance();
     g.fillAll(tm.getColour(ColourId::Background));
@@ -310,13 +265,9 @@ void BlindCardEditor::resized()
 {
     auto bounds = getLocalBounds();
 
-    logToFile("resized() called, bounds=" + juce::String(bounds.getWidth()) + "x" + juce::String(bounds.getHeight())
-        + " parent=" + juce::String(getParentComponent() != nullptr ? "YES" : "NO"));
-
     // Prevent zero-size layout (can happen when Logic Pro AU reopens window)
     if (bounds.isEmpty())
     {
-        logToFile("resized() zero bounds! scheduling delayed retry");
         juce::Component::SafePointer<BlindCardEditor> safeThis(this);
         juce::Timer::callAfterDelay(50, [safeThis]()
         {
@@ -511,20 +462,6 @@ void BlindCardEditor::changeListenerCallback(juce::ChangeBroadcaster* source)
 
 void BlindCardEditor::timerCallback()
 {
-    // Periodic diagnostic logging (every ~5 seconds at 30Hz = every 150 ticks)
-    static int diagnosticTickCount = 0;
-    if (++diagnosticTickCount % 150 == 0)
-    {
-        auto* peer = getPeer();
-        logToFile("TICK[" + juce::String(diagnosticTickCount / 150) + "]: visible=" + juce::String(isVisible() ? "Y" : "N")
-            + " showing=" + juce::String(isShowing() ? "Y" : "N")
-            + " size=" + juce::String(getWidth()) + "x" + juce::String(getHeight())
-            + " parent=" + juce::String(getParentComponent() != nullptr ? "Y" : "N")
-            + " peer=" + juce::String(peer != nullptr ? "Y" : "N")
-            + " onScreen=" + juce::String(isOnDesktop() ? "Y" : "N")
-            + " numChildren=" + juce::String(getNumChildComponents()));
-    }
-
     // Update Standalone mode transport bar
     if (isStandaloneMode)
     {
