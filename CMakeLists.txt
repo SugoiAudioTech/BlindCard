@@ -3,7 +3,16 @@
 
 cmake_minimum_required(VERSION 3.22)
 
-project(BlindCard VERSION 1.0.2)
+# Must be set BEFORE project() for Makefile generator
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
+if(APPLE)
+    set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "")
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "")
+endif()
+
+project(BlindCard VERSION 1.0.3)
 
 # Fetch JUCE automatically
 include(FetchContent)
