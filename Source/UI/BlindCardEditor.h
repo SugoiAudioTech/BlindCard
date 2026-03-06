@@ -123,6 +123,12 @@ public:
     // Mouse handling for keyboard focus
     void mouseDown(const juce::MouseEvent& event) override;
 
+    // AU window re-attachment (critical for Logic Pro reopening)
+    void parentHierarchyChanged() override;
+
+    // Visibility tracking (Logic Pro hides/shows AU window without destroying editor)
+    void visibilityChanged() override;
+
     //==========================================================================
     /** Window dimensions */
     static constexpr int kMinWidth = 900;

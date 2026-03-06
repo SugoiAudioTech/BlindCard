@@ -50,47 +50,72 @@ void SettingsPanel::setUpdateInfo(bool available, const juce::String& latestVer,
 
 void SettingsPanel::setupLanguageSelector()
 {
-    languageComboBox = std::make_unique<juce::ComboBox>();
-    languageComboBox->addItem("English", 1);
-    languageComboBox->addItem(juce::CharPointer_UTF8("\xe7\xb9\x81\xe9\xab\x94\xe4\xb8\xad\xe6\x96\x87"), 2);  // 繁體中文
-    languageComboBox->addItem(juce::CharPointer_UTF8("\xe7\xae\x80\xe4\xbd\x93\xe4\xb8\xad\xe6\x96\x87"), 3);  // 简体中文
-    languageComboBox->addItem(juce::CharPointer_UTF8("\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e"), 4);  // 日本語
-    languageComboBox->addItem(juce::CharPointer_UTF8("\xed\x95\x9c\xea\xb5\xad\xec\x96\xb4"), 5);  // 한국어
+    // Use TextButtons instead of ComboBox to avoid native popup window issues
+    // in AU/Logic Pro. ComboBox popups create NSWindow that can corrupt
+    // AUHostingServiceXPC window management and prevent UI from reopening.
+    struct LangInfo { const char* name; };
+    LangInfo langs[] = {
+        { "EN" },
+        { "\xe7\xb9\x81" },   // 繁
+        { "\xe7\xae\x80" },   // 简
+        { "\xe6\x97\xa5" },   // 日
+        { "\xed\x95\x9c" },   // 한
+    };
 
-    // Set current selection based on current language
-    auto currentLang = LocalizationManager::getInstance().getCurrentLanguage();
-    switch (currentLang)
+    for (int i = 0; i < 5; ++i)
     {
-        case Language::English:            languageComboBox->setSelectedId(1, juce::dontSendNotification); break;
-        case Language::TraditionalChinese: languageComboBox->setSelectedId(2, juce::dontSendNotification); break;
-        case Language::SimplifiedChinese:  languageComboBox->setSelectedId(3, juce::dontSendNotification); break;
-        case Language::Japanese:           languageComboBox->setSelectedId(4, juce::dontSendNotification); break;
-        case Language::Korean:             languageComboBox->setSelectedId(5, juce::dontSendNotification); break;
+        auto* btn = languageButtons.add(new juce::TextButton(juce::CharPointer_UTF8(langs[i].name)));
+        btn->setClickingTogglesState(false);
+        btn->onClick = [this, i]() { onLanguageSelected(i); };
+        addAndMakeVisible(btn);
     }
 
-    languageComboBox->onChange = [this]() { onLanguageSelected(); };
-    addAndMakeVisible(*languageComboBox);
+    updateLanguageButtonStates();
 }
 
-void SettingsPanel::onLanguageSelected()
+void SettingsPanel::onLanguageSelected(int langIndex)
 {
-    int selectedId = languageComboBox->getSelectedId();
-    Language newLang = Language::English;
+    Language langs[] = {
+        Language::English,
+        Language::TraditionalChinese,
+        Language::SimplifiedChinese,
+        Language::Japanese,
+        Language::Korean
+    };
 
-    switch (selectedId)
+    if (langIndex >= 0 && langIndex < 5)
+        LocalizationManager::getInstance().setLanguage(langs[langIndex]);
+
+    updateLanguageButtonStates();
+}
+
+void SettingsPanel::updateLanguageButtonStates()
+{
+    auto currentLang = LocalizationManager::getInstance().getCurrentLanguage();
+    int selectedIndex = static_cast<int>(currentLang);  // enum maps to 0-4
+
+    for (int i = 0; i < languageButtons.size(); ++i)
     {
-        case 1: newLang = Language::English; break;
-        case 2: newLang = Language::TraditionalChinese; break;
-        case 3: newLang = Language::SimplifiedChinese; break;
-        case 4: newLang = Language::Japanese; break;
-        case 5: newLang = Language::Korean; break;
-    }
+        bool isSelected = (i == selectedIndex);
+        languageButtons[i]->setToggleState(isSelected, juce::dontSendNotification);
 
-    LocalizationManager::getInstance().setLanguage(newLang);
+        // Visual feedback: selected button gets accent color
+        if (isSelected)
+        {
+            languageButtons[i]->setColour(juce::TextButton::buttonColourId, juce::Colour(0xFF3B82F6));
+            languageButtons[i]->setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+        }
+        else
+        {
+            languageButtons[i]->setColour(juce::TextButton::buttonColourId, juce::Colour(0xFF2A3040));
+            languageButtons[i]->setColour(juce::TextButton::textColourOffId, juce::Colour(0xFFD1D5DB));
+        }
+    }
 }
 
 void SettingsPanel::languageChanged()
 {
+    updateLanguageButtonStates();
     repaint();
     if (onLanguageChanged) onLanguageChanged();
 }
@@ -276,15 +301,18 @@ void SettingsPanel::resized()
         24
     );
 
-    // Language ComboBox
-    if (languageComboBox != nullptr)
+    // Language buttons (row of 5 buttons)
     {
-        languageComboBox->setBounds(
-            dialogBounds.getX() + kPadding + 110,
-            languageSectionY - 2,
-            dialogBounds.getWidth() - kPadding * 2 - 110,
-            28
-        );
+        int btnX = dialogBounds.getX() + kPadding + 110;
+        int btnY = languageSectionY - 2;
+        int availWidth = dialogBounds.getWidth() - kPadding * 2 - 110;
+        int btnWidth = (availWidth - 4 * 4) / 5;  // 4px gap between buttons
+        int btnHeight = 28;
+
+        for (int i = 0; i < languageButtons.size(); ++i)
+        {
+            languageButtons[i]->setBounds(btnX + i * (btnWidth + 4), btnY, btnWidth, btnHeight);
+        }
     }
 
     // Website link bounds (for click detection)

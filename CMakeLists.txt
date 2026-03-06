@@ -3,7 +3,7 @@
 
 cmake_minimum_required(VERSION 3.22)
 
-project(BlindCard VERSION 1.0.1)
+project(BlindCard VERSION 1.0.2)
 
 # Fetch JUCE automatically
 include(FetchContent)

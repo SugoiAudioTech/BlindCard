@@ -166,8 +166,8 @@ ControlPanel::ControlPanel()
     };
     addAndMakeVisible(*autoGainToggle);
 
-    // Create action buttons (only REVEAL and RESET visible initially)
-    shuffleButton = std::make_unique<ChipButton>("SHUFFLE", ChipVariant::Red);
+    // Create action buttons with localized labels (only REVEAL and RESET visible initially)
+    shuffleButton = std::make_unique<ChipButton>(LOCALIZE(ButtonShuffle), ChipVariant::Red);
     shuffleButton->onClick = [this]()
     {
         if (onShuffleClicked)
@@ -176,7 +176,7 @@ ControlPanel::ControlPanel()
     addAndMakeVisible(*shuffleButton);
     shuffleButton->setVisible(false);  // Hidden by default
 
-    revealButton = std::make_unique<ChipButton>("REVEAL", ChipVariant::Blue);
+    revealButton = std::make_unique<ChipButton>(LOCALIZE(ButtonReveal), ChipVariant::Blue);
     revealButton->onClick = [this]()
     {
         if (onRevealClicked)
@@ -184,7 +184,7 @@ ControlPanel::ControlPanel()
     };
     addAndMakeVisible(*revealButton);
 
-    resetButton = std::make_unique<ChipButton>("RESET", ChipVariant::Black);
+    resetButton = std::make_unique<ChipButton>(LOCALIZE(ButtonReset), ChipVariant::Black);
     resetButton->onClick = [this]()
     {
         if (onResetClicked)
@@ -192,7 +192,7 @@ ControlPanel::ControlPanel()
     };
     addAndMakeVisible(*resetButton);
 
-    nextRoundButton = std::make_unique<ChipButton>("NEXT", ChipVariant::Gold);
+    nextRoundButton = std::make_unique<ChipButton>(LOCALIZE(ButtonNextRound), ChipVariant::Gold);
     nextRoundButton->onClick = [this]()
     {
         if (onNextRoundClicked)

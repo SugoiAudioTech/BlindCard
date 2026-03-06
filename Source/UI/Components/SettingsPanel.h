@@ -96,11 +96,14 @@ private:
     // Helper to get system font
     juce::Font getSystemFont(float height, bool bold = false) const;
 
-    // Language selector
-    std::unique_ptr<juce::ComboBox> languageComboBox;
+    // Language selector (TextButtons instead of ComboBox to avoid native popup
+    // window issues in AU/Logic Pro — ComboBox popups create NSWindow that can
+    // corrupt AUHostingServiceXPC window management)
+    juce::OwnedArray<juce::TextButton> languageButtons;
     juce::Rectangle<int> languageLabelBounds;
     void setupLanguageSelector();
-    void onLanguageSelected();
+    void onLanguageSelected(int langIndex);
+    void updateLanguageButtonStates();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SettingsPanel)
 };
