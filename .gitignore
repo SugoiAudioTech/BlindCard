@@ -4,6 +4,7 @@ build-release/
 cmake-build-*/
 
 # Packaging & installers
+Packaging/
 packaging/
 dist/
 *.pkg
@@ -31,5 +32,6 @@ Thumbs.db
 
 # Private/Internal docs
 .ideas/
+.local-docs/
 .logs/
 docs/plans/
