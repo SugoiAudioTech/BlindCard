@@ -640,7 +640,9 @@ void BlindCardManager::setMeasuredLUFS (int cardId, float lufs)
 
             DBG ("BlindCardManager: Card " << cardId << " LUFS = " << lufs << " dB");
 
-            // During calibration: check if all cards have been measured
+            // During calibration: check if all cards that CAN be measured have been measured
+            // In Standalone mode, only cards with loaded audio files will report LUFS.
+            // Count only cards that have a real track name (i.e. have audio loaded).
             if (calibrating_)
             {
                 int measuredCount = 0;
@@ -649,14 +651,19 @@ void BlindCardManager::setMeasuredLUFS (int cardId, float lufs)
                 {
                     if (!card.isRemoved)
                     {
-                        totalCount++;
-                        if (card.hasLUFSMeasurement())
-                            measuredCount++;
+                        // Only count cards that have audio loaded (non-empty track name)
+                        // Empty cards can't be measured and shouldn't block auto-lock
+                        if (card.realTrackName.isNotEmpty())
+                        {
+                            totalCount++;
+                            if (card.hasLUFSMeasurement())
+                                measuredCount++;
+                        }
                     }
                 }
                 DBG ("BlindCardManager: Calibration progress " << measuredCount << "/" << totalCount);
 
-                // All cards measured, auto-lock calibration
+                // All measurable cards measured, auto-lock calibration
                 if (measuredCount >= totalCount && totalCount > 0)
                     shouldAutoLock = true;
             }
@@ -806,10 +813,15 @@ void BlindCardManager::startCalibration()
     }
 
     // Start measurement on all instances outside lock
-    for (auto* instance : instancesCopy)
+    // In Standalone mode, skip processor measurement — the audio engine
+    // does offline LUFS scanning instead (processors don't receive file audio)
+    if (!standaloneMode)
     {
-        if (instance != nullptr)
-            instance->startMeasurement (kCalibrationDuration);
+        for (auto* instance : instancesCopy)
+        {
+            if (instance != nullptr)
+                instance->startMeasurement (kCalibrationDuration);
+        }
     }
 
     if (shouldNotify)

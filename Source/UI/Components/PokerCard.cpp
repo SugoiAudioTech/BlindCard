@@ -452,6 +452,96 @@ void PokerCard::mouseDown(const juce::MouseEvent& event)
     }
 }
 
+void PokerCard::mouseDoubleClick(const juce::MouseEvent& event)
+{
+    // Only allow renaming in standalone mode, when card is face-up (Setup or Revealed)
+    if (!standaloneMode)
+        return;
+
+    if (currentPhase != blindcard::GamePhase::Setup &&
+        currentPhase != blindcard::GamePhase::Revealed)
+        return;
+
+    // Card must be revealed (face-up) to show the name
+    if (!cardData.isRevealed && currentPhase == blindcard::GamePhase::BlindTesting)
+        return;
+
+    // Check if click is in the name area (center of card, excluding corners)
+    auto bounds = getLocalBounds().toFloat();
+    auto nameBounds = bounds;
+    nameBounds.removeFromTop(55.0f);
+    nameBounds.removeFromBottom(55.0f);
+    nameBounds = nameBounds.reduced(15.0f, 0.0f);
+
+    if (nameBounds.contains(event.position))
+    {
+        showNameEditor();
+    }
+}
+
+void PokerCard::showNameEditor()
+{
+    if (nameEditor)
+        return;  // Already showing
+
+    nameEditor = std::make_unique<juce::TextEditor>();
+
+    // Style the editor to match the card's plugin name appearance
+    auto& fonts = FontManager::getInstance();
+    nameEditor->setFont(fonts.getBold(CardLayout::pluginNameFontSize));
+    nameEditor->setJustification(juce::Justification::centred);
+    nameEditor->setMultiLine(false);
+    nameEditor->setReturnKeyStartsNewLine(false);
+
+    // Match card front colors
+    nameEditor->setColour(juce::TextEditor::backgroundColourId, juce::Colour(0xFFFAFAF5));
+    nameEditor->setColour(juce::TextEditor::textColourId, kBlackSuitColor);
+    nameEditor->setColour(juce::TextEditor::focusedOutlineColourId, juce::Colour(0xFFD4AF37));  // Gold outline
+    nameEditor->setColour(juce::TextEditor::outlineColourId, juce::Colour(0xFFD4AF37));
+
+    // Set the current name and select all
+    juce::String currentName(cardData.trackName);
+    nameEditor->setText(currentName, false);
+    nameEditor->selectAll();
+
+    // Position in the name area
+    auto bounds = getLocalBounds().toFloat();
+    auto nameBounds = bounds;
+    nameBounds.removeFromTop(55.0f);
+    nameBounds.removeFromBottom(55.0f);
+    nameBounds = nameBounds.reduced(15.0f, 0.0f);
+    nameEditor->setBounds(nameBounds.toNearestInt());
+
+    addAndMakeVisible(*nameEditor);
+    nameEditor->grabKeyboardFocus();
+
+    // Connect callbacks
+    nameEditor->onReturnKey = [this]() { hideNameEditor(); };
+    nameEditor->onFocusLost = [this]() { hideNameEditor(); };
+}
+
+void PokerCard::hideNameEditor()
+{
+    if (!nameEditor)
+        return;
+
+    juce::String newName = nameEditor->getText().trim();
+
+    // Remove the editor first (prevents re-entry from focus lost)
+    removeChildComponent(nameEditor.get());
+    nameEditor.reset();
+
+    // Update name if non-empty and different
+    if (newName.isNotEmpty() && newName != juce::String(cardData.trackName))
+    {
+        cardData.trackName = newName.toStdString();
+        if (onTrackNameChanged)
+            onTrackNameChanged(newName);
+    }
+
+    repaint();
+}
+
 //==============================================================================
 void PokerCard::updateAnimations()
 {
@@ -678,6 +768,10 @@ void PokerCard::drawCenterSuit(juce::Graphics& g, juce::Rectangle<float> bounds)
 void PokerCard::drawPluginName(juce::Graphics& g, juce::Rectangle<float> bounds)
 {
     if (cardData.trackName.empty())
+        return;
+
+    // Don't draw the name if the TextEditor is active (prevents double text)
+    if (nameEditor)
         return;
 
     auto& fonts = FontManager::getInstance();
@@ -915,6 +1009,17 @@ void PokerCard::updateChildComponentBounds()
         buttonBounds = buttonBounds.withHeight(CardLayout::qaButtonHeight);
         buttonBounds = buttonBounds.withSizeKeepingCentre(CardLayout::qaButtonWidth, CardLayout::qaButtonHeight);
         qaSelectButton->setBounds(buttonBounds);
+    }
+
+    // Name editor: positioned in the center name area of the card
+    if (nameEditor)
+    {
+        auto cardBounds = bounds.toFloat();
+        auto nameBounds = cardBounds;
+        nameBounds.removeFromTop(55.0f);
+        nameBounds.removeFromBottom(55.0f);
+        nameBounds = nameBounds.reduced(15.0f, 0.0f);
+        nameEditor->setBounds(nameBounds.toNearestInt());
     }
 }
 

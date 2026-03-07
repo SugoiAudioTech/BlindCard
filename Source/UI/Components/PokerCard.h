@@ -160,6 +160,9 @@ public:
     /** Standalone mode: Called when remove button is clicked */
     std::function<void()> onRemoveFileClicked;
 
+    /** Standalone mode: Called when user renames the card via double-click */
+    std::function<void(const juce::String&)> onTrackNameChanged;
+
     //==========================================================================
     /**
      * Sets the card data to display.
@@ -257,6 +260,7 @@ public:
     void mouseEnter(const juce::MouseEvent& event) override;
     void mouseExit(const juce::MouseEvent& event) override;
     void mouseDown(const juce::MouseEvent& event) override;
+    void mouseDoubleClick(const juce::MouseEvent& event) override;
 
     // Timer callback for animation updates
     void updateAnimations();
@@ -295,6 +299,11 @@ private:
     std::unique_ptr<StarRating> starRating;
     std::unique_ptr<GuessDropdown> guessDropdown;
     std::unique_ptr<juce::TextButton> qaSelectButton;
+    std::unique_ptr<juce::TextEditor> nameEditor;
+
+    // Name editing helpers (standalone double-click rename)
+    void showNameEditor();
+    void hideNameEditor();
 
     //==========================================================================
     // Animation values

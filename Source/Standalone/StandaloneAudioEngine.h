@@ -132,6 +132,12 @@ public:
     /** Check if currently playing */
     bool isPlaying() const { return playing; }
 
+    /** Set looping mode */
+    void setLooping(bool shouldLoop) { looping = shouldLoop; }
+
+    /** Check if looping is enabled */
+    bool isLooping() const { return looping; }
+
     /**
      * Seek to a position.
      * @param positionSeconds The position in seconds
@@ -175,6 +181,15 @@ public:
     float getCurrentRMSdB() const { return currentRMSdB.load(); }
 
     //==========================================================================
+    // Master volume (Standalone output control)
+
+    /** Set master volume in dB (clamped to [-60, +12]) */
+    void setMasterVolume(float db);
+
+    /** Get current master volume in dB */
+    float getMasterVolume() const;
+
+    //==========================================================================
     // AudioSource interface
 
     /** Prepare to play - called by audio device */
@@ -207,6 +222,22 @@ public:
     /** Called when a file is loaded or unloaded */
     std::function<void(int cardId, bool loaded)> onFileStateChanged;
 
+    /** Called when LUFS measurement completes for a card (offline scan) */
+    std::function<void(int cardId, float lufs)> onLUFSMeasured;
+
+    /** Query auto-gain for a card (returns gain in dB, 0.0 if disabled) */
+    std::function<float(int cardId)> getGainForCard;
+
+    //==========================================================================
+    // Level-Match support
+
+    /**
+     * Measure LUFS for all loaded slots (offline, non-realtime).
+     * Reads up to 10 seconds of each file, computes RMS-based LUFS,
+     * and reports via onLUFSMeasured callback.
+     */
+    void measureLUFSForAllSlots();
+
     //==========================================================================
     // Constants
 
@@ -221,6 +252,7 @@ private:
 
     // Playback state
     std::atomic<bool> playing { false };
+    std::atomic<bool> looping { false };
     std::atomic<int> activeCardId { 0 };
     std::atomic<juce::int64> playheadPosition { 0 };
     juce::int64 totalLengthSamples = 0;
@@ -228,6 +260,9 @@ private:
     // RMS level metering
     std::atomic<float> currentRMSdB { -100.0f };
     static constexpr float kRMSSmoothingCoeff = 0.3f;  // Smoothing factor for RMS
+
+    // Master volume (Standalone output control, 0 dB = unity gain)
+    std::atomic<float> masterVolumeDb { 0.0f };
 
     // Audio settings
     double currentSampleRate = 44100.0;

@@ -74,6 +74,49 @@ juce::Font PresetUILookAndFeel::getPopupMenuFont()
 }
 
 //==============================================================================
+// MasterKnobLookAndFeel Implementation
+//==============================================================================
+void MasterKnobLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height,
+                                              float sliderPos, float rotaryStartAngle,
+                                              float rotaryEndAngle, juce::Slider& /*slider*/)
+{
+    float diameter = static_cast<float>(juce::jmin(width, height));
+    float radius = diameter * 0.5f;
+    float cx = static_cast<float>(x) + static_cast<float>(width) * 0.5f;
+    float cy = static_cast<float>(y) + static_cast<float>(height) * 0.5f;
+
+    // --- White knob body ---
+    float bodyR = radius - 1.0f;
+
+    // Drop shadow
+    g.setColour(juce::Colours::black.withAlpha(0.15f));
+    g.fillEllipse(cx - bodyR + 0.5f, cy - bodyR + 1.0f, bodyR * 2, bodyR * 2);
+
+    // Main body gradient (white to light grey for depth)
+    juce::ColourGradient bodyGrad(
+        juce::Colour(0xFFFAFAFA), cx, cy - bodyR * 0.6f,
+        juce::Colour(0xFFDDDDDD), cx, cy + bodyR * 0.8f,
+        false);
+    g.setGradientFill(bodyGrad);
+    g.fillEllipse(cx - bodyR, cy - bodyR, bodyR * 2, bodyR * 2);
+
+    // Thin border
+    g.setColour(juce::Colour(0xFFCCCCCC));
+    g.drawEllipse(cx - bodyR, cy - bodyR, bodyR * 2, bodyR * 2, 0.5f);
+
+    // --- Indicator dot ---
+    // JUCE angles: 0 = 12 o'clock, clockwise. Subtract halfPi for cos/sin screen coords.
+    float angle = rotaryStartAngle + sliderPos * (rotaryEndAngle - rotaryStartAngle);
+    float drawAngle = angle - juce::MathConstants<float>::halfPi;
+    float dotR = bodyR * 0.72f;
+    float dotX = cx + std::cos(drawAngle) * dotR;
+    float dotY = cy + std::sin(drawAngle) * dotR;
+
+    g.setColour(juce::Colour(0xFFE03030));
+    g.fillEllipse(dotX - 2.0f, dotY - 2.0f, 4.0f, 4.0f);
+}
+
+//==============================================================================
 BlindCardEditor::BlindCardEditor(BlindCardProcessor& processor)
     : AudioProcessorEditor(processor)
     , processorRef(processor)
@@ -150,7 +193,13 @@ BlindCardEditor::BlindCardEditor(BlindCardProcessor& processor)
 
     // If Level-Match is enabled by default, start calibration
     if (manager->isLevelMatchEnabled() && manager->getPhase() == blindcard::GamePhase::Setup)
+    {
         manager->startCalibration();
+
+        // Standalone mode: trigger offline LUFS scan
+        if (isStandaloneMode && audioEngine)
+            audioEngine->measureLUFSForAllSlots();
+    }
 
     // Start update timer (for connection status, etc.)
     startTimerHz(30);
@@ -191,6 +240,8 @@ BlindCardEditor::~BlindCardEditor()
     if (savePresetButton) savePresetButton->setLookAndFeel(nullptr);
     if (deletePresetButton) deletePresetButton->setLookAndFeel(nullptr);
     if (importFilesButton) importFilesButton->setLookAndFeel(nullptr);
+    if (clearAllCardsButton) clearAllCardsButton->setLookAndFeel(nullptr);
+    if (masterVolumeSlider) masterVolumeSlider->setLookAndFeel(nullptr);
 
 }
 
@@ -259,6 +310,26 @@ void BlindCardEditor::paint(juce::Graphics& g)
         g.drawLine(devBounds.getX(), devBounds.getBottom(),
                    devBounds.getRight(), devBounds.getBottom(), 2.0f);
     }
+
+    // Draw drag-over overlay when files are being dragged over the window
+    if (isDragOverWindow)
+    {
+        auto windowBounds = getLocalBounds().toFloat();
+
+        // Semi-transparent blue overlay
+        g.setColour(juce::Colour(0xFF3B82F6).withAlpha(0.15f));
+        g.fillRect(windowBounds);
+
+        // Blue border
+        g.setColour(juce::Colour(0xFF3B82F6).withAlpha(0.8f));
+        g.drawRect(windowBounds.reduced(4.0f), 3.0f);
+
+        // "Drop audio files here" text in center
+        auto& fonts = FontManager::getInstance();
+        g.setColour(juce::Colour(0xFF3B82F6));
+        g.setFont(fonts.getBold(24.0f));
+        g.drawText("Drop audio files here", windowBounds, juce::Justification::centred);
+    }
 }
 
 void BlindCardEditor::resized()
@@ -310,10 +381,21 @@ void BlindCardEditor::resized()
     // In Standalone mode, place TransportBar in header CENTER (between logo and settings buttons)
     if (isStandaloneMode && transportBar)
     {
-        // TransportBar centered in header
-        int transportWidth = 300;
+        // TransportBar centered in header (extra width for loop button)
+        int transportWidth = 330;
         auto transportBounds = headerArea.withSizeKeepingCentre(transportWidth, 40);
         transportBar->setBounds(transportBounds);
+
+        // Master volume: [knob 34px] [label 48px] to the right of transport
+        if (masterVolumeSlider)
+        {
+            int knobSize = 34;
+            int volX = transportBounds.getRight() + 12;
+            int volY = transportBounds.getCentreY() - knobSize / 2;
+
+            masterVolumeSlider->setBounds(volX, volY, knobSize, knobSize);
+            masterVolumeLabel->setBounds(volX + knobSize + 2, volY, 48, knobSize);
+        }
     }
 
     // In Standalone mode, place preset controls below header (above mode selector)
@@ -350,12 +432,17 @@ void BlindCardEditor::resized()
             nowPlayingTrackName->setBounds(nowPlayingArea);
         }
 
-        // Row 2: Import Files below preset combo
+        // Row 2: Import Files + Clear All below preset combo
         if (importFilesButton)
         {
             auto importRow = bounds.removeFromTop(28);
             importRow = importRow.reduced(16, 2);
             importFilesButton->setBounds(importRow.removeFromLeft(110));
+            if (clearAllCardsButton)
+            {
+                importRow.removeFromLeft(8);
+                clearAllCardsButton->setBounds(importRow.removeFromLeft(100));
+            }
         }
     }
 
@@ -446,7 +533,19 @@ void BlindCardEditor::changeListenerCallback(juce::ChangeBroadcaster* source)
                 if (safeThis->savePresetButton) safeThis->savePresetButton->repaint();
                 if (safeThis->deletePresetButton) safeThis->deletePresetButton->repaint();
                 if (safeThis->importFilesButton) safeThis->importFilesButton->repaint();
+                if (safeThis->clearAllCardsButton) safeThis->clearAllCardsButton->repaint();
             }
+            // Update master volume knob & label for theme
+            if (safeThis->masterVolumeSlider)
+                safeThis->masterVolumeSlider->repaint();  // LookAndFeel reads theme directly
+            if (safeThis->masterVolumeLabel)
+            {
+                bool dark = ThemeManager::getInstance().isDark();
+                safeThis->masterVolumeLabel->setColour(juce::Label::textColourId,
+                    dark ? juce::Colour(0xFFCCCCCC) : juce::Colour(0xFF555555));
+            }
+
+            safeThis->updateNowPlayingDisplay();
             safeThis->repaint();
         });
         return;
@@ -1001,6 +1100,10 @@ void BlindCardEditor::onResetClicked()
     {
         manager->resetLevelMatching();
         manager->startCalibration();
+
+        // Standalone mode: trigger offline LUFS scan
+        if (isStandaloneMode && audioEngine)
+            audioEngine->measureLUFSForAllSlots();
     }
 }
 
@@ -1079,7 +1182,13 @@ void BlindCardEditor::onAutoGainChanged(bool enabled)
 
     // 啟用時自動開始校準（Setup 階段）
     if (enabled && manager->getPhase() == blindcard::GamePhase::Setup)
+    {
         manager->startCalibration();
+
+        // Standalone mode: trigger offline LUFS scan (DAW mode uses processor measurement)
+        if (isStandaloneMode && audioEngine)
+            audioEngine->measureLUFSForAllSlots();
+    }
 }
 
 void BlindCardEditor::onQAQuestionsChanged(int questions)
@@ -1511,6 +1620,12 @@ void BlindCardEditor::setupStandaloneMode()
     transportBar->onSkipBackward = [this]() { audioEngine->skip(-StandaloneAudioEngine::kSkipSeconds); };
     transportBar->onSkipForward = [this]() { audioEngine->skip(StandaloneAudioEngine::kSkipSeconds); };
     transportBar->onSeek = [this](double pos) { onTransportSeek(pos); };
+    transportBar->onLoopClicked = [this]()
+    {
+        if (!audioEngine) return;
+        audioEngine->setLooping(!audioEngine->isLooping());
+        transportBar->setLooping(audioEngine->isLooping());
+    };
     transportBar->setEnabled(false);  // Disabled until audio is loaded
     addAndMakeVisible(*transportBar);
 
@@ -1526,10 +1641,20 @@ void BlindCardEditor::setupStandaloneMode()
     // Set initial card count (Standalone defaults to 2 cards)
     manager->setTestCardCount(2);
 
+    // Connect Level-Match callbacks for standalone offline LUFS measurement
+    audioEngine->onLUFSMeasured = [this](int cardId, float lufs)
+    {
+        manager->setMeasuredLUFS(cardId, lufs);
+    };
+    audioEngine->getGainForCard = [this](int cardId) -> float
+    {
+        return manager->getGainForCard(cardId);
+    };
+
     // Enable standalone mode on PokerTable, HeaderBar, and ControlPanel
     pokerTable->setStandaloneMode(true);
     headerBar->setStandaloneMode(true);  // Hides "Now Playing" to make room for TransportBar
-    controlPanel->setStandaloneMode(true);  // Hides Level-Match (doesn't work without DAW)
+    controlPanel->setStandaloneMode(true);  // Level-Match now works in Standalone too
 
     // Connect file drop callbacks for each card
     int cardCount = static_cast<int>(manager->getCards().size());
@@ -1540,8 +1665,39 @@ void BlindCardEditor::setupStandaloneMode()
         {
             card->onFileDropped = [this, i](const juce::File& file) { onCardFileDropped(i, file); };
             card->onRemoveFileClicked = [this, i]() { onCardRemoveFile(i); };
+            card->onTrackNameChanged = [this, i](const juce::String& name) { manager->setTrackName(i, name); };
         }
     }
+
+    // Master volume control (metallic knob + dB label)
+    masterKnobLookAndFeel = std::make_unique<MasterKnobLookAndFeel>();
+
+    masterVolumeSlider = std::make_unique<juce::Slider>(juce::Slider::RotaryHorizontalVerticalDrag, juce::Slider::NoTextBox);
+    masterVolumeSlider->setRange(-60.0, 12.0, 0.1);
+    masterVolumeSlider->setValue(0.0);
+    masterVolumeSlider->setDoubleClickReturnValue(true, 0.0);
+    masterVolumeSlider->setSkewFactorFromMidPoint(0.0);  // 0 dB at 12 o'clock
+    masterVolumeSlider->setRotaryParameters(juce::MathConstants<float>::pi * 1.25f,
+                                             juce::MathConstants<float>::pi * 2.75f, true);
+    masterVolumeSlider->setLookAndFeel(masterKnobLookAndFeel.get());
+    masterVolumeSlider->onValueChange = [this]()
+    {
+        double val = masterVolumeSlider->getValue();
+        if (audioEngine)
+            audioEngine->setMasterVolume(static_cast<float>(val));
+        updateMasterVolumeLabel(val);
+    };
+    addAndMakeVisible(*masterVolumeSlider);
+
+    masterVolumeLabel = std::make_unique<juce::Label>("volLabel", "0.0 dB");
+    masterVolumeLabel->setJustificationType(juce::Justification::centredLeft);
+    masterVolumeLabel->setFont(FontManager::getInstance().getMedium(11.0f));
+    {
+        bool isDark = ThemeManager::getInstance().isDark();
+        masterVolumeLabel->setColour(juce::Label::textColourId,
+            isDark ? juce::Colour(0xFFCCCCCC) : juce::Colour(0xFF555555));
+    }
+    addAndMakeVisible(*masterVolumeLabel);
 
     // Increase window height to accommodate preset row (36px)
     setSize(getWidth(), kMinHeight + 36);
@@ -1552,6 +1708,8 @@ void BlindCardEditor::setupStandaloneMode()
     // Ensure components are on top of HeaderBar
     transportBar->toFront(false);
     cardCountControl->toFront(false);
+    masterVolumeSlider->toFront(false);
+    masterVolumeLabel->toFront(false);
 }
 
 void BlindCardEditor::onTransportPlayPause()
@@ -1601,6 +1759,7 @@ void BlindCardEditor::onCardCountChanged(int newCount)
             card->setStandaloneMode(true);  // Ensure each card has standalone mode enabled
             card->onFileDropped = [this, i](const juce::File& file) { onCardFileDropped(i, file); };
             card->onRemoveFileClicked = [this, i]() { onCardRemoveFile(i); };
+            card->onTrackNameChanged = [this, i](const juce::String& name) { manager->setTrackName(i, name); };
         }
     }
 }
@@ -1632,6 +1791,13 @@ void BlindCardEditor::onCardFileDropped(int cardIndex, const juce::File& file)
         // Enable transport if we have audio
         transportBar->setEnabled(audioEngine->hasAnyAudioLoaded());
         transportBar->setDuration(audioEngine->getTotalLengthSeconds());
+
+        // If Level-Match is enabled, re-measure all slots to include new file
+        if (manager->isLevelMatchEnabled())
+        {
+            manager->startCalibration();
+            audioEngine->measureLUFSForAllSlots();
+        }
 
         // Auto-switch to this card and start playback
         audioEngine->switchToCard(cardIndex);
@@ -1705,8 +1871,19 @@ void BlindCardEditor::updateNowPlayingDisplay()
 
     if (slot && slot->isLoaded)
     {
-        // Get track name from file name (without extension)
-        juce::String trackName = slot->file.getFileNameWithoutExtension();
+        // During BlindTesting, hide the real track name to prevent cheating
+        bool isBlind = (manager->getPhase() == blindcard::GamePhase::BlindTesting);
+
+        juce::String trackName;
+        if (isBlind)
+        {
+            // Show generic "Card X" label (1-based position)
+            trackName = "Card " + juce::String(activeCardId + 1);
+        }
+        else
+        {
+            trackName = slot->file.getFileNameWithoutExtension();
+        }
 
         // Get RMS dB level
         float rmsDb = audioEngine->getCurrentRMSdB();
@@ -1724,13 +1901,30 @@ void BlindCardEditor::updateNowPlayingDisplay()
         }
 
         nowPlayingTrackName->setText(displayText, juce::dontSendNotification);
-        nowPlayingTrackName->setColour(juce::Label::textColourId, juce::Colours::white);
+        bool isDark = ThemeManager::getInstance().isDark();
+        nowPlayingTrackName->setColour(juce::Label::textColourId,
+            isDark ? juce::Colours::white : juce::Colour(0xFF1A1A1A));
     }
     else
     {
         nowPlayingTrackName->setText("No audio loaded", juce::dontSendNotification);
-        nowPlayingTrackName->setColour(juce::Label::textColourId, juce::Colour(0xFFAAAAAA));  // Light gray
+        bool isDark = ThemeManager::getInstance().isDark();
+        nowPlayingTrackName->setColour(juce::Label::textColourId,
+            isDark ? juce::Colour(0xFFAAAAAA) : juce::Colour(0xFF999999));
     }
+}
+
+void BlindCardEditor::updateMasterVolumeLabel(double value)
+{
+    if (!masterVolumeLabel) return;
+
+    juce::String text;
+    if (value <= -59.9)
+        text = "-inf dB";
+    else
+        text = juce::String(value, 1) + " dB";
+
+    masterVolumeLabel->setText(text, juce::dontSendNotification);
 }
 
 //==============================================================================
@@ -1782,6 +1976,14 @@ void BlindCardEditor::setupPresetUI()
     importFilesButton->onClick = [this]() { onImportFiles(); };
     addAndMakeVisible(*importFilesButton);
 
+    // Clear All button
+    clearAllCardsButton = std::make_unique<juce::TextButton>("CLEAR ALL");
+    clearAllCardsButton->setColour(juce::TextButton::buttonColourId, juce::Colour(0xFFFF9800));  // Orange
+    clearAllCardsButton->setColour(juce::TextButton::textColourOnId, juce::Colours::white);
+    clearAllCardsButton->setLookAndFeel(presetUILookAndFeel.get());
+    clearAllCardsButton->onClick = [this]() { onClearAllCards(); };
+    addAndMakeVisible(*clearAllCardsButton);
+
     // Now Playing label (right side of preset row)
     nowPlayingLabel = std::make_unique<juce::Label>();
     nowPlayingLabel->setText("Now Playing", juce::dontSendNotification);
@@ -1793,7 +1995,11 @@ void BlindCardEditor::setupPresetUI()
     // Now Playing track name
     nowPlayingTrackName = std::make_unique<juce::Label>();
     nowPlayingTrackName->setText("No audio loaded", juce::dontSendNotification);
-    nowPlayingTrackName->setColour(juce::Label::textColourId, juce::Colours::white);
+    {
+        bool isDark = ThemeManager::getInstance().isDark();
+        nowPlayingTrackName->setColour(juce::Label::textColourId,
+            isDark ? juce::Colours::white : juce::Colour(0xFF1A1A1A));
+    }
     nowPlayingTrackName->setFont(FontManager::getInstance().getMedium(16.0f));
     nowPlayingTrackName->setJustificationType(juce::Justification::centredLeft);
     addAndMakeVisible(*nowPlayingTrackName);
@@ -2096,6 +2302,166 @@ void BlindCardEditor::applyPresetData(const StandalonePresetManager::PresetData&
             pokerTable->setSelectedCard(firstLoadedCard);
         }
     }
+}
+
+//==============================================================================
+// Window-level FileDragAndDropTarget Implementation
+//==============================================================================
+
+bool BlindCardEditor::isInterestedInFileDrag(const juce::StringArray& files)
+{
+    if (!isStandaloneMode)
+        return false;
+
+    // Check if at least one file is a valid audio format
+    for (const auto& path : files)
+    {
+        juce::File file(path);
+        auto ext = file.getFileExtension().toLowerCase();
+        if (ext == ".wav" || ext == ".mp3" || ext == ".aiff" || ext == ".aif")
+            return true;
+    }
+    return false;
+}
+
+void BlindCardEditor::fileDragEnter(const juce::StringArray& /*files*/, int /*x*/, int /*y*/)
+{
+    isDragOverWindow = true;
+    repaint();
+}
+
+void BlindCardEditor::fileDragExit(const juce::StringArray& /*files*/)
+{
+    isDragOverWindow = false;
+    repaint();
+}
+
+void BlindCardEditor::filesDropped(const juce::StringArray& files, int /*x*/, int /*y*/)
+{
+    isDragOverWindow = false;
+    repaint();
+
+    if (!audioEngine)
+        return;
+
+    // Collect valid audio files
+    std::vector<juce::File> validFiles;
+    for (const auto& path : files)
+    {
+        juce::File file(path);
+        auto ext = file.getFileExtension().toLowerCase();
+        if (ext == ".wav" || ext == ".mp3" || ext == ".aiff" || ext == ".aif")
+            validFiles.push_back(file);
+    }
+
+    if (validFiles.empty())
+        return;
+
+    // Sort by filename for predictable ordering
+    std::sort(validFiles.begin(), validFiles.end(),
+        [](const juce::File& a, const juce::File& b)
+        {
+            return a.getFileName().compareNatural(b.getFileName()) < 0;
+        });
+
+    int numFiles = static_cast<int>(validFiles.size());
+    int maxCards = StandaloneAudioEngine::kMaxSlots;
+    int targetCount = std::min(numFiles, maxCards);
+
+    // Expand card count if needed
+    int currentCardCount = static_cast<int>(manager->getCards().size());
+    if (targetCount > currentCardCount)
+    {
+        onCardCountChanged(targetCount);
+        if (cardCountControl)
+            cardCountControl->setCount(targetCount);
+        currentCardCount = targetCount;
+    }
+
+    // Load files into consecutive card slots
+    int filesLoaded = 0;
+    int firstLoadedCard = -1;
+
+    for (int i = 0; i < std::min(numFiles, currentCardCount); ++i)
+    {
+        const auto& file = validFiles[i];
+
+        if (!audioEngine->isFormatSupported(file))
+            continue;
+
+        bool success = audioEngine->loadFile(i, file);
+        if (success)
+        {
+            auto* card = pokerTable->getCard(i);
+            if (card)
+            {
+                const auto* slot = audioEngine->getSlot(i);
+                if (slot)
+                    card->setLoadedAudioFile(file, slot->lengthInSeconds);
+            }
+
+            // Update track name in manager
+            manager->setTrackName(i, file.getFileNameWithoutExtension());
+
+            filesLoaded++;
+            if (firstLoadedCard < 0)
+                firstLoadedCard = i;
+        }
+    }
+
+    // Update transport and selection
+    if (filesLoaded > 0)
+    {
+        transportBar->setEnabled(true);
+        transportBar->setDuration(audioEngine->getTotalLengthSeconds());
+
+        if (firstLoadedCard >= 0)
+        {
+            audioEngine->switchToCard(firstLoadedCard);
+            pokerTable->setSelectedCard(firstLoadedCard);
+        }
+
+        updateNowPlayingDisplay();
+
+        // If Level-Match is enabled, re-measure all slots
+        if (manager->isLevelMatchEnabled())
+        {
+            manager->startCalibration();
+            audioEngine->measureLUFSForAllSlots();
+        }
+    }
+}
+
+//==============================================================================
+// Clear All Cards Implementation
+//==============================================================================
+
+void BlindCardEditor::onClearAllCards()
+{
+    if (!audioEngine) return;
+
+    // Stop playback
+    audioEngine->pause();
+
+    // Unload all slots that have audio
+    for (int i = 0; i < StandaloneAudioEngine::kMaxSlots; ++i)
+    {
+        const auto* slot = audioEngine->getSlot(i);
+        if (slot && slot->isLoaded)
+        {
+            audioEngine->unloadFile(i);
+            auto* card = pokerTable->getCard(i);
+            if (card)
+                card->setLoadedAudioFile(juce::File(), 0.0);
+            manager->setTrackName(i, "");
+        }
+    }
+
+    // Update transport
+    transportBar->setEnabled(false);
+    transportBar->setPlaying(false);
+    transportBar->setDuration(0.0);
+    updateNowPlayingDisplay();
 }
 
 //==============================================================================
