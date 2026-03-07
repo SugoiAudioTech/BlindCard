@@ -64,6 +64,9 @@ public:
     /** Called when user seeks to a new position (0.0 to 1.0) */
     std::function<void(double normalizedPosition)> onSeek;
 
+    /** Called when loop button is clicked */
+    std::function<void()> onLoopClicked;
+
     //==========================================================================
     // State setters
 
@@ -91,6 +94,12 @@ public:
      */
     void setEnabled(bool enabled);
 
+    /**
+     * Set the looping state (for UI display).
+     * @param looping true if loop is enabled
+     */
+    void setLooping(bool looping);
+
     //==========================================================================
     // Component overrides
     void paint(juce::Graphics& g) override;
@@ -114,6 +123,7 @@ private:
     // State
     bool isPlaying = false;
     bool isEnabled = false;
+    bool isLooping = false;
     double currentPositionSeconds = 0.0;
     double totalDurationSeconds = 0.0;
 
@@ -123,6 +133,7 @@ private:
 
     //==========================================================================
     // Hit areas (computed in resized())
+    juce::Rectangle<int> loopBounds;
     juce::Rectangle<int> skipBackBounds;
     juce::Rectangle<int> playPauseBounds;
     juce::Rectangle<int> skipForwardBounds;
@@ -133,6 +144,7 @@ private:
     enum class HoverState
     {
         None,
+        Loop,
         SkipBack,
         PlayPause,
         SkipForward,

@@ -304,14 +304,23 @@ void StandaloneAudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo
     // Check if we've reached the end
     if (currentPos >= totalLengthSamples)
     {
-        playing = false;
-        // Notify on message thread
-        juce::MessageManager::callAsync([this]()
+        if (looping)
         {
-            if (onPlaybackStateChanged)
-                onPlaybackStateChanged(false);
-        });
-        return;
+            // Loop back to the beginning
+            playheadPosition = 0;
+            currentPos = 0;
+        }
+        else
+        {
+            playing = false;
+            // Notify on message thread
+            juce::MessageManager::callAsync([this]()
+            {
+                if (onPlaybackStateChanged)
+                    onPlaybackStateChanged(false);
+            });
+            return;
+        }
     }
 
     // Check if this slot has audio at current position
@@ -374,6 +383,32 @@ void StandaloneAudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo
         }
     }
 
+    // Apply auto-gain from Level-Match if available
+    if (getGainForCard)
+    {
+        float gainDb = getGainForCard(cardId);
+        if (std::abs(gainDb) > 0.001f)
+        {
+            float linearGain = std::pow(10.0f, gainDb / 20.0f);
+            for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+                buffer.applyGain(ch, startSample, numSamples, linearGain);
+        }
+    }
+
+    // Apply master volume
+    float masterDb = masterVolumeDb.load();
+    if (masterDb <= -59.9f)
+    {
+        // Treat as mute
+        buffer.clear(startSample, numSamples);
+    }
+    else if (std::abs(masterDb) > 0.001f)
+    {
+        float masterGain = std::pow(10.0f, masterDb / 20.0f);
+        for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+            buffer.applyGain(ch, startSample, numSamples, masterGain);
+    }
+
     // Calculate RMS level
     float sumSquares = 0.0f;
     int totalSamples = 0;
@@ -423,6 +458,81 @@ void StandaloneAudioEngine::notifyPositionChanged()
 {
     if (onPositionChanged)
         onPositionChanged(getCurrentPositionSeconds());
+}
+
+//==============================================================================
+void StandaloneAudioEngine::setMasterVolume(float db)
+{
+    masterVolumeDb.store(juce::jlimit(-60.0f, 12.0f, db));
+}
+
+float StandaloneAudioEngine::getMasterVolume() const
+{
+    return masterVolumeDb.load();
+}
+
+//==============================================================================
+void StandaloneAudioEngine::measureLUFSForAllSlots()
+{
+    // Offline LUFS measurement: read up to 10 seconds of each loaded file,
+    // compute RMS, convert to LUFS-like value, report via callback.
+    // This runs on the message thread (non-realtime).
+
+    static constexpr double kMaxScanSeconds = 10.0;
+    static constexpr int kScanBlockSize = 4096;
+
+    for (int i = 0; i < kMaxSlots; ++i)
+    {
+        const auto& slot = slots[i];
+        if (!slot.isLoaded || slot.reader == nullptr)
+            continue;
+
+        double fileSampleRate = slot.reader->sampleRate;
+        juce::int64 scanSamples = static_cast<juce::int64>(
+            std::min(slot.lengthInSeconds, kMaxScanSeconds) * fileSampleRate);
+
+        if (scanSamples <= 0)
+            continue;
+
+        int numChannels = static_cast<int>(slot.reader->numChannels);
+        if (numChannels < 1) numChannels = 1;
+
+        juce::AudioBuffer<float> scanBuffer(numChannels, kScanBlockSize);
+        double sumSquares = 0.0;
+        juce::int64 totalSamplesRead = 0;
+        juce::int64 pos = 0;
+
+        while (pos < scanSamples)
+        {
+            int toRead = static_cast<int>(std::min(static_cast<juce::int64>(kScanBlockSize),
+                                                    scanSamples - pos));
+            scanBuffer.clear();
+            slot.reader->read(&scanBuffer, 0, toRead, pos, true, true);
+
+            for (int ch = 0; ch < numChannels; ++ch)
+            {
+                const float* data = scanBuffer.getReadPointer(ch);
+                for (int s = 0; s < toRead; ++s)
+                    sumSquares += static_cast<double>(data[s]) * static_cast<double>(data[s]);
+            }
+
+            totalSamplesRead += static_cast<juce::int64>(toRead) * numChannels;
+            pos += toRead;
+        }
+
+        if (totalSamplesRead > 0)
+        {
+            double rms = std::sqrt(sumSquares / static_cast<double>(totalSamplesRead));
+            float lufs = (rms > 0.00001) ? static_cast<float>(20.0 * std::log10(rms))
+                                          : -100.0f;
+
+            DBG("StandaloneAudioEngine: Slot " + juce::String(i)
+                + " LUFS = " + juce::String(lufs, 1) + " dB");
+
+            if (onLUFSMeasured)
+                onLUFSMeasured(i, lufs);
+        }
+    }
 }
 
 } // namespace BlindCard

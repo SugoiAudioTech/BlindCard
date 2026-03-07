@@ -63,6 +63,20 @@ public:
 };
 
 //==============================================================================
+// Custom LookAndFeel for Master Volume knob
+// - Dark metallic body with knurled edge
+// - Red indicator line
+// - Theme-aware: dark/light mode support
+//==============================================================================
+class MasterKnobLookAndFeel : public juce::LookAndFeel_V4
+{
+public:
+    void drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height,
+                          float sliderPosProportional, float rotaryStartAngle,
+                          float rotaryEndAngle, juce::Slider& slider) override;
+};
+
+//==============================================================================
 /**
  * BlindCardEditor is the main UI component for the BlindCard plugin.
  *
@@ -93,7 +107,8 @@ public:
 class BlindCardEditor : public juce::AudioProcessorEditor,
                         public juce::ChangeListener,
                         public juce::Timer,
-                        public juce::KeyListener
+                        public juce::KeyListener,
+                        public juce::FileDragAndDropTarget
 {
 public:
     //==========================================================================
@@ -122,6 +137,12 @@ public:
 
     // Mouse handling for keyboard focus
     void mouseDown(const juce::MouseEvent& event) override;
+
+    // FileDragAndDropTarget overrides (window-level batch file drop)
+    bool isInterestedInFileDrag(const juce::StringArray& files) override;
+    void filesDropped(const juce::StringArray& files, int x, int y) override;
+    void fileDragEnter(const juce::StringArray& files, int x, int y) override;
+    void fileDragExit(const juce::StringArray& files) override;
 
     // AU window re-attachment (critical for Logic Pro reopening)
     void parentHierarchyChanged() override;
@@ -161,6 +182,7 @@ private:
     //==========================================================================
     // Standalone mode components
     bool isStandaloneMode = false;
+    bool isDragOverWindow = false;  // Window-level drag hover state
     std::unique_ptr<StandaloneAudioEngine> audioEngine;
     std::unique_ptr<TransportBar> transportBar;
     std::unique_ptr<CardCountControl> cardCountControl;
@@ -171,6 +193,7 @@ private:
     std::unique_ptr<juce::TextButton> savePresetButton;
     std::unique_ptr<juce::TextButton> deletePresetButton;
     std::unique_ptr<juce::TextButton> importFilesButton;
+    std::unique_ptr<juce::TextButton> clearAllCardsButton;
     std::unique_ptr<juce::FileChooser> fileChooser;  // For async file dialog
     std::unique_ptr<PresetUILookAndFeel> presetUILookAndFeel;  // Theme-aware preset UI style
 
@@ -178,6 +201,12 @@ private:
     std::unique_ptr<juce::Label> nowPlayingLabel;
     std::unique_ptr<juce::Label> nowPlayingTrackName;
     void updateNowPlayingDisplay();
+
+    // Master volume control (standalone mode)
+    std::unique_ptr<juce::Slider> masterVolumeSlider;
+    std::unique_ptr<juce::Label> masterVolumeLabel;
+    std::unique_ptr<MasterKnobLookAndFeel> masterKnobLookAndFeel;
+    void updateMasterVolumeLabel(double value);
 
     // Standalone mode helpers
     void setupStandaloneMode();
@@ -199,6 +228,9 @@ private:
 
     // Batch import helper
     void onImportFiles();
+
+    // Clear all cards helper
+    void onClearAllCards();
 
     //==========================================================================
     // Q&A countdown state

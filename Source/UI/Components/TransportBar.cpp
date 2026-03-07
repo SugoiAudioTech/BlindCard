@@ -67,10 +67,94 @@ void TransportBar::setEnabled(bool enabled)
     }
 }
 
+void TransportBar::setLooping(bool looping)
+{
+    if (isLooping != looping)
+    {
+        isLooping = looping;
+        repaint();
+    }
+}
+
 //==============================================================================
 void TransportBar::paint(juce::Graphics& g)
 {
     auto& theme = ThemeManager::getInstance();
+
+    // Draw loop button (with accent color when active)
+    {
+        auto lb = loopBounds.toFloat();
+        bool loopHovered = currentHover == HoverState::Loop;
+
+        // Background
+        if (isLooping)
+        {
+            g.setColour(theme.getColour(ColourId::Accent).withAlpha(0.25f));
+            g.fillRoundedRectangle(lb, 4.0f);
+        }
+        else if (loopHovered && isEnabled)
+        {
+            g.setColour(theme.getColour(ColourId::Accent).withAlpha(0.2f));
+            g.fillRoundedRectangle(lb, 4.0f);
+        }
+
+        // Text
+        juce::Colour loopColor;
+        if (!isEnabled)
+            loopColor = theme.getColour(ColourId::TextPrimary).withAlpha(0.3f);
+        else if (isLooping)
+            loopColor = theme.getColour(ColourId::Accent);
+        else if (loopHovered)
+            loopColor = theme.getColour(ColourId::Accent);
+        else
+            loopColor = theme.getColour(ColourId::TextPrimary);
+
+        g.setColour(loopColor);
+
+        // Draw loop icon: rounded-rect loop with two arrowheads
+        // Standard repeat/loop symbol like media players use
+        auto iconBounds = lb.reduced(4.0f);
+        float cx = iconBounds.getCentreX();
+        float cy = iconBounds.getCentreY();
+        float hw = iconBounds.getWidth() * 0.38f;   // half width
+        float hh = iconBounds.getHeight() * 0.25f;  // half height
+        float cr = hh;                                // corner radius
+
+        // Top path: left-to-right with rounded ends
+        juce::Path topPath;
+        topPath.startNewSubPath(cx - hw + cr, cy - hh);
+        topPath.lineTo(cx + hw - cr, cy - hh);
+        topPath.addArc(cx + hw - cr * 2, cy - hh, cr * 2, cr * 2,
+                        -juce::MathConstants<float>::halfPi, 0.0f, true);
+
+        // Bottom path: right-to-left with rounded ends
+        juce::Path bottomPath;
+        bottomPath.startNewSubPath(cx + hw - cr, cy + hh);
+        bottomPath.lineTo(cx - hw + cr, cy + hh);
+        bottomPath.addArc(cx - hw, cy + hh - cr * 2, cr * 2, cr * 2,
+                           juce::MathConstants<float>::halfPi, juce::MathConstants<float>::pi, true);
+
+        g.strokePath(topPath, juce::PathStrokeType(1.4f, juce::PathStrokeType::curved));
+        g.strokePath(bottomPath, juce::PathStrokeType(1.4f, juce::PathStrokeType::curved));
+
+        // Right arrowhead (pointing right, at top-right)
+        float ax = cx + hw;
+        float ay = cy - hh;
+        juce::Path arrowR;
+        arrowR.addTriangle(ax - 1.0f, ay - 3.5f,
+                           ax + 3.5f, ay,
+                           ax - 1.0f, ay + 3.5f);
+        g.fillPath(arrowR);
+
+        // Left arrowhead (pointing left, at bottom-left)
+        float ax2 = cx - hw;
+        float ay2 = cy + hh;
+        juce::Path arrowL;
+        arrowL.addTriangle(ax2 + 1.0f, ay2 - 3.5f,
+                           ax2 - 3.5f, ay2,
+                           ax2 + 1.0f, ay2 + 3.5f);
+        g.fillPath(arrowL);
+    }
 
     // Draw buttons - use simple ASCII symbols for better font compatibility
     drawButton(g, skipBackBounds.toFloat(), "<<",
@@ -101,6 +185,11 @@ void TransportBar::resized()
     const int buttonSpacing = 4;
     const int timeLabelWidth = 85;
     const int progressBarWidth = 100;
+
+    // Loop button
+    loopBounds = juce::Rectangle<int>(x, (bounds.getHeight() - buttonSize) / 2,
+                                       buttonSize, buttonSize);
+    x += buttonSize + buttonSpacing;
 
     // Skip back button
     skipBackBounds = juce::Rectangle<int>(x, (bounds.getHeight() - buttonSize) / 2,
@@ -135,7 +224,12 @@ void TransportBar::mouseDown(const juce::MouseEvent& event)
 
     auto pos = event.getPosition();
 
-    if (skipBackBounds.contains(pos))
+    if (loopBounds.contains(pos))
+    {
+        if (onLoopClicked)
+            onLoopClicked();
+    }
+    else if (skipBackBounds.contains(pos))
     {
         if (onSkipBackward)
             onSkipBackward();
@@ -297,6 +391,8 @@ juce::String TransportBar::formatTime(double seconds) const
 
 TransportBar::HoverState TransportBar::getHoverStateAt(juce::Point<int> position) const
 {
+    if (loopBounds.contains(position))
+        return HoverState::Loop;
     if (skipBackBounds.contains(position))
         return HoverState::SkipBack;
     if (playPauseBounds.contains(position))
