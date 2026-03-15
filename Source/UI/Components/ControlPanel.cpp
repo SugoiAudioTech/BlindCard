@@ -38,7 +38,7 @@ namespace
 void ControlPanel::CustomSliderLookAndFeel::drawLinearSlider(
     juce::Graphics& g, int x, int y, int width, int height,
     float sliderPos, float /*minSliderPos*/, float /*maxSliderPos*/,
-    const juce::Slider::SliderStyle, juce::Slider& slider)
+    const juce::Slider::SliderStyle, juce::Slider& /*slider*/)
 {
     auto& tm = ThemeManager::getInstance();
 
@@ -79,7 +79,7 @@ void ControlPanel::CustomSliderLookAndFeel::drawLinearSlider(
 // Custom toggle look and feel
 void ControlPanel::CustomToggleLookAndFeel::drawToggleButton(
     juce::Graphics& g, juce::ToggleButton& button,
-    bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown)
+    bool /*shouldDrawButtonAsHighlighted*/, bool /*shouldDrawButtonAsDown*/)
 {
     auto& tm = ThemeManager::getInstance();
     auto bounds = button.getLocalBounds().toFloat();

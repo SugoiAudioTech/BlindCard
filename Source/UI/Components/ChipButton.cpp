@@ -42,7 +42,6 @@ namespace
 namespace ChipLayout
 {
     // Chip proportions (relative to chip size)
-    constexpr float outerRingRatio = 1.0f;        // Full size
     constexpr float stripeOuterRatio = 0.95f;     // Stripes start at 95%
     constexpr float stripeInnerRatio = 0.75f;     // Stripes end at 75%
     constexpr float middleRingOuterRatio = 0.75f; // Middle ring outer at 75%
@@ -56,7 +55,6 @@ namespace ChipLayout
 
     // Visual effects
     constexpr float shadowOffsetY = 4.0f;
-    constexpr float shadowBlurRadius = 8.0f;
     constexpr float glowRadius = 12.0f;
     constexpr float hoverTranslateY = -2.0f;
     constexpr float pressedScale = 0.95f;
@@ -72,7 +70,6 @@ namespace ChipLayout
 
     // Typography
     constexpr float labelFontSize = 13.0f;
-    constexpr float iconFontSize = 20.0f;
 
     // Disabled state
     constexpr float disabledOpacity = 0.4f;
@@ -568,7 +565,7 @@ void ChipButton::drawIcon(juce::Graphics& g, juce::Point<float> center, float ra
     else
     {
         // Fallback: draw as text with text presentation selector (U+FE0E)
-        g.setFont(juce::Font(ChipLayout::iconFontSize));
+        g.setFont(juce::Font(juce::FontOptions().withHeight(radius * 0.9f)));
         auto iconBounds = juce::Rectangle<float>(
             center.x - radius, center.y - radius,
             radius * 2.0f, radius * 2.0f);

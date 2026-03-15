@@ -117,9 +117,46 @@ void MasterKnobLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, in
 }
 
 //==============================================================================
-BlindCardEditor::BlindCardEditor(BlindCardProcessor& processor)
-    : AudioProcessorEditor(processor)
-    , processorRef(processor)
+// CrossfadeSliderLookAndFeel — compact, minimal slider for top-right corner
+//==============================================================================
+class BlindCardEditor::CrossfadeSliderLookAndFeel : public juce::LookAndFeel_V4
+{
+public:
+    void drawLinearSlider(juce::Graphics& g, int x, int y, int width, int height,
+                          float sliderPos, float, float,
+                          const juce::Slider::SliderStyle, juce::Slider&) override
+    {
+        auto& tm = ThemeManager::getInstance();
+        auto bounds = juce::Rectangle<int>(x, y, width, height).toFloat();
+        float trackHeight = 3.0f;
+        auto trackBounds = bounds.withSizeKeepingCentre(bounds.getWidth(), trackHeight);
+
+        // Track background
+        g.setColour(tm.getColour(ColourId::SliderTrack));
+        g.fillRoundedRectangle(trackBounds, trackHeight / 2.0f);
+
+        // Filled portion
+        float filledWidth = sliderPos - static_cast<float>(x);
+        g.setColour(tm.getColour(ColourId::Primary));
+        g.fillRoundedRectangle(trackBounds.withWidth(filledWidth), trackHeight / 2.0f);
+
+        // Thumb
+        float thumbSize = 10.0f;
+        auto thumbBounds = juce::Rectangle<float>(thumbSize, thumbSize)
+                               .withCentre({ sliderPos, bounds.getCentreY() });
+        g.setColour(juce::Colours::white);
+        g.fillEllipse(thumbBounds);
+        bool isDark = tm.isDark();
+        g.setColour(isDark ? juce::Colours::white.withAlpha(0.3f) : juce::Colours::black.withAlpha(0.25f));
+        g.drawEllipse(thumbBounds, 0.5f);
+    }
+};
+
+//==============================================================================
+BlindCardEditor::BlindCardEditor(BlindCardProcessor& processorInstance)
+    : AudioProcessorEditor(processorInstance)
+    , processorRef(processorInstance)
+    , manager(processorInstance.getManagerShared())
 {
     // Tell AU host this is an opaque window — helps Logic Pro handle AU plugin windows correctly
     setOpaque(true);
@@ -169,6 +206,38 @@ BlindCardEditor::BlindCardEditor(BlindCardProcessor& processor)
 
     // Settings Panel (hidden by default, shown when clicking gear button)
     settingsPanel = std::make_unique<SettingsPanel>();
+
+    // Crossfade control (top-right corner)
+    crossfadeSliderLnF = std::make_unique<CrossfadeSliderLookAndFeel>();
+
+    crossfadeLabel = std::make_unique<juce::Label>("cfLabel", "CROSSFADE");
+    crossfadeLabel->setFont(FontManager::getInstance().getBebasNeue(14.0f));
+    crossfadeLabel->setColour(juce::Label::textColourId,
+        ThemeManager::getInstance().getColour(ColourId::TextMuted));
+    crossfadeLabel->setJustificationType(juce::Justification::centred);
+    addAndMakeVisible(*crossfadeLabel);
+
+    crossfadeSlider = std::make_unique<juce::Slider>(juce::Slider::LinearHorizontal,
+                                                      juce::Slider::NoTextBox);
+    crossfadeSlider->setRange(1.0, 100.0, 1.0);
+    crossfadeSlider->setValue(10.0);
+    crossfadeSlider->setLookAndFeel(crossfadeSliderLnF.get());
+    crossfadeSlider->onValueChange = [this]()
+    {
+        float ms = static_cast<float>(crossfadeSlider->getValue());
+        manager->setCrossfadeTime(ms);
+        if (isStandaloneMode && audioEngine)
+            audioEngine->setCrossfadeTime(ms);
+        updateCrossfadeValueLabel(ms);
+    };
+    addAndMakeVisible(*crossfadeSlider);
+
+    crossfadeValueLabel = std::make_unique<juce::Label>("cfVal", "10 ms");
+    crossfadeValueLabel->setFont(FontManager::getInstance().getBebasNeue(14.0f));
+    crossfadeValueLabel->setColour(juce::Label::textColourId,
+        ThemeManager::getInstance().getColour(ColourId::TextPrimary));
+    crossfadeValueLabel->setJustificationType(juce::Justification::centred);
+    addAndMakeVisible(*crossfadeValueLabel);
 
     // Set window constraints AFTER components are created
     // (setResizeLimits triggers resized() which needs valid component pointers)
@@ -242,7 +311,7 @@ BlindCardEditor::~BlindCardEditor()
     if (importFilesButton) importFilesButton->setLookAndFeel(nullptr);
     if (clearAllCardsButton) clearAllCardsButton->setLookAndFeel(nullptr);
     if (masterVolumeSlider) masterVolumeSlider->setLookAndFeel(nullptr);
-
+    if (crossfadeSlider) crossfadeSlider->setLookAndFeel(nullptr);
 }
 
 //==============================================================================
@@ -378,23 +447,25 @@ void BlindCardEditor::resized()
     // Header at top
     auto headerArea = bounds.removeFromTop(kHeaderHeight);
 
-    // In Standalone mode, place TransportBar in header CENTER (between logo and settings buttons)
+    // In Standalone mode, place TransportBar in header (centered, fixed width)
     if (isStandaloneMode && transportBar)
     {
-        // TransportBar centered in header (extra width for loop button)
-        int transportWidth = 330;
-        auto transportBounds = headerArea.withSizeKeepingCentre(transportWidth, 40);
+        int knobSize = 34;
+        int transportWidth = 365;
+        auto transportBounds = headerArea.withSizeKeepingCentre(transportWidth, headerArea.getHeight());
         transportBar->setBounds(transportBounds);
 
-        // Master volume: [knob 34px] [label 48px] to the right of transport
+        // Master volume: right after transport bar
         if (masterVolumeSlider)
         {
-            int knobSize = 34;
             int volX = transportBounds.getRight() + 12;
-            int volY = transportBounds.getCentreY() - knobSize / 2;
+            int volY = headerArea.getCentreY() - knobSize / 2 + 4;
 
             masterVolumeSlider->setBounds(volX, volY, knobSize, knobSize);
             masterVolumeLabel->setBounds(volX + knobSize + 2, volY, 48, knobSize);
+
+            if (masterVolumeTitleLabel)
+                masterVolumeTitleLabel->setBounds(volX - 2, volY - 11, knobSize + 4, 11);
         }
     }
 
@@ -416,12 +487,10 @@ void BlindCardEditor::resized()
         // Center: [Now Playing] [TrackName] - centered in FULL window width
         if (nowPlayingLabel && nowPlayingTrackName)
         {
-            // Calculate total width needed for Now Playing display
             int nowPlayingWidth = 100 + 10 + 250;  // label + gap + track name
             int windowCenterX = getWidth() / 2;
             int nowPlayingX = windowCenterX - nowPlayingWidth / 2;
 
-            // Ensure it doesn't overlap with left controls (340px + 20px margin)
             int minX = 360;
             nowPlayingX = juce::jmax(nowPlayingX, minX);
 
@@ -431,8 +500,11 @@ void BlindCardEditor::resized()
             nowPlayingArea.removeFromLeft(10);
             nowPlayingTrackName->setBounds(nowPlayingArea);
         }
+        // Hide standaloneTimeLabel (time is now in TransportBar)
+        if (standaloneTimeLabel)
+            standaloneTimeLabel->setVisible(false);
 
-        // Row 2: Import Files + Clear All below preset combo
+        // Row 2: Import Files + Clear All below preset combo, Crossfade on right
         if (importFilesButton)
         {
             auto importRow = bounds.removeFromTop(28);
@@ -442,6 +514,20 @@ void BlindCardEditor::resized()
             {
                 importRow.removeFromLeft(8);
                 clearAllCardsButton->setBounds(importRow.removeFromLeft(100));
+            }
+
+            // Crossfade control on the right side of import row (above CardCountControl)
+            if (crossfadeSlider)
+            {
+                // Layout: [CROSSFADE label 80px] [slider 120px] [value 50px]
+                int cfTotalWidth = 250;
+                int cfX = importRow.getRight() - cfTotalWidth;
+                int cfY = importRow.getY();
+                int cfH = importRow.getHeight();
+
+                crossfadeLabel->setBounds(cfX, cfY, 80, cfH);
+                crossfadeSlider->setBounds(cfX + 80, cfY, 120, cfH);
+                crossfadeValueLabel->setBounds(cfX + 200, cfY, 50, cfH);
             }
         }
     }
@@ -460,6 +546,20 @@ void BlindCardEditor::resized()
     {
         auto cardCountArea = modeSelectorArea.removeFromRight(140);
         cardCountControl->setBounds(cardCountArea.reduced(8, 8));
+    }
+
+    // Crossfade control — in non-standalone mode, right side of mode selector row
+    if (crossfadeSlider && !isStandaloneMode)
+    {
+        // Layout: [CROSSFADE label 80px] [slider 120px] [value 50px]
+        int cfTotalWidth = 250;
+        int cfX = modeSelectorArea.getRight() - cfTotalWidth - 12;
+        int cfY = modeSelectorArea.getY() + 4;
+        int cfH = modeSelectorArea.getHeight() - 8;
+
+        crossfadeLabel->setBounds(cfX, cfY, 80, cfH);
+        crossfadeSlider->setBounds(cfX + 80, cfY, 120, cfH);
+        crossfadeValueLabel->setBounds(cfX + 200, cfY, 50, cfH);
     }
 
     // Question banner area - always reserve space to prevent layout jumping
@@ -544,6 +644,27 @@ void BlindCardEditor::changeListenerCallback(juce::ChangeBroadcaster* source)
                 safeThis->masterVolumeLabel->setColour(juce::Label::textColourId,
                     dark ? juce::Colour(0xFFCCCCCC) : juce::Colour(0xFF555555));
             }
+            if (safeThis->masterVolumeTitleLabel)
+            {
+                bool dark = ThemeManager::getInstance().isDark();
+                safeThis->masterVolumeTitleLabel->setColour(juce::Label::textColourId,
+                    dark ? juce::Colour(0xFF666666) : juce::Colour(0xFFAAAAAA));
+            }
+
+            // Update crossfade label colours for theme
+            if (safeThis->crossfadeLabel)
+            {
+                auto& tm = ThemeManager::getInstance();
+                safeThis->crossfadeLabel->setColour(juce::Label::textColourId,
+                    tm.getColour(ColourId::TextMuted));
+                safeThis->crossfadeValueLabel->setColour(juce::Label::textColourId,
+                    tm.getColour(ColourId::TextPrimary));
+            }
+            if (safeThis->standaloneTimeLabel)
+            {
+                safeThis->standaloneTimeLabel->setColour(juce::Label::textColourId,
+                    juce::Colour(0xFF8E8E93));
+            }
 
             safeThis->updateNowPlayingDisplay();
             safeThis->repaint();
@@ -583,7 +704,7 @@ void BlindCardEditor::timerCallback()
 
     // Handle Q&A countdown (tick every 1 second)
     auto mode = manager->getRatingMode();
-    const auto& qaState = manager->getQAState();
+    const auto qaState = manager->getQAState();
 
     if (mode == blindcard::RatingMode::QA && qaState.isShowingAnswer)
     {
@@ -694,6 +815,13 @@ void BlindCardEditor::updateFromManager()
     controlPanel->setCalibrationStatus(manager->isCalibrating(), manager->isCalibrated(),
                                         manager->getCalibrationTimeRemaining());
 
+    // Sync crossfade time
+    if (crossfadeSlider)
+    {
+        crossfadeSlider->setValue(static_cast<double>(manager->getCrossfadeTime()), juce::dontSendNotification);
+        updateCrossfadeValueLabel(manager->getCrossfadeTime());
+    }
+
     // Update card states
     updateCardStates();
 
@@ -711,9 +839,9 @@ void BlindCardEditor::updateCardStates()
     auto selectedId = manager->getSelectedCardId();
     int correctAnswerCardId = manager->getQACorrectAnswerCardId();
 
-    for (size_t i = 0; i < cards.size(); ++i)
+    for (int i = 0; i < cards.size(); ++i)
     {
-        const auto& slot = cards[static_cast<int>(i)];
+        const auto& slot = cards[i];
 
         // Use displayPosition to determine card's position on the table
         // This way cards appear at different positions after shuffle
@@ -838,7 +966,7 @@ void BlindCardEditor::updatePhaseUI()
 
 void BlindCardEditor::updateQAUI()
 {
-    const auto& qaState = manager->getQAState();
+    const auto qaState = manager->getQAState();
     auto phase = manager->getPhase();
 
     // Check if Q&A is complete (all questions answered and revealed)
@@ -1269,9 +1397,9 @@ void BlindCardEditor::buildGuessResults()
     auto cards = manager->getCards();
     int currentRound = manager->getCurrentRound();
 
-    for (size_t i = 0; i < cards.size(); ++i)
+    for (int i = 0; i < cards.size(); ++i)
     {
-        const auto& card = cards[static_cast<int>(i)];
+        const auto& card = cards[i];
         GuessResult result;
         result.cardPosition = card.displayPosition;
         result.actualTrack = card.realTrackName.toStdString();
@@ -1296,7 +1424,7 @@ void BlindCardEditor::buildQAResults()
 {
     std::vector<QAResult> results;
     auto cards = manager->getCards();
-    const auto& qaState = manager->getQAState();
+    const auto qaState = manager->getQAState();
 
     // Only show results for questions that have been answered
     // (answers.size() <= askedCardIds.size())
@@ -1353,12 +1481,12 @@ bool BlindCardEditor::keyPressed(const juce::KeyPress& key, juce::Component*)
     {
         if (newIndex >= 0 && newIndex < cardCount)
         {
-            manager->selectCard(sortedCards[newIndex].second);
+            manager->selectCard(sortedCards[static_cast<size_t>(newIndex)].second);
 
             // In Standalone mode, switch audio playback to selected card
             if (isStandaloneMode && audioEngine)
             {
-                audioEngine->switchToCard(sortedCards[newIndex].first);
+                audioEngine->switchToCard(sortedCards[static_cast<size_t>(newIndex)].first);
             }
             return true;
         }
@@ -1405,7 +1533,7 @@ bool BlindCardEditor::keyPressed(const juce::KeyPress& key, juce::Component*)
     // Find current selected card's index in sorted list
     for (int i = 0; i < static_cast<int>(sortedCards.size()); ++i)
     {
-        if (sortedCards[i].second == currentSelectedId)
+        if (sortedCards[static_cast<size_t>(i)].second == currentSelectedId)
         {
             currentIndex = i;
             break;
@@ -1699,6 +1827,16 @@ void BlindCardEditor::setupStandaloneMode()
     }
     addAndMakeVisible(*masterVolumeLabel);
 
+    masterVolumeTitleLabel = std::make_unique<juce::Label>("volTitle", "MASTER");
+    masterVolumeTitleLabel->setJustificationType(juce::Justification::centred);
+    masterVolumeTitleLabel->setFont(FontManager::getInstance().getBebasNeue(9.0f));
+    {
+        bool isDark = ThemeManager::getInstance().isDark();
+        masterVolumeTitleLabel->setColour(juce::Label::textColourId,
+            isDark ? juce::Colour(0xFF666666) : juce::Colour(0xFFAAAAAA));
+    }
+    addAndMakeVisible(*masterVolumeTitleLabel);
+
     // Increase window height to accommodate preset row (36px)
     setSize(getWidth(), kMinHeight + 36);
 
@@ -1710,6 +1848,8 @@ void BlindCardEditor::setupStandaloneMode()
     cardCountControl->toFront(false);
     masterVolumeSlider->toFront(false);
     masterVolumeLabel->toFront(false);
+    if (masterVolumeTitleLabel)
+        masterVolumeTitleLabel->toFront(false);
 }
 
 void BlindCardEditor::onTransportPlayPause()
@@ -1777,7 +1917,7 @@ void BlindCardEditor::onCardFileDropped(int cardIndex, const juce::File& file)
         auto* card = pokerTable->getCard(cardIndex);
         if (card)
         {
-            const auto* slot = audioEngine->getSlot(cardIndex);
+            const auto slot = audioEngine->getSlotInfo(cardIndex);
             if (slot)
             {
                 card->setLoadedAudioFile(file, slot->lengthInSeconds);
@@ -1836,7 +1976,7 @@ void BlindCardEditor::onCardRemoveFile(int cardIndex)
         // Find first card with audio loaded
         for (int i = 0; i < StandaloneAudioEngine::kMaxSlots; ++i)
         {
-            const auto* slot = audioEngine->getSlot(i);
+            const auto slot = audioEngine->getSlotInfo(i);
             if (slot && slot->isLoaded)
             {
                 audioEngine->switchToCard(i);
@@ -1858,6 +1998,21 @@ void BlindCardEditor::updateTransportFromEngine()
     transportBar->setPosition(audioEngine->getCurrentPositionSeconds());
     transportBar->setPlaying(audioEngine->isPlaying());
 
+    // Update standalone time label
+    if (standaloneTimeLabel)
+    {
+        auto formatTime = [](double seconds) -> juce::String {
+            if (seconds < 0 || std::isnan(seconds) || std::isinf(seconds))
+                seconds = 0;
+            int total = static_cast<int>(seconds);
+            return juce::String::formatted("%02d:%02d", total / 60, total % 60);
+        };
+        standaloneTimeLabel->setText(
+            formatTime(audioEngine->getCurrentPositionSeconds()) + " / " +
+            formatTime(audioEngine->getTotalLengthSeconds()),
+            juce::dontSendNotification);
+    }
+
     // Update Now Playing display
     updateNowPlayingDisplay();
 }
@@ -1867,7 +2022,7 @@ void BlindCardEditor::updateNowPlayingDisplay()
     if (!audioEngine || !nowPlayingTrackName) return;
 
     int activeCardId = audioEngine->getActiveCardId();
-    const auto* slot = audioEngine->getSlot(activeCardId);
+    const auto slot = audioEngine->getSlotInfo(activeCardId);
 
     if (slot && slot->isLoaded)
     {
@@ -1927,6 +2082,12 @@ void BlindCardEditor::updateMasterVolumeLabel(double value)
     masterVolumeLabel->setText(text, juce::dontSendNotification);
 }
 
+void BlindCardEditor::updateCrossfadeValueLabel(double ms)
+{
+    if (!crossfadeValueLabel) return;
+    crossfadeValueLabel->setText(juce::String(static_cast<int>(ms)) + " ms", juce::dontSendNotification);
+}
+
 //==============================================================================
 // Preset System Implementation
 //==============================================================================
@@ -1983,6 +2144,15 @@ void BlindCardEditor::setupPresetUI()
     clearAllCardsButton->setLookAndFeel(presetUILookAndFeel.get());
     clearAllCardsButton->onClick = [this]() { onClearAllCards(); };
     addAndMakeVisible(*clearAllCardsButton);
+
+    // Standalone time label (above Now Playing)
+    standaloneTimeLabel = std::make_unique<juce::Label>();
+    standaloneTimeLabel->setText("00:00 / 00:00", juce::dontSendNotification);
+    standaloneTimeLabel->setColour(juce::Label::textColourId,
+        ThemeManager::getInstance().isDark() ? juce::Colour(0xFF8E8E93) : juce::Colour(0xFF8E8E93));
+    standaloneTimeLabel->setFont(FontManager::getInstance().getBebasNeue(18.0f));
+    standaloneTimeLabel->setJustificationType(juce::Justification::centred);
+    addAndMakeVisible(*standaloneTimeLabel);
 
     // Now Playing label (right side of preset row)
     nowPlayingLabel = std::make_unique<juce::Label>();
@@ -2211,7 +2381,7 @@ StandalonePresetManager::PresetData BlindCardEditor::getCurrentPresetData() cons
     {
         for (int i = 0; i < data.cardCount && i < StandaloneAudioEngine::kMaxSlots; ++i)
         {
-            const auto* slot = audioEngine->getSlot(i);
+            const auto slot = audioEngine->getSlotInfo(i);
             StandalonePresetManager::SlotData slotData;
             slotData.cardIndex = i;
 
@@ -2271,7 +2441,7 @@ void BlindCardEditor::applyPresetData(const StandalonePresetManager::PresetData&
                     auto* card = pokerTable->getCard(slot.cardIndex);
                     if (card)
                     {
-                        const auto* engineSlot = audioEngine->getSlot(slot.cardIndex);
+                        const auto engineSlot = audioEngine->getSlotInfo(slot.cardIndex);
                         if (engineSlot)
                         {
                             card->setLoadedAudioFile(file, engineSlot->lengthInSeconds);
@@ -2384,7 +2554,7 @@ void BlindCardEditor::filesDropped(const juce::StringArray& files, int /*x*/, in
 
     for (int i = 0; i < std::min(numFiles, currentCardCount); ++i)
     {
-        const auto& file = validFiles[i];
+        const auto& file = validFiles[static_cast<size_t>(i)];
 
         if (!audioEngine->isFormatSupported(file))
             continue;
@@ -2395,7 +2565,7 @@ void BlindCardEditor::filesDropped(const juce::StringArray& files, int /*x*/, in
             auto* card = pokerTable->getCard(i);
             if (card)
             {
-                const auto* slot = audioEngine->getSlot(i);
+                const auto slot = audioEngine->getSlotInfo(i);
                 if (slot)
                     card->setLoadedAudioFile(file, slot->lengthInSeconds);
             }
@@ -2446,7 +2616,7 @@ void BlindCardEditor::onClearAllCards()
     // Unload all slots that have audio
     for (int i = 0; i < StandaloneAudioEngine::kMaxSlots; ++i)
     {
-        const auto* slot = audioEngine->getSlot(i);
+        const auto slot = audioEngine->getSlotInfo(i);
         if (slot && slot->isLoaded)
         {
             audioEngine->unloadFile(i);
@@ -2525,7 +2695,7 @@ void BlindCardEditor::onImportFiles()
 
         for (int i = 0; i < std::min(numFiles, currentCardCount); ++i)
         {
-            const auto& file = sortedFiles[i];
+            const auto& file = sortedFiles[static_cast<size_t>(i)];
 
             // Check if format is supported
             if (!audioEngine->isFormatSupported(file))
@@ -2542,7 +2712,7 @@ void BlindCardEditor::onImportFiles()
                 auto* card = pokerTable->getCard(i);
                 if (card)
                 {
-                    const auto* slot = audioEngine->getSlot(i);
+                    const auto slot = audioEngine->getSlotInfo(i);
                     if (slot)
                     {
                         card->setLoadedAudioFile(file, slot->lengthInSeconds);

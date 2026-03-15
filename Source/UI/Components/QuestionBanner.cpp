@@ -19,6 +19,17 @@
 namespace BlindCard
 {
 
+namespace
+{
+    juce::Font makeFont(float height, bool bold = false)
+    {
+        auto options = juce::FontOptions().withHeight(height);
+        if (bold)
+            options = options.withStyle("Bold");
+        return juce::Font(options);
+    }
+}
+
 //==============================================================================
 QuestionBanner::QuestionBanner()
     : visibilityAlpha(1.0f)
@@ -238,7 +249,7 @@ void QuestionBanner::drawQuestion(juce::Graphics& g, juce::Rectangle<float> boun
     juce::String questionText = LOCALIZE(QAWhichCardIs) + juce::String(currentPluginName) + "?";
 
     g.setColour(tm.getColour(ColourId::TextPrimary));
-    g.setFont(juce::Font(16.0f, juce::Font::bold));
+    g.setFont(makeFont(16.0f, true));
     g.drawText(questionText, bounds, juce::Justification::centredLeft);
 }
 
@@ -253,7 +264,7 @@ void QuestionBanner::drawProgress(juce::Graphics& g, juce::Rectangle<float> boun
                                     juce::String(totalQuestions) + " " + LOCALIZE(QARemaining);
 
         g.setColour(tm.getColour(ColourId::TextSecondary));
-        g.setFont(juce::Font(12.0f));
+        g.setFont(makeFont(12.0f));
         g.drawText(progressText, bounds, juce::Justification::centredRight);
     }
 }
@@ -315,7 +326,7 @@ void QuestionBanner::drawFeedbackIcon(juce::Graphics& g, juce::Rectangle<float> 
 
     // Icon
     g.setColour(iconColor);
-    g.setFont(juce::Font(18.0f, juce::Font::bold));
+    g.setFont(makeFont(18.0f, true));
     g.drawText(iconText, iconBounds, juce::Justification::centred);
 }
 
@@ -328,7 +339,7 @@ void QuestionBanner::drawCountdown(juce::Graphics& g, juce::Rectangle<float> bou
 
     // Use accent color for countdown
     g.setColour(tm.getColour(ColourId::Accent));
-    g.setFont(juce::Font(24.0f, juce::Font::bold));
+    g.setFont(makeFont(24.0f, true));
     g.drawText(countdownText, bounds, juce::Justification::centred);
 }
 
@@ -347,7 +358,7 @@ void QuestionBanner::drawCorrectAnswer(juce::Graphics& g, juce::Rectangle<float>
         textColor = tm.getColour(ColourId::Error);
 
     g.setColour(textColor);
-    g.setFont(juce::Font(16.0f, juce::Font::bold));
+    g.setFont(makeFont(16.0f, true));
     g.drawText(answerText, bounds, juce::Justification::centredLeft);
 }
 
@@ -370,7 +381,7 @@ void QuestionBanner::drawCompletion(juce::Graphics& g, juce::Rectangle<float> bo
     // Draw score on the left (localized)
     juce::String scoreText = LOCALIZE(QAScoreLabel) + juce::String(correctCount) + "/" + juce::String(totalCount);
     g.setColour(scoreColor);
-    g.setFont(juce::Font(18.0f, juce::Font::bold));
+    g.setFont(makeFont(18.0f, true));
 
     auto scoreArea = bounds.removeFromLeft(bounds.getWidth() * 0.4f);
     g.drawText(scoreText, scoreArea, juce::Justification::centredLeft);
@@ -378,7 +389,7 @@ void QuestionBanner::drawCompletion(juce::Graphics& g, juce::Rectangle<float> bo
     // Draw reset prompt on the right (localized)
     juce::String resetText = LOCALIZE(QAPressResetToPlayAgain);
     g.setColour(tm.getColour(ColourId::TextSecondary));
-    g.setFont(juce::Font(14.0f));
+    g.setFont(makeFont(14.0f));
     g.drawText(resetText, bounds, juce::Justification::centredRight);
 }
 

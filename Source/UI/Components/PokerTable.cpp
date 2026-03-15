@@ -83,7 +83,7 @@ PokerCard* PokerTable::getCard(int index)
 {
     if (index >= 0 && index < static_cast<int>(cards.size()))
     {
-        return cards[index].get();
+        return cards[static_cast<size_t>(index)].get();
     }
     return nullptr;
 }
@@ -531,7 +531,7 @@ void PokerTable::updateCardLayout()
 
         for (int i = 0; i < cardCount; ++i)
         {
-            cards[i]->setBounds(
+            cards[static_cast<size_t>(i)]->setBounds(
                 startX + i * (cardWidth + horizontalGap),
                 startY,
                 cardWidth,
@@ -557,7 +557,7 @@ void PokerTable::updateCardLayout()
 
         for (int i = 0; i < topRowCount; ++i)
         {
-            cards[i]->setBounds(
+            cards[static_cast<size_t>(i)]->setBounds(
                 topStartX + i * (cardWidth + horizontalGap),
                 topY,
                 cardWidth,
@@ -571,7 +571,7 @@ void PokerTable::updateCardLayout()
 
         for (int i = 0; i < bottomRowCount; ++i)
         {
-            cards[topRowCount + i]->setBounds(
+            cards[static_cast<size_t>(topRowCount + i)]->setBounds(
                 bottomStartX + i * (cardWidth + horizontalGap),
                 bottomY,
                 cardWidth,

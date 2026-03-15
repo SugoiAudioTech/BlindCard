@@ -100,7 +100,7 @@ private:
 
     //==========================================================================
     // Drawing helpers
-    void drawChipWithEdge(juce::Graphics& g, juce::Rectangle<float> bounds, bool isRed, int stackIndex);
+    void drawChipWithEdge(juce::Graphics& g, juce::Rectangle<float> bounds, bool isRed);
     void drawChipTop(juce::Graphics& g, juce::Rectangle<float> bounds, bool isRed);
 
     // Color helpers

@@ -21,6 +21,16 @@
 namespace BlindCard
 {
 
+namespace
+{
+    float getTextWidth(const juce::Font& font, const juce::String& text)
+    {
+        juce::GlyphArrangement glyphs;
+        glyphs.addLineOfText(font, text, 0.0f, 0.0f);
+        return glyphs.getBoundingBox(0, glyphs.getNumGlyphs(), true).getWidth();
+    }
+}
+
 //==============================================================================
 // Layout constants
 namespace Layout
@@ -36,10 +46,8 @@ namespace Layout
     constexpr float sugoiFontSize = 16.0f;
 
     // Connection status capsule
-    constexpr int capsuleWidth = 160;
     constexpr int capsuleHeight = 36;
     constexpr float capsuleCornerRadius = 18.0f;
-    constexpr int statusDotSize = 10;
 
     // Right controls
     constexpr int controlRightMargin = 16;
@@ -48,15 +56,11 @@ namespace Layout
     // Theme toggle (now just an icon, same size as other icon buttons)
     constexpr int toggleWidth = 32;
     constexpr int toggleHeight = 32;
-    constexpr float toggleCornerRadius = 6.0f;
 
     // Icon buttons
     constexpr int iconButtonSize = 32;
-    constexpr float iconButtonCornerRadius = 6.0f;
 
     // Reset chip button
-    constexpr int resetButtonWidth = 60;
-    constexpr int resetButtonHeight = 26;
     constexpr float resetChipCornerRadius = 13.0f;
 }
 
@@ -223,6 +227,10 @@ void HeaderBar::mouseDown(const juce::MouseEvent& event)
 
     switch (clickState)
     {
+        case HoverState::None:
+        case HoverState::ResetButton:
+            break;
+
         case HoverState::ThemeToggle:
             if (onThemeToggled)
                 onThemeToggled();
@@ -236,9 +244,6 @@ void HeaderBar::mouseDown(const juce::MouseEvent& event)
         case HoverState::SettingsButton:
             if (onSettingsClicked)
                 onSettingsClicked();
-            break;
-
-        default:
             break;
     }
 }
@@ -337,8 +342,8 @@ void HeaderBar::drawBrandText(juce::Graphics& g, juce::Rectangle<float> bounds)
     g.setFont(brandFont);
 
     // Measure actual text widths from the font for cross-platform accuracy
-    float blindWidth = brandFont.getStringWidthFloat("Blind ");
-    float cardWidth = brandFont.getStringWidthFloat("Card");
+    float blindWidth = getTextWidth(brandFont, "Blind ");
+    float cardWidth = getTextWidth(brandFont, "Card");
 
     // Draw "Blind" in white/black
     g.setColour(textColor);

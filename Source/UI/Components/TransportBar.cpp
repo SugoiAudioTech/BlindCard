@@ -15,9 +15,15 @@
 
 #include "TransportBar.h"
 #include "../Theme/FontManager.h"
+#include <cmath>
 
 namespace BlindCard
 {
+
+namespace
+{
+    constexpr double kPositionEpsilon = 1.0e-6;
+}
 
 //==============================================================================
 TransportBar::TransportBar()
@@ -42,7 +48,8 @@ void TransportBar::setPlaying(bool playing)
 
 void TransportBar::setPosition(double positionSeconds)
 {
-    if (!isDraggingProgressBar && currentPositionSeconds != positionSeconds)
+    if (!isDraggingProgressBar
+        && std::abs(currentPositionSeconds - positionSeconds) > kPositionEpsilon)
     {
         currentPositionSeconds = positionSeconds;
         repaint();
@@ -51,7 +58,7 @@ void TransportBar::setPosition(double positionSeconds)
 
 void TransportBar::setDuration(double durationSeconds)
 {
-    if (totalDurationSeconds != durationSeconds)
+    if (std::abs(totalDurationSeconds - durationSeconds) > kPositionEpsilon)
     {
         totalDurationSeconds = durationSeconds;
         repaint();
@@ -178,42 +185,36 @@ void TransportBar::paint(juce::Graphics& g)
 void TransportBar::resized()
 {
     auto bounds = getLocalBounds();
-    int x = 0;
 
-    // Button sizes
     const int buttonSize = 24;
     const int buttonSpacing = 4;
     const int timeLabelWidth = 85;
-    const int progressBarWidth = 100;
+    const int gap = 16;
 
-    // Loop button
-    loopBounds = juce::Rectangle<int>(x, (bounds.getHeight() - buttonSize) / 2,
-                                       buttonSize, buttonSize);
+    // Layout buttons (left-aligned)
+    int x = 0;
+    int btnY = (bounds.getHeight() - buttonSize) / 2;
+
+    loopBounds = juce::Rectangle<int>(x, btnY, buttonSize, buttonSize);
     x += buttonSize + buttonSpacing;
 
-    // Skip back button
-    skipBackBounds = juce::Rectangle<int>(x, (bounds.getHeight() - buttonSize) / 2,
-                                           buttonSize, buttonSize);
+    skipBackBounds = juce::Rectangle<int>(x, btnY, buttonSize, buttonSize);
     x += buttonSize + buttonSpacing;
 
-    // Play/pause button
-    playPauseBounds = juce::Rectangle<int>(x, (bounds.getHeight() - buttonSize) / 2,
-                                            buttonSize, buttonSize);
+    playPauseBounds = juce::Rectangle<int>(x, btnY, buttonSize, buttonSize);
     x += buttonSize + buttonSpacing;
 
-    // Skip forward button
-    skipForwardBounds = juce::Rectangle<int>(x, (bounds.getHeight() - buttonSize) / 2,
-                                              buttonSize, buttonSize);
-    x += buttonSize + 8;
+    skipForwardBounds = juce::Rectangle<int>(x, btnY, buttonSize, buttonSize);
+    x += buttonSize + gap;
 
     // Time label
     timeLabelBounds = juce::Rectangle<int>(x, 0, timeLabelWidth, bounds.getHeight());
-    x += timeLabelWidth + 8;
+    x += timeLabelWidth + gap;
 
-    // Progress bar (remaining width)
-    int remainingWidth = bounds.getWidth() - x;
+    // Progress bar (fills remaining width)
+    int progressBarWidth = std::max(50, bounds.getWidth() - x);
     progressBarBounds = juce::Rectangle<int>(x, (bounds.getHeight() - 8) / 2,
-                                              std::max(50, remainingWidth), 8);
+                                              progressBarWidth, 8);
 }
 
 //==============================================================================
@@ -261,7 +262,7 @@ void TransportBar::mouseDrag(const juce::MouseEvent& event)
     }
 }
 
-void TransportBar::mouseUp(const juce::MouseEvent& event)
+void TransportBar::mouseUp(const juce::MouseEvent& /*event*/)
 {
     if (isDraggingProgressBar)
     {
@@ -305,21 +306,25 @@ void TransportBar::drawButton(juce::Graphics& g, juce::Rectangle<float> bounds,
 {
     auto& theme = ThemeManager::getInstance();
 
-    // Background
+    bool isDark = theme.isDark();
+
+    // Apple Music style: subtle circular hover background
     juce::Colour bgColor = enabled
-        ? (isHovered ? theme.getColour(ColourId::Accent).withAlpha(0.2f) : juce::Colours::transparentBlack)
+        ? (isHovered ? (isDark ? juce::Colours::white.withAlpha(0.1f) : juce::Colours::black.withAlpha(0.06f))
+                     : juce::Colours::transparentBlack)
         : juce::Colours::transparentBlack;
 
     if (bgColor.getAlpha() > 0)
     {
         g.setColour(bgColor);
-        g.fillRoundedRectangle(bounds, 4.0f);
+        g.fillRoundedRectangle(bounds, bounds.getHeight() / 2.0f);  // Pill shape
     }
 
-    // Symbol
+    // Symbol color: dark in light mode, light in dark mode
     juce::Colour textColor = enabled
-        ? (isHovered ? theme.getColour(ColourId::Accent) : theme.getColour(ColourId::TextPrimary))
-        : theme.getColour(ColourId::TextPrimary).withAlpha(0.3f);
+        ? (isHovered ? theme.getColour(ColourId::Primary)
+                     : (isDark ? juce::Colour(0xFFE5E5EA) : juce::Colour(0xFF1C1C1E)))
+        : (isDark ? juce::Colour(0xFF48484A) : juce::Colour(0xFFC7C7CC));
 
     g.setColour(textColor);
     g.setFont(FontManager::getInstance().getBebasNeue(14.0f));
@@ -332,8 +337,12 @@ void TransportBar::drawTimeLabel(juce::Graphics& g, juce::Rectangle<float> bound
 
     juce::String timeText = formatTime(currentPositionSeconds) + " / " + formatTime(totalDurationSeconds);
 
-    g.setColour(isEnabled ? theme.getColour(ColourId::TextPrimary) : theme.getColour(ColourId::TextPrimary).withAlpha(0.3f));
-    g.setFont(FontManager::getInstance().getBebasNeue(12.0f));
+    bool isDark = theme.isDark();
+    juce::Colour timeColour = isEnabled
+        ? (isDark ? juce::Colour(0xFF8E8E93) : juce::Colour(0xFF8E8E93))
+        : (isDark ? juce::Colour(0xFF48484A) : juce::Colour(0xFFC7C7CC));
+    g.setColour(timeColour);
+    g.setFont(FontManager::getInstance().getMedium(18.0f));
     g.drawText(timeText, bounds, juce::Justification::centredLeft);
 }
 
@@ -341,37 +350,52 @@ void TransportBar::drawProgressBar(juce::Graphics& g, juce::Rectangle<float> bou
 {
     auto& theme = ThemeManager::getInstance();
 
-    // Track background
-    g.setColour(theme.isDark() ? juce::Colour(0xFF3A3A3A) : juce::Colour(0xFFCCCCCC));
+    bool isDark = theme.isDark();
+
+    // Apple Music style: thin rounded track
+    g.setColour(isDark ? juce::Colour(0xFF3A3A3C) : juce::Colour(0xFFD1D1D6));
     g.fillRoundedRectangle(bounds, bounds.getHeight() / 2);
 
     if (!isEnabled || totalDurationSeconds <= 0)
         return;
 
-    // Progress fill
+    // Progress fill — use primary/red accent like Apple Music
     double progress = isDraggingProgressBar ? dragPosition : (currentPositionSeconds / totalDurationSeconds);
     progress = juce::jlimit(0.0, 1.0, progress);
 
     float fillWidth = static_cast<float>(bounds.getWidth() * progress);
+    fillWidth = juce::jmin(fillWidth, bounds.getWidth());  // Don't exceed track
     auto fillBounds = bounds.withWidth(std::max(bounds.getHeight(), fillWidth));
 
-    g.setColour(theme.getColour(ColourId::Accent));
+    g.setColour(theme.getColour(ColourId::Primary));
     g.fillRoundedRectangle(fillBounds, bounds.getHeight() / 2);
 
-    // Handle/knob
-    float knobX = bounds.getX() + fillWidth;
+    // Knob — clean white circle with subtle shadow
     float knobSize = bounds.getHeight() + 6;
+    float knobHalf = knobSize / 2.0f;
+    // Clamp knob within track bounds so it doesn't overflow
+    float knobX = bounds.getX() + fillWidth;
+    knobX = juce::jlimit(bounds.getX() + knobHalf, bounds.getRight() - knobHalf, knobX);
     auto knobBounds = juce::Rectangle<float>(knobX - knobSize / 2, bounds.getCentreY() - knobSize / 2,
                                               knobSize, knobSize);
 
     bool isHoveringProgressBar = currentHover == HoverState::ProgressBar || isDraggingProgressBar;
 
+    // Shadow
+    g.setColour(juce::Colours::black.withAlpha(0.15f));
+    g.fillEllipse(knobBounds.translated(0.0f, 0.5f));
+
+    // White knob
     g.setColour(juce::Colours::white);
     g.fillEllipse(knobBounds);
 
+    // Knob border
+    g.setColour(isDark ? juce::Colours::white.withAlpha(0.15f) : juce::Colour(0xFFD1D1D6));
+    g.drawEllipse(knobBounds, 0.5f);
+
     if (isHoveringProgressBar)
     {
-        g.setColour(theme.getColour(ColourId::Accent).withAlpha(0.3f));
+        g.setColour(theme.getColour(ColourId::Primary).withAlpha(0.2f));
         g.fillEllipse(knobBounds.expanded(3));
     }
 }

@@ -86,13 +86,10 @@ namespace CardLayout
 
     // Playing indicator - Cyan/teal for modern audio style
     const juce::Colour playingColor { 0xFF00D4AA };
-    constexpr float playingIndicatorSize = 24.0f;             // Larger for volume icon
 
     // Reveal flash
     const juce::Colour revealFlashColor { 0xFFFFD700 };       // Gold
 
-    // Child component positions
-    constexpr int starRatingOffsetY = 8;
     constexpr int guessDropdownWidth = 120;
     constexpr int guessDropdownHeight = 28;
     constexpr int qaButtonWidth = 80;
@@ -413,8 +410,6 @@ void PokerCard::paint(juce::Graphics& g)
 
 void PokerCard::resized()
 {
-    auto bounds = getLocalBounds();
-
     updateChildComponentBounds();
 }
 
@@ -718,11 +713,15 @@ void PokerCard::drawTopLeftCorner(juce::Graphics& g, juce::Rectangle<float> boun
     // Draw number
     g.setColour(suitColor);
     g.setFont(fonts.getBold(CardLayout::cornerNumberFontSize));
-    g.drawText(numberText, x, y, 30, 24, juce::Justification::centredLeft);
+    g.drawText(numberText,
+               juce::Rectangle<float>(x, y, 30.0f, 24.0f).toNearestInt(),
+               juce::Justification::centredLeft);
 
     // Draw suit symbol below number
     g.setFont(fonts.getRegular(CardLayout::cornerSuitFontSize));
-    g.drawText(suitSymbol, x, y + 22 + CardLayout::cornerSpacing, 30, 20, juce::Justification::centredLeft);
+    g.drawText(suitSymbol,
+               juce::Rectangle<float>(x, y + 22.0f + CardLayout::cornerSpacing, 30.0f, 20.0f).toNearestInt(),
+               juce::Justification::centredLeft);
 }
 
 void PokerCard::drawBottomRightCorner(juce::Graphics& g, juce::Rectangle<float> bounds)
@@ -740,11 +739,15 @@ void PokerCard::drawBottomRightCorner(juce::Graphics& g, juce::Rectangle<float> 
     // Draw suit symbol (above number, inverted position)
     g.setColour(suitColor);
     g.setFont(fonts.getRegular(CardLayout::cornerSuitFontSize));
-    g.drawText(suitSymbol, x, y, 30, 20, juce::Justification::centredRight);
+    g.drawText(suitSymbol,
+               juce::Rectangle<float>(x, y, 30.0f, 20.0f).toNearestInt(),
+               juce::Justification::centredRight);
 
     // Draw number below suit
     g.setFont(fonts.getBold(CardLayout::cornerNumberFontSize));
-    g.drawText(numberText, x, y + 20 + CardLayout::cornerSpacing, 30, 24, juce::Justification::centredRight);
+    g.drawText(numberText,
+               juce::Rectangle<float>(x, y + 20.0f + CardLayout::cornerSpacing, 30.0f, 24.0f).toNearestInt(),
+               juce::Justification::centredRight);
 }
 
 void PokerCard::drawCenterSuit(juce::Graphics& g, juce::Rectangle<float> bounds)

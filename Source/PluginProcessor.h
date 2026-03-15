@@ -7,6 +7,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "Core/BlindCardManager.h"
+#include <memory>
 
 class BlindCardProcessor final : public juce::AudioProcessor,
                                   public juce::ChangeListener
@@ -46,9 +47,11 @@ public:
     void changeListenerCallback (juce::ChangeBroadcaster* source) override;
 
     // Public for Editor use
-    blindcard::BlindCardManager& getManager() { return *manager; }
+    blindcard::BlindCardManager& getManager() { ensureManager(); return *manager; }
+    const blindcard::SharedBlindCardManager& getManagerShared() const { return manager; }
     int getCardId() const { return cardId; }
     bool isRegistered() const { return cardId >= 0; }
+    const juce::String& getSessionId() const { return sessionId; }
 
     // Called by Manager when card IDs are renumbered
     void updateCardId (int newId) { cardId = newId; }
@@ -64,6 +67,7 @@ public:
 
 private:
     blindcard::SharedBlindCardManager manager;
+    juce::String sessionId;
     int cardId = -1;
     std::atomic<bool> shouldMute { false };
 
@@ -72,8 +76,9 @@ private:
     std::atomic<float> currentGainLinear { 1.0f };
     double sampleRate = 44100.0;
     double sumSquared = 0.0;
-    int64_t sampleCount = 0;
-    int64_t targetSampleCount = 0;
+    std::atomic<int64_t> sampleCount { 0 };
+    std::atomic<int64_t> targetSampleCount { 0 };
+    std::atomic<int> measurementNumChannels { 2 };
 
     // Real-time RMS calculation
     std::atomic<float> currentRMSdB { -100.0f };
@@ -84,10 +89,11 @@ private:
     float muteGain = 0.0f;          // Current mute gain (0=muted, 1=normal)
     float targetMuteGain = 0.0f;    // Target mute gain
     float muteGainStep = 0.0f;      // Gain change per sample
-    static constexpr float kFadeTimeMs = 10.0f;  // 10ms fade time
 
     // Cache track name from DAW (may be received before prepareToPlay)
     juce::String cachedTrackName;
+
+    void ensureManager();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BlindCardProcessor)
 };

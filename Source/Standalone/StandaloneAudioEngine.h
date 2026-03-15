@@ -26,6 +26,7 @@
 #include <vector>
 #include <memory>
 #include <functional>
+#include <optional>
 
 namespace BlindCard
 {
@@ -64,12 +65,22 @@ public:
         juce::String errorMessage;
     };
 
+    struct AudioSlotInfo
+    {
+        int cardId = -1;
+        juce::File file;
+        double lengthInSeconds = 0.0;
+        juce::int64 lengthInSamples = 0;
+        bool isLoaded = false;
+        juce::String errorMessage;
+    };
+
     //==========================================================================
     /** Constructor */
     StandaloneAudioEngine();
 
     /** Destructor */
-    ~StandaloneAudioEngine();
+    ~StandaloneAudioEngine() override;
 
     //==========================================================================
     // Initialization
@@ -109,7 +120,7 @@ public:
      * @param cardId The card index
      * @return Pointer to the slot, or nullptr if invalid
      */
-    const AudioSlot* getSlot(int cardId) const;
+    std::optional<AudioSlotInfo> getSlotInfo(int cardId) const;
 
     /**
      * Check if any audio is loaded.
@@ -154,13 +165,19 @@ public:
     // Card switching
 
     /**
-     * Switch to a different card's audio (seamless, no position change).
+     * Switch to a different card's audio with crossfade (no position change).
      * @param cardId The card to switch to
      */
     void switchToCard(int cardId);
 
     /** Get the currently active card ID */
     int getActiveCardId() const { return activeCardId; }
+
+    /** Set crossfade time in ms (1-100) */
+    void setCrossfadeTime(float ms);
+
+    /** Get current crossfade time in ms */
+    float getCrossfadeTime() const;
 
     //==========================================================================
     // Position and length
@@ -248,6 +265,7 @@ public:
 private:
     //==========================================================================
     juce::AudioFormatManager formatManager;
+    mutable juce::CriticalSection slotsLock;
     std::vector<AudioSlot> slots;
 
     // Playback state
@@ -255,7 +273,7 @@ private:
     std::atomic<bool> looping { false };
     std::atomic<int> activeCardId { 0 };
     std::atomic<juce::int64> playheadPosition { 0 };
-    juce::int64 totalLengthSamples = 0;
+    std::atomic<juce::int64> totalLengthSamples { 0 };
 
     // RMS level metering
     std::atomic<float> currentRMSdB { -100.0f };
@@ -271,6 +289,13 @@ private:
     // Resampling buffer for mismatched sample rates
     juce::AudioBuffer<float> resampleBuffer;
 
+    // Crossfade state (for click-free card switching)
+    std::atomic<int> previousCardId { -1 };   // Card being faded out (-1 = none)
+    float crossfadeProgress = 1.0f;           // 0→1 progress (1.0 = complete)
+    float crossfadeStep = 0.0f;               // Per-sample progress increment
+    juce::AudioBuffer<float> crossfadeBuffer; // Temp buffer for old card audio
+    std::atomic<float> crossfadeTimeMs { 10.0f }; // Crossfade duration
+
     // Audio device output
     juce::AudioDeviceManager deviceManager;
     juce::AudioSourcePlayer sourcePlayer;
@@ -279,6 +304,7 @@ private:
     //==========================================================================
     // Helpers
     void updateTotalLength();
+    void updateTotalLengthLocked();
     void notifyPositionChanged();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StandaloneAudioEngine)

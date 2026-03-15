@@ -52,7 +52,7 @@ public:
     juce::Font getRegular(float height) const
     {
         if (regularTypeface != nullptr)
-            return juce::Font(regularTypeface).withHeight(height);
+            return juce::Font(juce::FontOptions(regularTypeface).withHeight(height));
         return juce::Font(juce::FontOptions().withHeight(height));
     }
 
@@ -63,7 +63,7 @@ public:
     juce::Font getMedium(float height) const
     {
         if (mediumTypeface != nullptr)
-            return juce::Font(mediumTypeface).withHeight(height);
+            return juce::Font(juce::FontOptions(mediumTypeface).withHeight(height));
         return juce::Font(juce::FontOptions().withHeight(height));
     }
 
@@ -74,7 +74,7 @@ public:
     juce::Font getBold(float height) const
     {
         if (boldTypeface != nullptr)
-            return juce::Font(boldTypeface).withHeight(height);
+            return juce::Font(juce::FontOptions(boldTypeface).withHeight(height));
         return juce::Font(juce::FontOptions().withHeight(height).withStyle("Bold"));
     }
 
@@ -139,7 +139,7 @@ public:
     juce::Font getBebasNeue(float height, float horizontalScale = 1.2f) const
     {
         if (bebasNeueTypeface != nullptr)
-            return juce::Font(bebasNeueTypeface)
+            return juce::Font(juce::FontOptions(bebasNeueTypeface))
                 .withHeight(height)
                 .withHorizontalScale(horizontalScale);
         return juce::Font(juce::FontOptions().withHeight(height).withStyle("Bold"))
@@ -154,7 +154,7 @@ public:
     juce::Font getCinzel(float height) const
     {
         if (cinzelRegularTypeface != nullptr)
-            return juce::Font(cinzelRegularTypeface).withHeight(height);
+            return juce::Font(juce::FontOptions(cinzelRegularTypeface).withHeight(height));
         return juce::Font(juce::FontOptions().withHeight(height));
     }
 
@@ -165,7 +165,7 @@ public:
     juce::Font getCinzelBold(float height) const
     {
         if (cinzelBoldTypeface != nullptr)
-            return juce::Font(cinzelBoldTypeface).withHeight(height);
+            return juce::Font(juce::FontOptions(cinzelBoldTypeface).withHeight(height));
         return juce::Font(juce::FontOptions().withHeight(height).withStyle("Bold"));
     }
 

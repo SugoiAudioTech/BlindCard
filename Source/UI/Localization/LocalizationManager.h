@@ -294,6 +294,7 @@ private:
     {
         switch (lang)
         {
+            case Language::English:            return stringsEn;
             case Language::TraditionalChinese: return stringsZhTw;
             case Language::SimplifiedChinese:  return stringsZhCn;
             case Language::Japanese:           return stringsJa;

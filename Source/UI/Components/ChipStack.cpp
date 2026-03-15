@@ -89,16 +89,14 @@ void ChipStack::paint(juce::Graphics& g)
         );
 
         // Draw chip with 3D edge effect
-        drawChipWithEdge(g, chipBounds, isRed, i);
+        drawChipWithEdge(g, chipBounds, isRed);
     }
 }
 
 void ChipStack::drawChipWithEdge(juce::Graphics& g, juce::Rectangle<float> bounds,
-                                  bool isRed, int stackIndex)
+                                 bool isRed)
 {
     float diameter = bounds.getWidth();
-    float centerX = bounds.getCentreX();
-    float centerY = bounds.getCentreY();
 
     // Draw 3D edge (thickness) - darker layers below the top surface
     float edgeThickness = diameter * 0.08f;

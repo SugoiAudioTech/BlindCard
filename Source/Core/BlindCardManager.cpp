@@ -9,9 +9,38 @@
 #include <set>
 #include <vector>
 #include <algorithm>
+#include <cmath>
 
 namespace blindcard
 {
+
+void BlindCardManager::compactRemovedCardsUnlocked()
+{
+    for (int i = state.cards.size() - 1; i >= 0; --i)
+    {
+        const bool missingInstance = !standaloneMode
+            && (i >= instances.size() || instances[i] == nullptr);
+        if (state.cards[i].isRemoved || missingInstance)
+        {
+            if (i < instances.size())
+                instances.remove(i);
+
+            state.cards.remove(i);
+        }
+    }
+
+    for (int i = 0; i < state.cards.size(); ++i)
+    {
+        state.cards.getReference(i).id = i;
+        state.cards.getReference(i).displayPosition = i;
+
+        if (i < instances.size() && instances[i] != nullptr)
+            instances[i]->updateCardId(i);
+    }
+
+    if (state.selectedCardId >= state.cards.size())
+        state.selectedCardId = state.cards.isEmpty() ? -1 : 0;
+}
 
 BlindCardManager::BlindCardManager()
 {
@@ -318,12 +347,13 @@ void BlindCardManager::reset()
         state.phase = GamePhase::Setup;
         state.currentRound = 0;
 
+        compactRemovedCardsUnlocked();
+
         // Clear rating data but keep cards
         for (auto& card : state.cards)
         {
             card.rounds.clear();
             card.displayPosition = card.id;
-            card.isRemoved = false;
         }
 
         // Reassign random poker card values (different for each new game)
@@ -1027,7 +1057,7 @@ void BlindCardManager::nextQAQuestion()
         sendChangeMessage();
 }
 
-const QAState& BlindCardManager::getQAState() const
+QAState BlindCardManager::getQAState() const
 {
     juce::ScopedLock sl (lock);
     return state.qaState;
@@ -1317,6 +1347,29 @@ void BlindCardManager::setTestCardCount (int count)
     }
     if (shouldNotify)
         sendChangeMessage();
+}
+
+//==============================================================================
+void BlindCardManager::setCrossfadeTime (float ms)
+{
+    bool shouldNotify = false;
+    {
+        juce::ScopedLock sl (lock);
+        float clamped = juce::jlimit (1.0f, 100.0f, ms);
+        if (std::abs (crossfadeTimeMs_ - clamped) > 0.001f)
+        {
+            crossfadeTimeMs_ = clamped;
+            shouldNotify = true;
+        }
+    }
+    if (shouldNotify)
+        sendChangeMessage();
+}
+
+float BlindCardManager::getCrossfadeTime() const
+{
+    juce::ScopedLock sl (lock);
+    return crossfadeTimeMs_;
 }
 
 //==============================================================================

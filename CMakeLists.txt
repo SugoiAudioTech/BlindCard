@@ -8,8 +8,8 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
 if(APPLE)
-    set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "")
-    set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "")
+    set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "macOS build architectures" FORCE)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum macOS deployment target" FORCE)
 endif()
 
 project(BlindCard VERSION 1.0.3)
@@ -50,6 +50,8 @@ target_sources(BlindCard
         Source/Core/Types.h
         Source/Core/BlindCardManager.h
         Source/Core/BlindCardManager.cpp
+        Source/Core/BlindCardSessionRegistry.h
+        Source/Core/BlindCardSessionRegistry.cpp
         Source/Core/UpdateChecker.h
         Source/Core/UpdateChecker.cpp
 
@@ -122,5 +124,8 @@ target_link_libraries(BlindCard
         juce::juce_gui_extra
     PUBLIC
         juce::juce_recommended_config_flags
-        juce::juce_recommended_lto_flags
         juce::juce_recommended_warning_flags)
+
+if(NOT APPLE)
+    target_link_libraries(BlindCard PUBLIC juce::juce_recommended_lto_flags)
+endif()

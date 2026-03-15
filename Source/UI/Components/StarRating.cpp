@@ -35,7 +35,7 @@ namespace StarSymbols
 StarRating::StarRating()
 {
     // Initialize all fill progress to 0 (empty)
-    for (int i = 0; i < kMaxStars; ++i)
+    for (size_t i = 0; i < fillProgress.size(); ++i)
     {
         fillProgress[i].setImmediate(0.0f);
         scaleProgress[i].setImmediate(1.0f);
@@ -68,7 +68,6 @@ void StarRating::setRating(int rating, bool animate)
     if (currentRating == rating)
         return;
 
-    int previousRating = currentRating;
     currentRating = rating;
 
     if (animate)
@@ -78,9 +77,9 @@ void StarRating::setRating(int rating, bool animate)
     else
     {
         // Set immediately without animation
-        for (int i = 0; i < kMaxStars; ++i)
+        for (size_t i = 0; i < fillProgress.size(); ++i)
         {
-            float targetFill = (i < rating) ? 1.0f : 0.0f;
+            float targetFill = (static_cast<int>(i) < rating) ? 1.0f : 0.0f;
             fillProgress[i].setImmediate(targetFill);
         }
         repaint();
@@ -112,7 +111,6 @@ void StarRating::setInteractive(bool interactive)
 //==============================================================================
 void StarRating::paint(juce::Graphics& g)
 {
-    auto& theme = ThemeManager::getInstance();
     auto localBounds = getLocalBounds().toFloat();
 
     // Draw dark pill-shaped background (matching original design)
@@ -139,10 +137,10 @@ void StarRating::paint(juce::Graphics& g)
         : currentRating;
 
     // Draw each star
-    for (int i = 0; i < kStarCount; ++i)
+    for (size_t i = 0; i < fillProgress.size(); ++i)
     {
-        auto bounds = getStarBounds(i);
-        bool shouldBeFilled = (i < displayRating);
+        auto bounds = getStarBounds(static_cast<int>(i));
+        bool shouldBeFilled = (static_cast<int>(i) < displayRating);
 
         // Get animation values
         float fill = fillProgress[i].getValue();
@@ -154,7 +152,7 @@ void StarRating::paint(juce::Graphics& g)
             fill = shouldBeFilled ? 1.0f : 0.0f;
         }
 
-        drawStar(g, i, bounds, shouldBeFilled, fill, scale);
+        drawStar(g, static_cast<int>(i), bounds, shouldBeFilled, fill, scale);
     }
 }
 
@@ -221,7 +219,6 @@ void StarRating::mouseDown(const juce::MouseEvent& event)
     // Update rating if changed
     if (newRating != currentRating)
     {
-        int previousRating = currentRating;
         currentRating = newRating;
 
         // Trigger fill animation
@@ -251,10 +248,10 @@ void StarRating::updateAnimations()
     {
         float elapsedSinceFillStart = static_cast<float>(currentTime - fillAnimationStartTime);
 
-        for (int i = 0; i < kMaxStars; ++i)
+        for (size_t i = 0; i < fillProgress.size(); ++i)
         {
             float starDelay = static_cast<float>(i) * kFillDelayMs;
-            float targetFill = (i < pendingFillRating) ? 1.0f : 0.0f;
+            float targetFill = (static_cast<int>(i) < pendingFillRating) ? 1.0f : 0.0f;
 
             // Only start animation after delay
             if (elapsedSinceFillStart >= starDelay)
@@ -286,7 +283,7 @@ void StarRating::updateAnimations()
             float progress = elapsedSinceClick / halfDuration;
             float easedProgress = 1.0f - std::pow(1.0f - progress, 2.0f); // Ease out
             float scale = 1.0f + (kClickScaleMax - 1.0f) * easedProgress;
-            scaleProgress[clickedStarIndex].setImmediate(scale);
+            scaleProgress[static_cast<size_t>(clickedStarIndex)].setImmediate(scale);
         }
         else if (elapsedSinceClick < kClickAnimationDurationMs)
         {
@@ -294,19 +291,19 @@ void StarRating::updateAnimations()
             float progress = (elapsedSinceClick - halfDuration) / halfDuration;
             float easedProgress = 1.0f - std::pow(1.0f - progress, 2.0f); // Ease out
             float scale = kClickScaleMax - (kClickScaleMax - 1.0f) * easedProgress;
-            scaleProgress[clickedStarIndex].setImmediate(scale);
+            scaleProgress[static_cast<size_t>(clickedStarIndex)].setImmediate(scale);
         }
         else
         {
             // Animation complete
-            scaleProgress[clickedStarIndex].setImmediate(1.0f);
+            scaleProgress[static_cast<size_t>(clickedStarIndex)].setImmediate(1.0f);
             clickedStarIndex = -1;
         }
         needsRepaint = true;
     }
 
     // Update all animated values
-    for (int i = 0; i < kMaxStars; ++i)
+    for (size_t i = 0; i < fillProgress.size(); ++i)
     {
         if (!fillProgress[i].isComplete())
         {
@@ -330,8 +327,8 @@ void StarRating::changeListenerCallback(juce::ChangeBroadcaster* source)
 }
 
 //==============================================================================
-void StarRating::drawStar(juce::Graphics& g, int index, juce::Rectangle<float> bounds,
-                          bool filled, float fillAmount, float scale)
+void StarRating::drawStar(juce::Graphics& g, int, juce::Rectangle<float> bounds,
+                          bool, float fillAmount, float scale)
 {
     auto& theme = ThemeManager::getInstance();
 
@@ -381,7 +378,7 @@ void StarRating::drawStar(juce::Graphics& g, int index, juce::Rectangle<float> b
             // Draw fading filled star first
             float alpha = fillAmount * 2.0f; // 0->0.5 maps to 0->1
             g.setColour(filledColor.withAlpha(alpha));
-            g.setFont(juce::Font(fontSize));
+            g.setFont(juce::Font(juce::FontOptions(fontSize)));
             g.drawText(StarSymbols::Filled, bounds, juce::Justification::centred);
         }
 
@@ -391,7 +388,7 @@ void StarRating::drawStar(juce::Graphics& g, int index, juce::Rectangle<float> b
 
     // Draw the star
     g.setColour(color);
-    g.setFont(juce::Font(fontSize));
+    g.setFont(juce::Font(juce::FontOptions(fontSize)));
     g.drawText(symbol, bounds, juce::Justification::centred);
 }
 
@@ -442,7 +439,7 @@ void StarRating::stopAnimationTimerIfIdle()
     bool allComplete = true;
 
     // Check fill animations
-    for (int i = 0; i < kMaxStars; ++i)
+    for (size_t i = 0; i < fillProgress.size(); ++i)
     {
         if (!fillProgress[i].isComplete())
         {
@@ -478,7 +475,7 @@ void StarRating::triggerClickAnimation(int starIndex)
     {
         clickedStarIndex = starIndex;
         clickAnimationStartTime = juce::Time::currentTimeMillis();
-        scaleProgress[starIndex].setImmediate(1.0f);
+        scaleProgress[static_cast<size_t>(starIndex)].setImmediate(1.0f);
         startAnimationTimer();
     }
 }

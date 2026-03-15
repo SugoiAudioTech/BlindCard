@@ -8,6 +8,7 @@
 #include "Types.h"
 #include <juce_events/juce_events.h>
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <memory>
 
 class BlindCardProcessor; // forward declaration (global namespace)
 
@@ -66,7 +67,7 @@ public:
     void nextQAQuestion();
     void tickQACountdown();           // Countdown tick (called by UI every second)
     void skipQACountdown();           // Skip countdown and go to next question
-    const QAState& getQAState() const;
+    QAState getQAState() const;
     juce::String getCurrentQuestionTrackName() const;
     bool canStartQAMode() const;
     int getQAMaxQuestions() const;
@@ -90,6 +91,10 @@ public:
     void recalculateAutoGains();          // Calculate using median as reference
     float getGainForCard (int cardId) const;
     void resetLevelMatching();
+
+    // Crossfade time (for card switch click/pop prevention)
+    void setCrossfadeTime (float ms);
+    float getCrossfadeTime() const;
 
     // Testing: Add test cards (for Standalone animation testing)
     void addTestCards (int count = 4);
@@ -116,13 +121,16 @@ private:
     juce::int64 calibrationStartTime_ = 0; // Calibration start time (ms)
     static constexpr float kCalibrationDuration = 10.0f; // Calibration duration (seconds)
 
+    // Crossfade time (shared between DAW and Standalone modes)
+    float crossfadeTimeMs_ = 10.0f;  // Default 10ms
+
+    void compactRemovedCardsUnlocked();
     void notifyListeners();
     void selectNextQAQuestion();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BlindCardManager)
 };
 
-// SharedResourcePointer automatically manages lifecycle
-using SharedBlindCardManager = juce::SharedResourcePointer<BlindCardManager>;
+using SharedBlindCardManager = std::shared_ptr<BlindCardManager>;
 
 } // namespace blindcard

@@ -132,6 +132,8 @@ public:
     // Timer callback for periodic updates
     void timerCallback() override;
 
+    using juce::AudioProcessorEditor::keyPressed;
+
     // KeyListener override for dev mode
     bool keyPressed(const juce::KeyPress& key, juce::Component* originatingComponent) override;
 
@@ -197,14 +199,24 @@ private:
     std::unique_ptr<juce::FileChooser> fileChooser;  // For async file dialog
     std::unique_ptr<PresetUILookAndFeel> presetUILookAndFeel;  // Theme-aware preset UI style
 
+    // Crossfade control (top-right corner, below settings)
+    std::unique_ptr<juce::Slider> crossfadeSlider;
+    std::unique_ptr<juce::Label> crossfadeLabel;
+    std::unique_ptr<juce::Label> crossfadeValueLabel;
+    class CrossfadeSliderLookAndFeel;
+    std::unique_ptr<CrossfadeSliderLookAndFeel> crossfadeSliderLnF;
+    void updateCrossfadeValueLabel(double ms);
+
     // Now Playing display (standalone mode)
     std::unique_ptr<juce::Label> nowPlayingLabel;
     std::unique_ptr<juce::Label> nowPlayingTrackName;
+    std::unique_ptr<juce::Label> standaloneTimeLabel;
     void updateNowPlayingDisplay();
 
     // Master volume control (standalone mode)
     std::unique_ptr<juce::Slider> masterVolumeSlider;
     std::unique_ptr<juce::Label> masterVolumeLabel;
+    std::unique_ptr<juce::Label> masterVolumeTitleLabel;
     std::unique_ptr<MasterKnobLookAndFeel> masterKnobLookAndFeel;
     void updateMasterVolumeLabel(double value);
 

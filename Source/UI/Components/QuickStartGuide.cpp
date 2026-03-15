@@ -31,6 +31,13 @@ namespace
             options = options.withStyle("Bold");
         return juce::Font(options);
     }
+
+    float getTextWidth(const juce::Font& font, const juce::String& text)
+    {
+        juce::GlyphArrangement glyphs;
+        glyphs.addLineOfText(font, text, 0.0f, 0.0f);
+        return glyphs.getBoundingBox(0, glyphs.getNumGlyphs(), true).getWidth();
+    }
 }
 
 QuickStartGuide::QuickStartGuide()
@@ -339,7 +346,7 @@ void QuickStartGuide::drawStepWithSubitems(juce::Graphics& g, juce::Rectangle<in
         g.setColour(textColor);
         g.setFont(getSystemFont(19.0f, true));
         auto labelFont = getSystemFont(19.0f, true);
-        auto labelWidth = labelFont.getStringWidth(item.first) + 10;
+        auto labelWidth = getTextWidth(labelFont, item.first) + 10.0f;
         g.drawText(item.first, itemBounds.removeFromLeft(static_cast<int>(labelWidth)), juce::Justification::centredLeft);
 
         // Description

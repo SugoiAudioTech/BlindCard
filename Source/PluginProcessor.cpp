@@ -5,6 +5,7 @@
 
 #include "PluginProcessor.h"
 #include "UI/BlindCardEditor.h"
+#include "Core/BlindCardSessionRegistry.h"
 #include <cmath>
 
 BlindCardProcessor::BlindCardProcessor()
@@ -13,6 +14,7 @@ BlindCardProcessor::BlindCardProcessor()
                       .withOutput ("Output", juce::AudioChannelSet::stereo(), true))
 {
     // Delay registration to prepareToPlay to avoid AU validation issues
+    ensureManager();
 }
 
 BlindCardProcessor::~BlindCardProcessor()
@@ -26,14 +28,20 @@ BlindCardProcessor::~BlindCardProcessor()
 
 void BlindCardProcessor::changeListenerCallback (juce::ChangeBroadcaster*)
 {
+    ensureManager();
+
     // Update mute state
-    auto phase = manager->getPhase();
     int selectedId = manager->getSelectedCardId();
     bool bypassAll = manager->isBypassAll();
 
     // Update gain
     float gainDb = manager->getGainForCard (cardId);
     currentGainLinear = std::pow (10.0f, gainDb / 20.0f);
+
+    // Recalculate fade step from manager's crossfade time setting
+    float fadeMs = manager->getCrossfadeTime();
+    float fadeSamples = static_cast<float> (sampleRate * fadeMs / 1000.0);
+    muteGainStep = (fadeSamples > 0.0f) ? 1.0f / fadeSamples : 1.0f;
 
     // Bypass All mode: all tracks play
     if (bypassAll)
@@ -73,12 +81,14 @@ void BlindCardProcessor::changeProgramName (int, const juce::String&) {}
 
 void BlindCardProcessor::prepareToPlay (double newSampleRate, int)
 {
+    ensureManager();
     sampleRate = newSampleRate;
 
     // Calculate fade in/out gain step (change per sample)
-    // e.g. 10ms @ 44100Hz = 441 samples, so step = 1.0 / 441
-    float fadeSamples = static_cast<float> (sampleRate * kFadeTimeMs / 1000.0);
-    muteGainStep = 1.0f / fadeSamples;
+    // Read crossfade time from manager (configurable via UI)
+    float fadeMs = (cardId >= 0) ? manager->getCrossfadeTime() : 10.0f;
+    float fadeSamples = static_cast<float> (sampleRate * fadeMs / 1000.0);
+    muteGainStep = (fadeSamples > 0.0f) ? 1.0f / fadeSamples : 1.0f;
 
     // Only register on first prepareToPlay call
     if (cardId < 0)
@@ -116,6 +126,7 @@ void BlindCardProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     // LUFS measurement (for calibration) - must be before mute check, measure original input signal
     if (measuring.load())
     {
+        auto accumulatedSampleCount = sampleCount.load();
         for (int ch = 0; ch < numChannels; ++ch)
         {
             const float* data = buffer.getReadPointer (ch);
@@ -124,14 +135,15 @@ void BlindCardProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 sumSquared += static_cast<double> (data[i] * data[i]);
             }
         }
-        sampleCount += numSamples * numChannels;
+        accumulatedSampleCount += static_cast<int64_t> (numSamples * numChannels);
+        sampleCount.store (accumulatedSampleCount);
 
         // Check if measurement is complete
-        if (sampleCount >= targetSampleCount)
+        if (accumulatedSampleCount >= targetSampleCount.load())
         {
             measuring = false;
             // Calculate LUFS (simplified - RMS based)
-            double meanSquared = sumSquared / static_cast<double> (sampleCount);
+            double meanSquared = sumSquared / static_cast<double> (juce::jmax<int64_t> (1, accumulatedSampleCount));
             float lufs = static_cast<float> (10.0 * std::log10 (meanSquared + 1e-10) - 0.691);
             manager->setMeasuredLUFS (cardId, lufs);
         }
@@ -214,9 +226,17 @@ juce::AudioProcessorEditor* BlindCardProcessor::createEditor()
 
 void BlindCardProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
+    ensureManager();
+
     // Save Q&A question count setting
     juce::ValueTree state ("BlindCardState");
+    state.setProperty ("sessionId", sessionId, nullptr);
     state.setProperty ("qaQuestionCount", manager->getQAQuestionCount(), nullptr);
+    state.setProperty ("totalRounds", manager->getTotalRounds(), nullptr);
+    state.setProperty ("ratingMode", static_cast<int> (manager->getRatingMode()), nullptr);
+    state.setProperty ("crossfadeMs", manager->getCrossfadeTime(), nullptr);
+    state.setProperty ("levelMatchEnabled", manager->isLevelMatchEnabled(), nullptr);
+    state.setProperty ("bypassAll", manager->isBypassAll(), nullptr);
 
     std::unique_ptr<juce::XmlElement> xml (state.createXml());
     if (xml != nullptr)
@@ -232,8 +252,30 @@ void BlindCardProcessor::setStateInformation (const void* data, int sizeInBytes)
         juce::ValueTree state = juce::ValueTree::fromXml (*xml);
         if (state.isValid() && state.hasType ("BlindCardState"))
         {
+            auto restoredSessionId = state.getProperty ("sessionId", {}).toString();
+            if (cardId < 0 && restoredSessionId.isNotEmpty() && restoredSessionId != sessionId)
+            {
+                sessionId = restoredSessionId;
+                manager = blindcard::BlindCardSessionRegistry::getInstance().acquireManager (sessionId, sessionId);
+            }
+            else
+            {
+                ensureManager();
+            }
+
             int qaCount = state.getProperty ("qaQuestionCount", 5);
+            int totalRounds = state.getProperty ("totalRounds", 1);
+            auto ratingModeValue = state.getProperty ("ratingMode", 0);
+            float crossfadeMs = static_cast<float> (state.getProperty ("crossfadeMs", 10.0f));
+            bool levelMatchEnabled = static_cast<bool> (state.getProperty ("levelMatchEnabled", false));
+            bool bypassAll = static_cast<bool> (state.getProperty ("bypassAll", false));
+
             manager->setQAQuestionCount (qaCount);
+            manager->setTotalRounds (totalRounds);
+            manager->setRatingMode (static_cast<blindcard::RatingMode> (static_cast<int> (ratingModeValue)));
+            manager->setCrossfadeTime (crossfadeMs);
+            manager->setLevelMatchEnabled (levelMatchEnabled);
+            manager->setBypassAll (bypassAll);
         }
     }
 }
@@ -257,8 +299,10 @@ void BlindCardProcessor::updateTrackProperties (const TrackProperties& propertie
 void BlindCardProcessor::startMeasurement (float durationSeconds)
 {
     sumSquared = 0.0;
-    sampleCount = 0;
-    targetSampleCount = static_cast<int64_t> (sampleRate * durationSeconds * 2.0); // stereo
+    sampleCount.store (0);
+    measurementNumChannels.store (juce::jmax (1, getTotalNumInputChannels()));
+    targetSampleCount.store (static_cast<int64_t> (sampleRate * durationSeconds
+                                                   * static_cast<double> (measurementNumChannels.load())));
     measuring = true;
 }
 
@@ -269,9 +313,18 @@ void BlindCardProcessor::stopMeasurement()
 
 float BlindCardProcessor::getMeasurementProgress() const
 {
-    if (!measuring.load() || targetSampleCount == 0)
+    const auto target = targetSampleCount.load();
+    if (!measuring.load() || target == 0)
         return 0.0f;
-    return static_cast<float> (sampleCount) / static_cast<float> (targetSampleCount);
+    return static_cast<float> (sampleCount.load()) / static_cast<float> (target);
+}
+
+void BlindCardProcessor::ensureManager()
+{
+    if (manager != nullptr)
+        return;
+
+    manager = blindcard::BlindCardSessionRegistry::getInstance().acquireManager (sessionId, sessionId);
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

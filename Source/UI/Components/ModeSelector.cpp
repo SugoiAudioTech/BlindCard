@@ -23,6 +23,17 @@ namespace BlindCard
 {
 
 //==============================================================================
+namespace
+{
+    float getTextWidth(const juce::Font& font, const juce::String& text)
+    {
+        juce::GlyphArrangement glyphs;
+        glyphs.addLineOfText(font, text, 0.0f, 0.0f);
+        return glyphs.getBoundingBox(0, glyphs.getNumGlyphs(), true).getWidth();
+    }
+}
+
+//==============================================================================
 // Layout constants (larger AirCheck-inspired design)
 namespace Layout
 {
@@ -35,13 +46,10 @@ namespace Layout
     // Mode options
     constexpr int numModes = 3;
     constexpr float optionCornerRadius = 10.0f;     // Rounder buttons
-    constexpr float optionPaddingH = 20.0f;         // More horizontal padding
-    constexpr float optionPaddingV = 12.0f;         // More vertical padding
     constexpr float iconSpacing = 10.0f;            // More spacing between icon and label
 
     // Typography
     constexpr float labelFontSize = 17.0f;          // Larger font
-    constexpr float iconFontSize = 20.0f;           // Larger icons
 
     // Lock icon
     constexpr float lockIconSize = 14.0f;           // Larger lock icon
@@ -285,7 +293,7 @@ void ModeSelector::languageChanged()
 //==============================================================================
 void ModeSelector::drawModeOption(juce::Graphics& g,
                                    juce::Rectangle<float> bounds,
-                                   const juce::String& icon,
+                                   const juce::String& /*icon*/,
                                    const juce::String& label,
                                    bool isSelected,
                                    bool isHovered,
@@ -355,7 +363,7 @@ void ModeSelector::drawModeOption(juce::Graphics& g,
 
     // Larger icon size
     float iconSize = 18.0f;
-    float labelWidth = labelFont.getStringWidthFloat(label);
+    float labelWidth = getTextWidth(labelFont, label);
 
     // CJK character width correction
     // getStringWidthFloat tends to underestimate CJK character widths
@@ -440,7 +448,7 @@ void ModeSelector::drawModeOption(juce::Graphics& g,
     if (lockedState && isSelected)
     {
         juce::Font lockFont = fonts.getRegular(Layout::lockIconSize);
-        float lockWidth = lockFont.getStringWidthFloat(Icons::Lock);
+        float lockWidth = getTextWidth(lockFont, Icons::Lock);
         g.setColour(textColour.withAlpha(0.5f));  // Original: text-[#FF3B4E]/50
         g.setFont(lockFont);
         g.drawText(Icons::Lock,
@@ -489,6 +497,7 @@ blindcard::RatingMode ModeSelector::hoverStateToMode(HoverState state) const
 {
     switch (state)
     {
+        case HoverState::None:  return currentMode;
         case HoverState::Stars: return blindcard::RatingMode::Stars;
         case HoverState::Guess: return blindcard::RatingMode::Guess;
         case HoverState::QA:    return blindcard::RatingMode::QA;

@@ -202,7 +202,7 @@ void GuessDropdown::drawText(juce::Graphics& g, juce::Rectangle<float> bounds)
     }
 
     g.setColour(textColour);
-    g.setFont(juce::Font(kFontSize));
+    g.setFont(juce::Font(juce::FontOptions(kFontSize)));
 
     // Calculate text bounds (leave room for arrow)
     auto textBounds = bounds;
@@ -267,14 +267,6 @@ void GuessDropdown::showPopupMenu()
     juce::PopupMenu menu;
 
     // Style the popup menu with dark theme colors
-    auto& theme = ThemeManager::getInstance();
-    juce::PopupMenu::LookAndFeelMethods* laf = nullptr;
-
-    // Set custom colors for the popup
-    auto bgColour = theme.getColour(ColourId::Surface);
-    auto textColour = theme.getColour(ColourId::TextPrimary);
-    auto highlightColour = theme.getColour(ColourId::Primary);
-
     // Add track items
     for (size_t i = 0; i < tracks.size(); ++i)
     {
@@ -283,9 +275,6 @@ void GuessDropdown::showPopupMenu()
 
         menu.addItem(itemId, juce::String(tracks[i]), true, isTicked);
     }
-
-    // Calculate menu position (below the dropdown)
-    auto screenBounds = getScreenBounds();
 
     // PopupMenu options for dark styling
     juce::PopupMenu::Options options;
