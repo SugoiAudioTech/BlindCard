@@ -154,6 +154,8 @@ namespace StringKey
     constexpr const char* GuideTip = "guide_tip";
     constexpr const char* GuideTipText1 = "guide_tip_text1";
     constexpr const char* GuideTipText2 = "guide_tip_text2";
+    constexpr const char* GuideTipText3 = "guide_tip_text3";
+    constexpr const char* GuideTipText4 = "guide_tip_text4";
 
     // Keyboard shortcuts
     constexpr const char* GuideKeyboardShortcuts = "guide_keyboard_shortcuts";

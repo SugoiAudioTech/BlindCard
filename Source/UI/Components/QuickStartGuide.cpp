@@ -180,7 +180,7 @@ void QuickStartGuide::resized()
     viewport->setBounds(scrollAreaBounds);
 
     // Set content component size (taller than viewport for scrolling)
-    int contentHeight = 1150; // Enough for all content including Tip box and Keyboard Shortcuts
+    int contentHeight = 1202; // Enough for all content including Tip box and Keyboard Shortcuts
     contentComponent->setSize(scrollAreaBounds.getWidth() - 16, contentHeight); // -16 for scrollbar
     contentComponent->setContentHeight(contentHeight);
 }
@@ -358,7 +358,7 @@ void QuickStartGuide::drawStepWithSubitems(juce::Graphics& g, juce::Rectangle<in
 
 void QuickStartGuide::drawTipBox(juce::Graphics& g, juce::Rectangle<int>& bounds)
 {
-    auto tipBounds = bounds.removeFromTop(120);
+    auto tipBounds = bounds.removeFromTop(172);
 
     // Tip background
     g.setColour(tipBgColor);
@@ -375,12 +375,18 @@ void QuickStartGuide::drawTipBox(juce::Graphics& g, juce::Rectangle<int>& bounds
     g.setFont(getSystemFont(19.0f, true));
     g.drawText(LOCALIZE(GuideTip), contentBounds.removeFromTop(30), juce::Justification::centredLeft);
 
-    // Tip text - two lines
+    // Tip text - Auto Gain
     g.setColour(textColor);
     g.setFont(getSystemFont(18.0f));
     g.drawText(LOCALIZE(GuideTipText1),
                contentBounds.removeFromTop(26), juce::Justification::centredLeft);
     g.drawText(LOCALIZE(GuideTipText2),
+               contentBounds.removeFromTop(26), juce::Justification::centredLeft);
+
+    // Tip text - Crossfade
+    g.drawText(LOCALIZE(GuideTipText3),
+               contentBounds.removeFromTop(26), juce::Justification::centredLeft);
+    g.drawText(LOCALIZE(GuideTipText4),
                contentBounds, juce::Justification::centredLeft);
 }
 
