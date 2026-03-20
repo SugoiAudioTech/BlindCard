@@ -299,6 +299,12 @@ void ControlPanel::setRevealEnabled(bool enabled)
     revealButton->setEnabled(enabled);
 }
 
+void ControlPanel::setRevealVisible(bool visible)
+{
+    revealButton->setVisible(visible);
+    resized();
+}
+
 void ControlPanel::setResetEnabled(bool enabled)
 {
     resetButton->setEnabled(enabled);
@@ -548,7 +554,11 @@ void ControlPanel::resized()
     if (revealButton->isVisible()) otherButtons++;
     if (nextRoundButton->isVisible()) otherButtons++;
 
-    if (otherButtons == 0) otherButtons = 1;  // At least REVEAL
+    if (otherButtons == 0)
+    {
+        // No other buttons visible (e.g., Q&A Revealed state) — nothing to layout
+        return;
+    }
 
     // Center the other buttons in remaining space
     int otherButtonsWidth = otherButtons * buttonSize + (otherButtons - 1) * buttonGap;
@@ -564,8 +574,11 @@ void ControlPanel::resized()
         currentX += buttonSize + buttonGap;
     }
 
-    revealButton->setBounds(currentX, buttonY, buttonSize, ChipButton::kTotalHeight);
-    currentX += buttonSize + buttonGap;
+    if (revealButton->isVisible())
+    {
+        revealButton->setBounds(currentX, buttonY, buttonSize, ChipButton::kTotalHeight);
+        currentX += buttonSize + buttonGap;
+    }
 
     if (nextRoundButton->isVisible())
     {

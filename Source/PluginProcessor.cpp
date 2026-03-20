@@ -83,6 +83,7 @@ void BlindCardProcessor::prepareToPlay (double newSampleRate, int)
 {
     ensureManager();
     sampleRate = newSampleRate;
+    lufsMeter_.prepare (sampleRate, juce::jmax (1, getTotalNumInputChannels()));
 
     // Calculate fade in/out gain step (change per sample)
     // Read crossfade time from manager (configurable via UI)
@@ -123,28 +124,36 @@ void BlindCardProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     const int numChannels = buffer.getNumChannels();
     const int numSamples = buffer.getNumSamples();
 
-    // LUFS measurement (for calibration) - must be before mute check, measure original input signal
+    // H2 fix: handle pending measurement start on audio thread (avoids race with lufsMeter_)
+    if (measurementPending_.load (std::memory_order_acquire))
+    {
+        measurementPending_.store (false);
+        int numCh = juce::jmin (numChannels, 16);
+        lufsMeter_.prepare (sampleRate, numCh);
+        measurementSamplesAccumulated_.store (0);
+        measurementTargetSamples_.store (static_cast<int64_t> (sampleRate * pendingMeasurementDuration_));
+        measuring.store (true);
+    }
+
+    // LUFS measurement (EBU R128) - must be before mute check, measure original input signal
     if (measuring.load())
     {
-        auto accumulatedSampleCount = sampleCount.load();
-        for (int ch = 0; ch < numChannels; ++ch)
-        {
-            const float* data = buffer.getReadPointer (ch);
-            for (int i = 0; i < numSamples; ++i)
-            {
-                sumSquared += static_cast<double> (data[i] * data[i]);
-            }
-        }
-        accumulatedSampleCount += static_cast<int64_t> (numSamples * numChannels);
-        sampleCount.store (accumulatedSampleCount);
+        // Build channel pointer array for LUFSMeter
+        const float* channelPtrs[16];
+        const int chCount = juce::jmin (numChannels, 16);
+        for (int ch = 0; ch < chCount; ++ch)
+            channelPtrs[ch] = buffer.getReadPointer (ch);
+
+        lufsMeter_.process (channelPtrs, chCount, numSamples);
+
+        auto accumulated = measurementSamplesAccumulated_.load() + static_cast<int64_t> (numSamples);
+        measurementSamplesAccumulated_.store (accumulated);
 
         // Check if measurement is complete
-        if (accumulatedSampleCount >= targetSampleCount.load())
+        if (accumulated >= measurementTargetSamples_.load())
         {
             measuring = false;
-            // Calculate LUFS (simplified - RMS based)
-            double meanSquared = sumSquared / static_cast<double> (juce::jmax<int64_t> (1, accumulatedSampleCount));
-            float lufs = static_cast<float> (10.0 * std::log10 (meanSquared + 1e-10) - 0.691);
+            float lufs = lufsMeter_.getIntegratedLUFS();
             manager->setMeasuredLUFS (cardId, lufs);
         }
     }
@@ -176,6 +185,9 @@ void BlindCardProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     // Apply gain: combine Level-Match compensation gain and mute fade in/out
     float gainLinear = currentGainLinear.load();
 
+    // H3 fix: load atomic muteGainStep once per block (avoid repeated atomic loads in inner loop)
+    float localMuteGainStep = muteGainStep.load();
+
     // Apply smoothed mute gain per sample (prevent clicks when switching)
     for (int ch = 0; ch < numChannels; ++ch)
     {
@@ -189,13 +201,13 @@ void BlindCardProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             // Smooth transition to target gain
             if (localMuteGain < targetMuteGain)
             {
-                localMuteGain += muteGainStep;
+                localMuteGain += localMuteGainStep;
                 if (localMuteGain > targetMuteGain)
                     localMuteGain = targetMuteGain;
             }
             else if (localMuteGain > targetMuteGain)
             {
-                localMuteGain -= muteGainStep;
+                localMuteGain -= localMuteGainStep;
                 if (localMuteGain < targetMuteGain)
                     localMuteGain = targetMuteGain;
             }
@@ -298,25 +310,28 @@ void BlindCardProcessor::updateTrackProperties (const TrackProperties& propertie
 
 void BlindCardProcessor::startMeasurement (float durationSeconds)
 {
-    sumSquared = 0.0;
-    sampleCount.store (0);
-    measurementNumChannels.store (juce::jmax (1, getTotalNumInputChannels()));
-    targetSampleCount.store (static_cast<int64_t> (sampleRate * durationSeconds
-                                                   * static_cast<double> (measurementNumChannels.load())));
-    measuring = true;
+    // H2 fix: defer prepare() to audio thread to avoid race condition.
+    // Set measuring=false first so audio thread stops using lufsMeter_,
+    // then set pendingMeasurementDuration_ before the release store of measurementPending_.
+    measuring.store (false);
+    pendingMeasurementDuration_ = durationSeconds;
+    measurementPending_.store (true, std::memory_order_release);
 }
 
 void BlindCardProcessor::stopMeasurement()
 {
-    measuring = false;
+    measurementPending_.store (false);  // Cancel any pending measurement
+    measuring.store (false);
+    // Don't call lufsMeter_.reset() here — not safe from message thread.
+    // The next startMeasurement -> prepare() on the audio thread will reset it.
 }
 
 float BlindCardProcessor::getMeasurementProgress() const
 {
-    const auto target = targetSampleCount.load();
+    const auto target = measurementTargetSamples_.load();
     if (!measuring.load() || target == 0)
         return 0.0f;
-    return static_cast<float> (sampleCount.load()) / static_cast<float> (target);
+    return static_cast<float> (measurementSamplesAccumulated_.load()) / static_cast<float> (target);
 }
 
 void BlindCardProcessor::ensureManager()

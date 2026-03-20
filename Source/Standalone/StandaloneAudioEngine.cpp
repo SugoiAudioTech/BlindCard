@@ -14,6 +14,7 @@
 */
 
 #include "StandaloneAudioEngine.h"
+#include "../Core/LUFSMeter.h"
 
 namespace BlindCard
 {
@@ -32,6 +33,8 @@ StandaloneAudioEngine::StandaloneAudioEngine()
 
 StandaloneAudioEngine::~StandaloneAudioEngine()
 {
+    // H4 fix: signal destruction to pending async callbacks before teardown
+    alive_->store (false);
     stopAudioDevice();
     releaseResources();
 }
@@ -84,11 +87,16 @@ void StandaloneAudioEngine::prepareToPlay(int samplesPerBlockExpected, double sa
     currentSampleRate = sampleRate;
     currentBlockSize = samplesPerBlockExpected;
 
-    // Allocate resampling buffer
-    resampleBuffer.setSize(2, samplesPerBlockExpected * 4); // Extra space for resampling
+    // C3 fix: pre-allocate with enough capacity for worst-case sample rate ratio.
+    // Max ratio ≈ 192kHz/22050Hz ≈ 8.7x. Use 10x + margin to avoid any reallocation.
+    maxResampleSamples_ = samplesPerBlockExpected * 10 + 4;
+    resampleBuffer.setSize (2, maxResampleSamples_);
+
+    // C1 fix: pre-allocate second resample buffer for crossfade path
+    crossfadeResampleBuffer.setSize (2, maxResampleSamples_);
 
     // Allocate crossfade buffer
-    crossfadeBuffer.setSize(2, samplesPerBlockExpected);
+    crossfadeBuffer.setSize (2, samplesPerBlockExpected);
 
     updateTotalLength();
 }
@@ -96,13 +104,15 @@ void StandaloneAudioEngine::prepareToPlay(int samplesPerBlockExpected, double sa
 void StandaloneAudioEngine::releaseResources()
 {
     playing = false;
-    playheadPosition.store(0);
-    previousCardId.store(-1);
-    crossfadeProgress = 1.0f;
-    currentRMSdB.store(-100.0f);
+    playheadPosition.store (0);
+    previousCardId.store (-1);
+    crossfadeProgress.store (1.0f);
+    currentRMSdB.store (-100.0f);
 
-    resampleBuffer.setSize(0, 0);
-    crossfadeBuffer.setSize(0, 0);
+    resampleBuffer.setSize (0, 0);
+    crossfadeResampleBuffer.setSize (0, 0);
+    crossfadeBuffer.setSize (0, 0);
+    maxResampleSamples_ = 0;
 }
 
 //==============================================================================
@@ -153,6 +163,7 @@ bool StandaloneAudioEngine::loadFile(int cardId, const juce::File& file)
         slot.lengthInSeconds = static_cast<double>(reader->lengthInSamples) / reader->sampleRate;
         slot.isLoaded = true;
         slot.errorMessage.clear();
+        anyAudioLoaded_.store (true);  // C2 fix: update lock-free flag
 
         updateTotalLengthLocked();
     }
@@ -183,6 +194,14 @@ void StandaloneAudioEngine::unloadFile(int cardId)
         slot.lengthInSeconds = 0.0;
         slot.isLoaded = false;
         slot.errorMessage.clear();
+
+        // C2 fix: update lock-free flag (check if any remaining slot is loaded)
+        bool anyLoaded = false;
+        for (const auto& s : slots)
+        {
+            if (s.isLoaded) { anyLoaded = true; break; }
+        }
+        anyAudioLoaded_.store (anyLoaded);
 
         updateTotalLengthLocked();
     }
@@ -220,13 +239,8 @@ std::optional<StandaloneAudioEngine::AudioSlotInfo> StandaloneAudioEngine::getSl
 
 bool StandaloneAudioEngine::hasAnyAudioLoaded() const
 {
-    juce::ScopedLock sl(slotsLock);
-    for (const auto& slot : slots)
-    {
-        if (slot.isLoaded)
-            return true;
-    }
-    return false;
+    // C2 fix: lock-free check (atomic flag updated by loadFile/unloadFile)
+    return anyAudioLoaded_.load();
 }
 
 //==============================================================================
@@ -293,13 +307,12 @@ void StandaloneAudioEngine::switchToCard(int cardId)
         return;
 
     // Start crossfade: remember old card, reset progress
-    previousCardId.store(currentCard);
-    crossfadeProgress = 0.0f;
-
-    // Calculate per-sample step based on crossfade time and sample rate
+    // Calculate step first, then set progress to 0 (audio thread reads progress first)
     float fadeMs = crossfadeTimeMs.load();
     float fadeSamples = static_cast<float>(currentSampleRate * fadeMs / 1000.0);
-    crossfadeStep = (fadeSamples > 0.0f) ? 1.0f / fadeSamples : 1.0f;
+    crossfadeStep.store ((fadeSamples > 0.0f) ? 1.0f / fadeSamples : 1.0f);
+    previousCardId.store (currentCard);
+    crossfadeProgress.store (0.0f);
 
     activeCardId = cardId;
     sendChangeMessage();
@@ -326,12 +339,18 @@ void StandaloneAudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo
     // Clear the buffer first
     bufferToFill.clearActiveBufferRegion();
 
-    if (!playing || !hasAnyAudioLoaded())
+    // C2 fix: use lock-free atomic instead of hasAnyAudioLoaded() which acquires slotsLock
+    if (!playing || !anyAudioLoaded_.load())
     {
         // Reset RMS when not playing
         currentRMSdB.store(-100.0f);
         return;
     }
+
+    // C4 fix: snapshot callback to local before lock to avoid std::function race.
+    // This is safe: SBO ensures no heap allocation for small captures (single pointer).
+    // Callbacks are set once during initialization before audio starts.
+    auto localGetGainForCard = getGainForCard;
 
     int cardId = activeCardId.load();
     if (cardId < 0 || cardId >= kMaxSlots)
@@ -358,11 +377,12 @@ void StandaloneAudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo
         else
         {
             playing = false;
-            // Notify on message thread
-            juce::MessageManager::callAsync([this]()
+            // H4 fix: capture alive_ guard to prevent dangling this in async callback
+            auto aliveFlag = alive_;
+            juce::MessageManager::callAsync ([aliveFlag, this]()
             {
-                if (onPlaybackStateChanged)
-                    onPlaybackStateChanged(false);
+                if (aliveFlag->load() && onPlaybackStateChanged)
+                    onPlaybackStateChanged (false);
             });
             return;
         }
@@ -394,8 +414,9 @@ void StandaloneAudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo
         double ratio = slot.reader->sampleRate / currentSampleRate;
         int sourceSamples = static_cast<int>(std::ceil(numSamples * ratio)) + 2;
 
-        resampleBuffer.setSize(buffer.getNumChannels(), sourceSamples, false, false, true);
-        resampleBuffer.clear();
+        // C3 fix: clamp to pre-allocated capacity (no setSize on audio thread)
+        sourceSamples = std::min (sourceSamples, maxResampleSamples_);
+        resampleBuffer.clear (0, sourceSamples);
 
         juce::int64 sourcePos = static_cast<juce::int64>(currentPos * ratio);
         int actualSourceSamples = std::min(sourceSamples,
@@ -428,21 +449,23 @@ void StandaloneAudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo
         }
     }
 
-    // Apply auto-gain from Level-Match if available
-    if (getGainForCard)
+    // Apply auto-gain from Level-Match if available (C4 fix: use local copy)
+    if (localGetGainForCard)
     {
-        float gainDb = getGainForCard(cardId);
-        if (std::abs(gainDb) > 0.001f)
+        float gainDb = localGetGainForCard (cardId);
+        if (std::abs (gainDb) > 0.001f)
         {
-            float linearGain = std::pow(10.0f, gainDb / 20.0f);
+            float linearGain = std::pow (10.0f, gainDb / 20.0f);
             for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
-                buffer.applyGain(ch, startSample, numSamples, linearGain);
+                buffer.applyGain (ch, startSample, numSamples, linearGain);
         }
     }
 
     // === Crossfade mixing (if transitioning between cards) ===
     int prevCard = previousCardId.load();
-    if (prevCard >= 0 && crossfadeProgress < 1.0f)
+    float localCrossfadeProgress = crossfadeProgress.load();
+    float localCrossfadeStep = crossfadeStep.load();
+    if (prevCard >= 0 && localCrossfadeProgress < 1.0f)
     {
         const auto& prevSlot = slots[static_cast<size_t>(prevCard)];
         if (prevSlot.isLoaded && prevSlot.reader != nullptr && currentPos < prevSlot.lengthInSamples)
@@ -462,20 +485,21 @@ void StandaloneAudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo
                 double ratio = prevSlot.reader->sampleRate / currentSampleRate;
                 juce::int64 sourcePos = static_cast<juce::int64>(currentPos * ratio);
                 int sourceSamples = static_cast<int>(std::ceil(prevSamplesToRead * ratio)) + 2;
+
+                // C1 fix: use pre-allocated crossfadeResampleBuffer instead of heap-allocating tempResample
+                sourceSamples = std::min (sourceSamples, maxResampleSamples_);
                 int actualSourceSamples = std::min(sourceSamples,
                     static_cast<int>(prevSlot.lengthInSamples - sourcePos));
 
                 if (actualSourceSamples > 0)
                 {
-                    // Use a temporary buffer for resampling (avoid clobbering main resampleBuffer)
-                    juce::AudioBuffer<float> tempResample(buffer.getNumChannels(), sourceSamples);
-                    tempResample.clear();
-                    prevSlot.reader->read(&tempResample, 0, actualSourceSamples, sourcePos, true, true);
+                    crossfadeResampleBuffer.clear (0, sourceSamples);
+                    prevSlot.reader->read(&crossfadeResampleBuffer, 0, actualSourceSamples, sourcePos, true, true);
 
                     for (int ch = 0; ch < crossfadeBuffer.getNumChannels(); ++ch)
                     {
                         auto* dest = crossfadeBuffer.getWritePointer(ch);
-                        auto* src = tempResample.getReadPointer(std::min(ch, tempResample.getNumChannels() - 1));
+                        auto* src = crossfadeResampleBuffer.getReadPointer(std::min(ch, crossfadeResampleBuffer.getNumChannels() - 1));
 
                         for (int i = 0; i < prevSamplesToRead; ++i)
                         {
@@ -492,15 +516,15 @@ void StandaloneAudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo
                 }
             }
 
-            // Apply auto-gain to previous card too
-            if (getGainForCard)
+            // Apply auto-gain to previous card too (C4 fix: use local copy)
+            if (localGetGainForCard)
             {
-                float prevGainDb = getGainForCard(prevCard);
-                if (std::abs(prevGainDb) > 0.001f)
+                float prevGainDb = localGetGainForCard (prevCard);
+                if (std::abs (prevGainDb) > 0.001f)
                 {
-                    float prevGainLinear = std::pow(10.0f, prevGainDb / 20.0f);
+                    float prevGainLinear = std::pow (10.0f, prevGainDb / 20.0f);
                     for (int ch = 0; ch < crossfadeBuffer.getNumChannels(); ++ch)
-                        crossfadeBuffer.applyGain(ch, 0, numSamples, prevGainLinear);
+                        crossfadeBuffer.applyGain (ch, 0, numSamples, prevGainLinear);
                 }
             }
 
@@ -511,27 +535,31 @@ void StandaloneAudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo
                 const float* prev = crossfadeBuffer.getReadPointer(
                     std::min(ch, crossfadeBuffer.getNumChannels() - 1));
 
-                float localProgress = crossfadeProgress;
+                float localProgress = localCrossfadeProgress;
                 for (int i = 0; i < numSamples; ++i)
                 {
                     float newGain = std::min(localProgress, 1.0f);
                     float oldGain = 1.0f - newGain;
                     dest[i] = dest[i] * newGain + prev[i] * oldGain;
-                    localProgress += crossfadeStep;
+                    localProgress += localCrossfadeStep;
                 }
                 // Update shared progress on first channel only
                 if (ch == 0)
-                    crossfadeProgress = std::min(localProgress, 1.0f);
+                {
+                    localCrossfadeProgress = std::min (localProgress, 1.0f);
+                    crossfadeProgress.store (localCrossfadeProgress);
+                }
             }
         }
         else
         {
             // Old card can't be read, finish crossfade immediately
-            crossfadeProgress = 1.0f;
+            localCrossfadeProgress = 1.0f;
+            crossfadeProgress.store (1.0f);
         }
 
         // Crossfade complete
-        if (crossfadeProgress >= 1.0f)
+        if (localCrossfadeProgress >= 1.0f)
             previousCardId.store(-1);
     }
 
@@ -622,11 +650,10 @@ float StandaloneAudioEngine::getMasterVolume() const
 //==============================================================================
 void StandaloneAudioEngine::measureLUFSForAllSlots()
 {
-    // Offline LUFS measurement: read up to 10 seconds of each loaded file,
-    // compute RMS, convert to LUFS-like value, report via callback.
-    // This runs on the message thread (non-realtime).
+    // Offline EBU R128 integrated LUFS measurement.
+    // Scans the entire file (gating handles silence automatically).
+    // Runs on the message thread (non-realtime).
 
-    static constexpr double kMaxScanSeconds = 10.0;
     static constexpr int kScanBlockSize = 4096;
 
     std::vector<juce::File> filesToScan;
@@ -651,50 +678,45 @@ void StandaloneAudioEngine::measureLUFSForAllSlots()
             continue;
 
         double fileSampleRate = reader->sampleRate;
-        juce::int64 scanSamples = static_cast<juce::int64>(
-            std::min(static_cast<double>(reader->lengthInSamples) / fileSampleRate, kMaxScanSeconds) * fileSampleRate);
+        juce::int64 totalFileSamples = reader->lengthInSamples;
 
-        if (scanSamples <= 0)
+        if (totalFileSamples <= 0)
             continue;
 
         int numChannels = static_cast<int>(reader->numChannels);
         if (numChannels < 1) numChannels = 1;
 
+        // Create a stack-local LUFSMeter for this slot
+        blindcard::LUFSMeter meter;
+        meter.prepare(fileSampleRate, numChannels);
+
         juce::AudioBuffer<float> scanBuffer(numChannels, kScanBlockSize);
-        double sumSquares = 0.0;
-        juce::int64 totalSamplesRead = 0;
         juce::int64 pos = 0;
 
-        while (pos < scanSamples)
+        while (pos < totalFileSamples)
         {
             int toRead = static_cast<int>(std::min(static_cast<juce::int64>(kScanBlockSize),
-                                                    scanSamples - pos));
+                                                    totalFileSamples - pos));
             scanBuffer.clear();
             reader->read(&scanBuffer, 0, toRead, pos, true, true);
 
-            for (int ch = 0; ch < numChannels; ++ch)
-            {
-                const float* data = scanBuffer.getReadPointer(ch);
-                for (int s = 0; s < toRead; ++s)
-                    sumSquares += static_cast<double>(data[s]) * static_cast<double>(data[s]);
-            }
+            // Build channel pointer array
+            const float* channelPtrs[16];
+            int chCount = std::min(numChannels, 16);
+            for (int ch = 0; ch < chCount; ++ch)
+                channelPtrs[ch] = scanBuffer.getReadPointer(ch);
 
-            totalSamplesRead += static_cast<juce::int64>(toRead) * numChannels;
+            meter.process(channelPtrs, chCount, toRead);
             pos += toRead;
         }
 
-        if (totalSamplesRead > 0)
-        {
-            double rms = std::sqrt(sumSquares / static_cast<double>(totalSamplesRead));
-            float lufs = (rms > 0.00001) ? static_cast<float>(20.0 * std::log10(rms))
-                                          : -100.0f;
+        float lufs = meter.getIntegratedLUFS();
 
-            DBG("StandaloneAudioEngine: Slot " + juce::String(i)
-                + " LUFS = " + juce::String(lufs, 1) + " dB");
+        DBG("StandaloneAudioEngine: Slot " + juce::String(i)
+            + " LUFS = " + juce::String(lufs, 1) + " dB (EBU R128)");
 
-            if (onLUFSMeasured)
-                onLUFSMeasured(i, lufs);
-        }
+        if (onLUFSMeasured)
+            onLUFSMeasured(i, lufs);
     }
 }
 

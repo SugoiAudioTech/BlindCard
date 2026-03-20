@@ -12,7 +12,7 @@
 
     Multi-language localization system for BlindCard UI.
     Supports: English, Traditional Chinese (繁體中文), Simplified Chinese (简体中文),
-              Japanese (日本語), Korean (한국어)
+              Japanese (日本語), Korean (한국어), Spanish (Español)
 
   ==============================================================================
 */
@@ -36,7 +36,8 @@ enum class Language
     TraditionalChinese,
     SimplifiedChinese,
     Japanese,
-    Korean
+    Korean,
+    Spanish
 };
 
 //==============================================================================
@@ -131,6 +132,8 @@ namespace StringKey
     constexpr const char* UpdateAvailable = "update_available";
     constexpr const char* UpdateUpToDate = "update_up_to_date";
     constexpr const char* UpdateDownload = "update_download";
+    constexpr const char* UpdatePage = "update_page";
+    constexpr const char* ManualPage = "manual_page";
 
     // Quick Start Guide
     constexpr const char* GuideTitle = "guide_title";
@@ -156,6 +159,8 @@ namespace StringKey
     constexpr const char* GuideTipText2 = "guide_tip_text2";
     constexpr const char* GuideTipText3 = "guide_tip_text3";
     constexpr const char* GuideTipText4 = "guide_tip_text4";
+    constexpr const char* GuideTipText5 = "guide_tip_text5";
+    constexpr const char* GuideTipText6 = "guide_tip_text6";
 
     // Keyboard shortcuts
     constexpr const char* GuideKeyboardShortcuts = "guide_keyboard_shortcuts";
@@ -238,6 +243,7 @@ public:
             case Language::SimplifiedChinese:  return juce::CharPointer_UTF8("\xe7\xae\x80\xe4\xbd\x93\xe4\xb8\xad\xe6\x96\x87");  // 简体中文
             case Language::Japanese:           return juce::CharPointer_UTF8("\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e");  // 日本語
             case Language::Korean:             return juce::CharPointer_UTF8("\xed\x95\x9c\xea\xb5\xad\xec\x96\xb4");  // 한국어
+            case Language::Spanish:            return juce::CharPointer_UTF8("Espa\xc3\xb1ol");  // Español
             default:                           return "English";
         }
     }
@@ -301,6 +307,7 @@ private:
             case Language::SimplifiedChinese:  return stringsZhCn;
             case Language::Japanese:           return stringsJa;
             case Language::Korean:             return stringsKo;
+            case Language::Spanish:            return stringsEs;
             default:                           return stringsEn;
         }
     }
@@ -316,6 +323,7 @@ private:
     std::map<std::string, juce::String> stringsZhCn;
     std::map<std::string, juce::String> stringsJa;
     std::map<std::string, juce::String> stringsKo;
+    std::map<std::string, juce::String> stringsEs;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LocalizationManager)
 };

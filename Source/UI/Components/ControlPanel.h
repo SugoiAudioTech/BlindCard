@@ -168,6 +168,11 @@ public:
     void setRevealEnabled(bool enabled);
 
     /**
+     * Sets the reveal button visibility.
+     */
+    void setRevealVisible(bool visible);
+
+    /**
      * Sets the reset button enabled state.
      */
     void setResetEnabled(bool enabled);

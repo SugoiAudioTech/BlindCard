@@ -127,6 +127,7 @@ private:
     void compactRemovedCardsUnlocked();
     void notifyListeners();
     void selectNextQAQuestion();
+    void shuffleDisplayPositions();  // Re-shuffle card positions (caller must hold lock)
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BlindCardManager)
 };

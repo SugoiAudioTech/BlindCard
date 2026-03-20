@@ -56,13 +56,14 @@ void SettingsPanel::setupLanguageSelector()
     struct LangInfo { const char* name; };
     LangInfo langs[] = {
         { "EN" },
+        { "ES" },
         { "\xe7\xb9\x81" },   // 繁
         { "\xe7\xae\x80" },   // 简
         { "\xe6\x97\xa5" },   // 日
         { "\xed\x95\x9c" },   // 한
     };
 
-    for (int i = 0; i < 5; ++i)
+    for (int i = 0; i < 6; ++i)
     {
         auto* btn = languageButtons.add(new juce::TextButton(juce::CharPointer_UTF8(langs[i].name)));
         btn->setClickingTogglesState(false);
@@ -77,13 +78,14 @@ void SettingsPanel::onLanguageSelected(int langIndex)
 {
     Language langs[] = {
         Language::English,
+        Language::Spanish,
         Language::TraditionalChinese,
         Language::SimplifiedChinese,
         Language::Japanese,
         Language::Korean
     };
 
-    if (langIndex >= 0 && langIndex < 5)
+    if (langIndex >= 0 && langIndex < 6)
         LocalizationManager::getInstance().setLanguage(langs[langIndex]);
 
     updateLanguageButtonStates();
@@ -92,11 +94,21 @@ void SettingsPanel::onLanguageSelected(int langIndex)
 void SettingsPanel::updateLanguageButtonStates()
 {
     auto currentLang = LocalizationManager::getInstance().getCurrentLanguage();
-    int selectedIndex = static_cast<int>(currentLang);  // enum maps to 0-4
+
+    // Button order: EN, ES, 繁, 简, 日, 한
+    // Must match the langs[] array in onLanguageSelected()
+    Language buttonLangs[] = {
+        Language::English,
+        Language::Spanish,
+        Language::TraditionalChinese,
+        Language::SimplifiedChinese,
+        Language::Japanese,
+        Language::Korean
+    };
 
     for (int i = 0; i < languageButtons.size(); ++i)
     {
-        bool isSelected = (i == selectedIndex);
+        bool isSelected = (currentLang == buttonLangs[i]);
         languageButtons[i]->setToggleState(isSelected, juce::dontSendNotification);
 
         // Visual feedback: selected button gets accent color
@@ -142,6 +154,36 @@ juce::Font SettingsPanel::getSystemFont(float height, bool bold) const
     if (bold)
         options = options.withStyle("Bold");
     return juce::Font(options);
+}
+
+void SettingsPanel::drawExternalLinkIcon(juce::Graphics& g,
+                                         const juce::Rectangle<int>& linkBounds,
+                                         const juce::String& text) const
+{
+    // Calculate icon position: right after the text
+    auto font = getSystemFont(15.0f);
+    int textWidth = font.getStringWidth(text);
+    int iconSize = 12;
+    int iconX = linkBounds.getX() + textWidth + 8;
+    int iconY = linkBounds.getCentreY() - iconSize / 2;
+
+    g.setColour(linkColor);
+
+    // Draw rounded square
+    g.drawRoundedRectangle(juce::Rectangle<float>((float)iconX, (float)iconY,
+                           (float)iconSize, (float)iconSize), 2.0f, 1.5f);
+
+    // Draw arrow: line from center to top-right
+    float cx = (float)iconX + 4.0f;
+    float cy = (float)iconY + (float)iconSize - 4.0f;
+    float tx = (float)iconX + (float)iconSize - 2.5f;
+    float ty = (float)iconY + 2.5f;
+
+    g.drawLine(cx, cy, tx, ty, 1.5f);
+
+    // Arrow head
+    g.drawLine(tx - 3.5f, ty, tx, ty, 1.5f);
+    g.drawLine(tx, ty, tx, ty + 3.5f, 1.5f);
 }
 
 void SettingsPanel::paint(juce::Graphics& g)
@@ -264,10 +306,23 @@ void SettingsPanel::paint(juce::Graphics& g)
 
     bottomSection.removeFromTop(16);
 
-    // Website link
+    // Visit Official Website link
     g.setColour(linkColor);
     g.setFont(getSystemFont(15.0f));
-    g.drawText(websiteUrl, websiteLinkBounds, juce::Justification::centredLeft);
+    g.drawText(LOCALIZE(AboutVisitWebsite), websiteLinkBounds, juce::Justification::centredLeft);
+    drawExternalLinkIcon(g, websiteLinkBounds, LOCALIZE(AboutVisitWebsite));
+
+    // User Manual link
+    g.setColour(linkColor);
+    g.setFont(getSystemFont(15.0f));
+    g.drawText(LOCALIZE(ManualPage), manualLinkBounds, juce::Justification::centredLeft);
+    drawExternalLinkIcon(g, manualLinkBounds, LOCALIZE(ManualPage));
+
+    // Update Page link
+    g.setColour(linkColor);
+    g.setFont(getSystemFont(15.0f));
+    g.drawText(LOCALIZE(UpdatePage), updatePageLinkBounds, juce::Justification::centredLeft);
+    drawExternalLinkIcon(g, updatePageLinkBounds, LOCALIZE(UpdatePage));
 }
 
 void SettingsPanel::resized()
@@ -301,12 +356,12 @@ void SettingsPanel::resized()
         24
     );
 
-    // Language buttons (row of 5 buttons)
+    // Language buttons (row of 6 buttons)
     {
         int btnX = dialogBounds.getX() + kPadding + 110;
         int btnY = languageSectionY - 2;
         int availWidth = dialogBounds.getWidth() - kPadding * 2 - 110;
-        int btnWidth = (availWidth - 4 * 4) / 5;  // 4px gap between buttons
+        int btnWidth = (availWidth - 5 * 4) / 6;  // 4px gap between buttons
         int btnHeight = 28;
 
         for (int i = 0; i < languageButtons.size(); ++i)
@@ -315,11 +370,33 @@ void SettingsPanel::resized()
         }
     }
 
-    // Website link bounds (for click detection)
+    // Bottom link rows (stacked vertically)
+    int linkRowWidth = dialogBounds.getWidth() - kPadding * 2;
+    int updatePageY = dialogBounds.getBottom() - kPadding - 30;
+    int manualLinkY = updatePageY - 32;
+    int websiteLinkY = manualLinkY - 32;
+
+    // Visit Official Website (top)
     websiteLinkBounds = juce::Rectangle<int>(
         dialogBounds.getX() + kPadding,
-        dialogBounds.getBottom() - kPadding - 30,
-        220,
+        websiteLinkY,
+        linkRowWidth,
+        24
+    );
+
+    // User Manual (middle)
+    manualLinkBounds = juce::Rectangle<int>(
+        dialogBounds.getX() + kPadding,
+        manualLinkY,
+        linkRowWidth,
+        24
+    );
+
+    // Update Page (bottom)
+    updatePageLinkBounds = juce::Rectangle<int>(
+        dialogBounds.getX() + kPadding,
+        updatePageY,
+        linkRowWidth,
         24
     );
 }
@@ -344,10 +421,24 @@ void SettingsPanel::mouseDown(const juce::MouseEvent& event)
         return;
     }
 
-    // Open website if clicking the link
+    // Open website link
     if (websiteLinkBounds.contains(pos))
     {
         juce::URL(websiteUrl).launchInDefaultBrowser();
+        return;
+    }
+
+    // Open Manual link
+    if (manualLinkBounds.contains(pos))
+    {
+        juce::URL(manualUrl).launchInDefaultBrowser();
+        return;
+    }
+
+    // Open Update Page link
+    if (updatePageLinkBounds.contains(pos))
+    {
+        juce::URL(updatePageUrl).launchInDefaultBrowser();
         return;
     }
 

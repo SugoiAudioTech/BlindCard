@@ -7,6 +7,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "Core/BlindCardManager.h"
+#include "Core/LUFSMeter.h"
 #include <memory>
 
 class BlindCardProcessor final : public juce::AudioProcessor,
@@ -75,10 +76,9 @@ private:
     std::atomic<bool> measuring { false };
     std::atomic<float> currentGainLinear { 1.0f };
     double sampleRate = 44100.0;
-    double sumSquared = 0.0;
-    std::atomic<int64_t> sampleCount { 0 };
-    std::atomic<int64_t> targetSampleCount { 0 };
-    std::atomic<int> measurementNumChannels { 2 };
+    blindcard::LUFSMeter lufsMeter_;
+    std::atomic<int64_t> measurementSamplesAccumulated_ { 0 };
+    std::atomic<int64_t> measurementTargetSamples_ { 0 };
 
     // Real-time RMS calculation
     std::atomic<float> currentRMSdB { -100.0f };
@@ -88,7 +88,11 @@ private:
     // Track switch fade in/out (prevent clicks/pops)
     float muteGain = 0.0f;          // Current mute gain (0=muted, 1=normal)
     float targetMuteGain = 0.0f;    // Target mute gain
-    float muteGainStep = 0.0f;      // Gain change per sample
+    std::atomic<float> muteGainStep { 0.0f };  // Gain change per sample (atomic: written on message thread, read on audio thread)
+
+    // Measurement pending flag (defers prepare() to audio thread to avoid race condition)
+    std::atomic<bool> measurementPending_ { false };
+    float pendingMeasurementDuration_ = 0.0f;  // Written before measurementPending_ store (release)
 
     // Cache track name from DAW (may be received before prepareToPlay)
     juce::String cachedTrackName;

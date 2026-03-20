@@ -180,6 +180,7 @@ private:
     std::unique_ptr<ResultsPanel> resultsPanel;
     std::unique_ptr<QuickStartGuide> quickStartGuide;
     std::unique_ptr<SettingsPanel> settingsPanel;
+    std::unique_ptr<juce::Label> roundIndicatorLabel;
 
     //==========================================================================
     // Standalone mode components

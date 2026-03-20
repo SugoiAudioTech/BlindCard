@@ -290,16 +290,24 @@ private:
     juce::AudioBuffer<float> resampleBuffer;
 
     // Crossfade state (for click-free card switching)
-    std::atomic<int> previousCardId { -1 };   // Card being faded out (-1 = none)
-    float crossfadeProgress = 1.0f;           // 0→1 progress (1.0 = complete)
-    float crossfadeStep = 0.0f;               // Per-sample progress increment
-    juce::AudioBuffer<float> crossfadeBuffer; // Temp buffer for old card audio
-    std::atomic<float> crossfadeTimeMs { 10.0f }; // Crossfade duration
+    std::atomic<int> previousCardId { -1 };          // Card being faded out (-1 = none)
+    std::atomic<float> crossfadeProgress { 1.0f };   // 0→1 progress (atomic: written by both threads)
+    std::atomic<float> crossfadeStep { 0.0f };       // Per-sample progress increment (atomic: cross-thread)
+    juce::AudioBuffer<float> crossfadeBuffer;        // Temp buffer for old card audio
+    juce::AudioBuffer<float> crossfadeResampleBuffer; // C1 fix: pre-allocated resample buffer for crossfade path
+    std::atomic<float> crossfadeTimeMs { 10.0f };    // Crossfade duration
+    int maxResampleSamples_ = 0;                     // C3 fix: tracks pre-allocated resample capacity
 
     // Audio device output
     juce::AudioDeviceManager deviceManager;
     juce::AudioSourcePlayer sourcePlayer;
     bool deviceInitialized = false;
+
+    // C2 fix: lock-free flag so audio thread doesn't need to acquire slotsLock just to check loaded state
+    std::atomic<bool> anyAudioLoaded_ { false };
+
+    // H4 fix: destruction guard for MessageManager::callAsync safety
+    std::shared_ptr<std::atomic<bool>> alive_ = std::make_shared<std::atomic<bool>> (true);
 
     //==========================================================================
     // Helpers

@@ -180,7 +180,7 @@ void QuickStartGuide::resized()
     viewport->setBounds(scrollAreaBounds);
 
     // Set content component size (taller than viewport for scrolling)
-    int contentHeight = 1202; // Enough for all content including Tip box and Keyboard Shortcuts
+    int contentHeight = 1254; // Enough for all content including Tip box (with Rounds) and Keyboard Shortcuts
     contentComponent->setSize(scrollAreaBounds.getWidth() - 16, contentHeight); // -16 for scrollbar
     contentComponent->setContentHeight(contentHeight);
 }
@@ -358,7 +358,7 @@ void QuickStartGuide::drawStepWithSubitems(juce::Graphics& g, juce::Rectangle<in
 
 void QuickStartGuide::drawTipBox(juce::Graphics& g, juce::Rectangle<int>& bounds)
 {
-    auto tipBounds = bounds.removeFromTop(172);
+    auto tipBounds = bounds.removeFromTop(224);
 
     // Tip background
     g.setColour(tipBgColor);
@@ -387,6 +387,12 @@ void QuickStartGuide::drawTipBox(juce::Graphics& g, juce::Rectangle<int>& bounds
     g.drawText(LOCALIZE(GuideTipText3),
                contentBounds.removeFromTop(26), juce::Justification::centredLeft);
     g.drawText(LOCALIZE(GuideTipText4),
+               contentBounds.removeFromTop(26), juce::Justification::centredLeft);
+
+    // Tip text - Rounds
+    g.drawText(LOCALIZE(GuideTipText5),
+               contentBounds.removeFromTop(26), juce::Justification::centredLeft);
+    g.drawText(LOCALIZE(GuideTipText6),
                contentBounds, juce::Justification::centredLeft);
 }
 

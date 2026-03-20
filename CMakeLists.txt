@@ -12,7 +12,7 @@ if(APPLE)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum macOS deployment target" FORCE)
 endif()
 
-project(BlindCard VERSION 1.0.3)
+project(BlindCard VERSION 1.0.4)
 
 # Fetch JUCE automatically
 include(FetchContent)
@@ -54,6 +54,8 @@ target_sources(BlindCard
         Source/Core/BlindCardSessionRegistry.cpp
         Source/Core/UpdateChecker.h
         Source/Core/UpdateChecker.cpp
+        Source/Core/LUFSMeter.h
+        Source/Core/LUFSMeter.cpp
 
         # Standalone Audio Engine
         Source/Standalone/StandaloneAudioEngine.h

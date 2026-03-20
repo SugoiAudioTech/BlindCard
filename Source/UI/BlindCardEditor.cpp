@@ -177,6 +177,12 @@ BlindCardEditor::BlindCardEditor(BlindCardProcessor& processorInstance)
     modeSelector->onModeChanged = [this](blindcard::RatingMode mode) { onModeChanged(mode); };
     addAndMakeVisible(*modeSelector);
 
+    roundIndicatorLabel = std::make_unique<juce::Label>();
+    roundIndicatorLabel->setJustificationType(juce::Justification::centred);
+    roundIndicatorLabel->setInterceptsMouseClicks(false, false);
+    roundIndicatorLabel->setVisible(false);
+    addAndMakeVisible(*roundIndicatorLabel);
+
     questionBanner = std::make_unique<QuestionBanner>();
     addAndMakeVisible(*questionBanner);
 
@@ -574,6 +580,9 @@ void BlindCardEditor::resized()
                        currentPhase == blindcard::GamePhase::Revealed);
     questionBanner->setVisible(showBanner);
 
+    // Round indicator - centered in banner area, shown for Stars/Guess during BlindTesting
+    roundIndicatorLabel->setBounds(bannerArea.withSizeKeepingCentre(300, 44));
+
     // Main content area with padding
     auto mainArea = bounds.reduced(16, 8);
 
@@ -810,6 +819,31 @@ void BlindCardEditor::updateFromManager()
     controlPanel->setCurrentRound(manager->getCurrentRound() + 1);  // Convert 0-based to 1-based
     controlPanel->setRounds(manager->getTotalRounds());
 
+    // Update round indicator (shown in Stars/Guess mode during BlindTesting when multiple rounds)
+    {
+        int totalRounds = manager->getTotalRounds();
+        int currentRound = manager->getCurrentRound() + 1;  // 1-based
+        bool isPlaying = (phase == blindcard::GamePhase::BlindTesting ||
+                          phase == blindcard::GamePhase::Revealed);
+        bool isStarsOrGuess = (mode == blindcard::RatingMode::Stars ||
+                               mode == blindcard::RatingMode::Guess);
+        bool showRoundIndicator = isPlaying && isStarsOrGuess && totalRounds > 1;
+
+        roundIndicatorLabel->setVisible(showRoundIndicator);
+        if (showRoundIndicator)
+        {
+            auto& fonts = FontManager::getInstance();
+            bool isDark = ThemeManager::getInstance().isDark();
+            juce::String text = LOCALIZE(StatusRound) + " " +
+                                juce::String(currentRound) + " / " +
+                                juce::String(totalRounds);
+            roundIndicatorLabel->setText(text, juce::dontSendNotification);
+            roundIndicatorLabel->setFont(fonts.getMedium(32.0f));
+            roundIndicatorLabel->setColour(juce::Label::textColourId,
+                                           isDark ? juce::Colour(0xFFD4D4D4) : juce::Colour(0xFF6B7280));
+        }
+    }
+
     // Sync Level-Match / Auto Gain state
     controlPanel->setAutoGain(manager->isLevelMatchEnabled());
     controlPanel->setCalibrationStatus(manager->isCalibrating(), manager->isCalibrated(),
@@ -824,6 +858,15 @@ void BlindCardEditor::updateFromManager()
 
     // Update card states
     updateCardStates();
+
+    // Standalone mode: sync audio engine to manager's selected card
+    // This handles all auto-selection cases (shuffle, nextRound, reveal, reset)
+    if (isStandaloneMode && audioEngine)
+    {
+        int selectedId = manager->getSelectedCardId();
+        if (selectedId >= 0 && audioEngine->getActiveCardId() != selectedId)
+            audioEngine->switchToCard(selectedId);
+    }
 
     // Update mode-specific UI
     updateModeUI();
@@ -918,6 +961,7 @@ void BlindCardEditor::updatePhaseUI()
         case blindcard::GamePhase::Setup:
             // Use card count (not registered instances) for shuffle - allows standalone testing
             controlPanel->setShuffleEnabled(manager->getCards().size() >= blindcard::GameState::MinCards);
+            controlPanel->setRevealVisible(false);
             controlPanel->setRevealEnabled(false);
             controlPanel->setResetEnabled(false);
             controlPanel->setNextRoundEnabled(false);
@@ -937,14 +981,33 @@ void BlindCardEditor::updatePhaseUI()
 
             if (mode == blindcard::RatingMode::QA)
             {
-                controlPanel->setRevealEnabled(false);  // Q&A handles reveal automatically
+                // Q&A auto-reveals on selection, no need for Reveal/Next buttons
+                controlPanel->setRevealVisible(false);
+                controlPanel->setRevealEnabled(false);
+                controlPanel->setNextRoundEnabled(false);
+            }
+            else if (mode == blindcard::RatingMode::Guess)
+            {
+                // Guess: always REVEAL first (to show answers), no NEXT during testing
+                controlPanel->setRevealVisible(true);
+                controlPanel->setRevealEnabled(true);
                 controlPanel->setNextRoundEnabled(false);
             }
             else
             {
-                // Stars/Guess: Can go NEXT if not last round, REVEAL if last round
-                controlPanel->setNextRoundEnabled(!isLastRound);
-                controlPanel->setRevealEnabled(isLastRound);
+                // Stars: NEXT during non-last rounds, REVEAL only on last round
+                if (isLastRound)
+                {
+                    controlPanel->setRevealVisible(true);
+                    controlPanel->setRevealEnabled(true);
+                    controlPanel->setNextRoundEnabled(false);
+                }
+                else
+                {
+                    controlPanel->setRevealVisible(false);
+                    controlPanel->setRevealEnabled(false);
+                    controlPanel->setNextRoundEnabled(true);
+                }
             }
             break;
         }
@@ -952,13 +1015,32 @@ void BlindCardEditor::updatePhaseUI()
         case blindcard::GamePhase::Revealed:
         {
             controlPanel->setShuffleEnabled(false);
-            controlPanel->setRevealEnabled(false);
             controlPanel->setResetEnabled(true);
             modeSelector->setLocked(true);
 
-            // Enable NEXT if not the last round (to continue to next round)
-            bool isLastRound = manager->getCurrentRound() >= manager->getTotalRounds() - 1;
-            controlPanel->setNextRoundEnabled(!isLastRound);
+            auto mode = manager->getRatingMode();
+            if (mode == blindcard::RatingMode::QA)
+            {
+                // Q&A: only Reset after reveal, hide everything else
+                controlPanel->setRevealEnabled(false);
+                controlPanel->setRevealVisible(false);
+                controlPanel->setNextRoundEnabled(false);
+            }
+            else if (mode == blindcard::RatingMode::Guess)
+            {
+                // Guess: hide Reveal (already revealed), show NEXT if not last round
+                controlPanel->setRevealVisible(false);
+                controlPanel->setRevealEnabled(false);
+                bool isLastRound = manager->getCurrentRound() >= manager->getTotalRounds() - 1;
+                controlPanel->setNextRoundEnabled(!isLastRound);
+            }
+            else
+            {
+                // Stars: hide Reveal, only Reset
+                controlPanel->setRevealVisible(false);
+                controlPanel->setRevealEnabled(false);
+                controlPanel->setNextRoundEnabled(false);
+            }
             break;
         }
     }
@@ -1138,7 +1220,7 @@ void BlindCardEditor::onCardClicked(int tablePosition)
         // In Standalone mode, switch audio playback to clicked card
         if (isStandaloneMode && audioEngine)
         {
-            audioEngine->switchToCard(tablePosition);
+            audioEngine->switchToCard(cardId);
         }
     }
 }
@@ -1240,36 +1322,10 @@ void BlindCardEditor::onNextRoundClicked()
     auto phase = manager->getPhase();
     auto mode = manager->getRatingMode();
 
-    // If in BlindTesting phase
+    // BlindTesting: only Stars uses NEXT here (skip to next round without revealing)
     if (phase == blindcard::GamePhase::BlindTesting)
     {
-        // Guess mode: reveal results with scoring and countdown
-        if (mode == blindcard::RatingMode::Guess)
-        {
-            int currentRound = manager->getCurrentRound() + 1;
-            int totalRounds = manager->getTotalRounds();
-
-            resultsPanel->setRoundInfo(currentRound, totalRounds);
-            buildGuessResults();
-            resultsPanel->accumulateGuessResults();
-            resultsPanel->setGuessResultsVisible(true);
-
-            bool isLastRound = (currentRound >= totalRounds);
-            resultsPanel->setShowFinalResults(isLastRound);
-
-            // Start countdown timer (3 seconds) - only if not last round
-            if (!isLastRound)
-            {
-                autoAdvanceStartTime = juce::Time::currentTimeMillis();
-                autoAdvanceCountdown = kAutoAdvanceSeconds;
-                resultsPanel->setCountdown(kAutoAdvanceSeconds);
-            }
-
-            // Reveal cards (only in Guess mode)
-            manager->reveal();
-            pokerTable->revealAllCards(100);
-        }
-        else if (mode == blindcard::RatingMode::Stars)
+        if (mode == blindcard::RatingMode::Stars)
         {
             // Stars mode: just go to next round WITHOUT revealing
             // Cards stay face-down, ratings are preserved
@@ -1308,8 +1364,10 @@ void BlindCardEditor::onAutoGainChanged(bool enabled)
 {
     manager->setLevelMatchEnabled(enabled);
 
-    // 啟用時自動開始校準（Setup 階段）
-    if (enabled && manager->getPhase() == blindcard::GamePhase::Setup)
+    // 啟用時自動開始校準（Setup 或 BlindTesting 階段）
+    // 允許用戶在關閉後重開時重新校準
+    if (enabled && (manager->getPhase() == blindcard::GamePhase::Setup ||
+                    manager->getPhase() == blindcard::GamePhase::BlindTesting))
     {
         manager->startCalibration();
 
@@ -1486,7 +1544,7 @@ bool BlindCardEditor::keyPressed(const juce::KeyPress& key, juce::Component*)
             // In Standalone mode, switch audio playback to selected card
             if (isStandaloneMode && audioEngine)
             {
-                audioEngine->switchToCard(sortedCards[static_cast<size_t>(newIndex)].first);
+                audioEngine->switchToCard(sortedCards[static_cast<size_t>(newIndex)].second);
             }
             return true;
         }

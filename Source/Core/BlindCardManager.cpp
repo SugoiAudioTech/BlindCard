@@ -219,22 +219,7 @@ void BlindCardManager::shuffle()
         }
 
         // Randomly shuffle displayPosition
-        std::random_device rd;
-        std::mt19937 gen (rd());
-
-        juce::Array<int> positions;
-        for (int i = 0; i < state.cards.size(); ++i)
-            positions.add (i);
-
-        for (int i = positions.size() - 1; i > 0; --i)
-        {
-            std::uniform_int_distribution<> dis (0, i);
-            int j = dis (gen);
-            positions.swap (i, j);
-        }
-
-        for (int i = 0; i < state.cards.size(); ++i)
-            state.cards.getReference (i).displayPosition = positions[i];
+        shuffleDisplayPositions();
 
         // Note: Card values (cardValue, suitIndex) were assigned when cards were created,
         // shuffle() only shuffles display positions, not card suits/values
@@ -282,22 +267,7 @@ void BlindCardManager::nextRound()
             state.currentRound++;
 
             // Re-shuffle each round - shuffle displayPosition
-            std::random_device rd;
-            std::mt19937 gen (rd());
-
-            juce::Array<int> positions;
-            for (int i = 0; i < state.cards.size(); ++i)
-                positions.add (i);
-
-            for (int i = positions.size() - 1; i > 0; --i)
-            {
-                std::uniform_int_distribution<> dis (0, i);
-                int j = dis (gen);
-                positions.swap (i, j);
-            }
-
-            for (int i = 0; i < state.cards.size(); ++i)
-                state.cards.getReference (i).displayPosition = positions[i];
+            shuffleDisplayPositions();
 
             // Select the visually first position (displayPosition=0) card
             // This prevents users from guessing card identity by playback position
@@ -999,6 +969,27 @@ void BlindCardManager::selectNextQAQuestion()
     state.qaState.lastAnsweredCardId = -1;
 }
 
+void BlindCardManager::shuffleDisplayPositions()
+{
+    // Re-shuffle card display positions (caller must hold lock)
+    std::random_device rd;
+    std::mt19937 gen (rd());
+
+    juce::Array<int> positions;
+    for (int i = 0; i < state.cards.size(); ++i)
+        positions.add (i);
+
+    for (int i = positions.size() - 1; i > 0; --i)
+    {
+        std::uniform_int_distribution<> dis (0, i);
+        int j = dis (gen);
+        positions.swap (i, j);
+    }
+
+    for (int i = 0; i < state.cards.size(); ++i)
+        state.cards.getReference (i).displayPosition = positions[i];
+}
+
 void BlindCardManager::submitQAAnswer (int selectedCardId)
 {
     bool shouldNotify = false;
@@ -1050,6 +1041,7 @@ void BlindCardManager::nextQAQuestion()
         if (state.qaState.isComplete (maxQ))
             return;
 
+        shuffleDisplayPositions();
         selectNextQAQuestion();
         shouldNotify = true;
     }
@@ -1141,7 +1133,8 @@ void BlindCardManager::tickQACountdown()
             }
             else
             {
-                // More questions remaining, select next question
+                // More questions remaining: re-shuffle positions and select next question
+                shuffleDisplayPositions();
                 selectNextQAQuestion();
             }
         }
@@ -1174,6 +1167,8 @@ void BlindCardManager::skipQACountdown()
         }
         else
         {
+            // Re-shuffle positions and select next question
+            shuffleDisplayPositions();
             selectNextQAQuestion();
         }
 

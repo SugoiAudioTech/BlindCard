@@ -61,7 +61,7 @@ public:
 private:
     // Layout constants
     static constexpr int kDialogWidth = 420;
-    static constexpr int kDialogHeight = 450;  // Increased for language selector + update row
+    static constexpr int kDialogHeight = 520;  // Increased for 3 stacked link rows
     static constexpr int kCornerRadius = 16;
     static constexpr int kPadding = 28;
     static constexpr int kHeaderHeight = 60;
@@ -85,6 +85,8 @@ private:
     juce::String versionString;
     juce::String developerName = "Sugoi Audio";
     juce::String websiteUrl = "https://sugoiaudio.com";
+    juce::String updatePageUrl = "https://sugoiaudio.com/downloads/blindcard";
+    juce::String manualUrl = "https://sugoiaudio.com/products/blindcard-manual.html";
 
     // Update check state
     bool updateAvailable = false;
@@ -92,9 +94,15 @@ private:
     juce::String downloadUrl;
     juce::String changelogText;
     juce::Rectangle<int> updateLinkBounds;
+    juce::Rectangle<int> updatePageLinkBounds;
+    juce::Rectangle<int> manualLinkBounds;
 
     // Helper to get system font
     juce::Font getSystemFont(float height, bool bold = false) const;
+
+    // Draw external link icon (box with arrow) next to text
+    void drawExternalLinkIcon(juce::Graphics& g, const juce::Rectangle<int>& linkBounds,
+                              const juce::String& text) const;
 
     // Language selector (TextButtons instead of ComboBox to avoid native popup
     // window issues in AU/Logic Pro — ComboBox popups create NSWindow that can
