@@ -1,12 +1,12 @@
 [Setup]
 AppName=Blind Card
-AppVersion=1.0.1
+AppVersion=1.0.4
 AppPublisher=Sugoi Audio Tech
 AppPublisherURL=https://sugoiaudio.com
 DefaultDirName={commonpf}\Sugoi Audio\Blind Card
 DefaultGroupName=Sugoi Audio\Blind Card
 OutputDir=..\build\installer
-OutputBaseFilename=BlindCard-1.0.1-Windows-x64-Setup
+OutputBaseFilename=BlindCard-1.0.4-Windows-x64-Setup
 Compression=lzma2
 SolidCompression=yes
 ArchitecturesAllowed=x64compatible

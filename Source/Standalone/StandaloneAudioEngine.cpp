@@ -35,6 +35,11 @@ StandaloneAudioEngine::~StandaloneAudioEngine()
 {
     // H4 fix: signal destruction to pending async callbacks before teardown
     alive_->store (false);
+
+    // W2 fix: wait for background LUFS thread to finish before teardown
+    if (lufsThread_.joinable())
+        lufsThread_.join();
+
     stopAudioDevice();
     releaseResources();
 }
@@ -347,10 +352,8 @@ void StandaloneAudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo
         return;
     }
 
-    // C4 fix: snapshot callback to local before lock to avoid std::function race.
-    // This is safe: SBO ensures no heap allocation for small captures (single pointer).
-    // Callbacks are set once during initialization before audio starts.
-    auto localGetGainForCard = getGainForCard;
+    // W1 fix: read atomic pointer — no std::function copy on audio thread
+    auto* localGainCb = gainCallbackPtr_.load();
 
     int cardId = activeCardId.load();
     if (cardId < 0 || cardId >= kMaxSlots)
@@ -449,10 +452,10 @@ void StandaloneAudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo
         }
     }
 
-    // Apply auto-gain from Level-Match if available (C4 fix: use local copy)
-    if (localGetGainForCard)
+    // Apply auto-gain from Level-Match if available (W1 fix: atomic pointer, no copy)
+    if (localGainCb && *localGainCb)
     {
-        float gainDb = localGetGainForCard (cardId);
+        float gainDb = (*localGainCb) (cardId);
         if (std::abs (gainDb) > 0.001f)
         {
             float linearGain = std::pow (10.0f, gainDb / 20.0f);
@@ -516,10 +519,10 @@ void StandaloneAudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo
                 }
             }
 
-            // Apply auto-gain to previous card too (C4 fix: use local copy)
-            if (localGetGainForCard)
+            // Apply auto-gain to previous card too (W1 fix: atomic pointer)
+            if (localGainCb && *localGainCb)
             {
-                float prevGainDb = localGetGainForCard (prevCard);
+                float prevGainDb = (*localGainCb) (prevCard);
                 if (std::abs (prevGainDb) > 0.001f)
                 {
                     float prevGainLinear = std::pow (10.0f, prevGainDb / 20.0f);
@@ -650,74 +653,90 @@ float StandaloneAudioEngine::getMasterVolume() const
 //==============================================================================
 void StandaloneAudioEngine::measureLUFSForAllSlots()
 {
-    // Offline EBU R128 integrated LUFS measurement.
-    // Scans the entire file (gating handles silence automatically).
-    // Runs on the message thread (non-realtime).
+    // W2 fix: run on background thread to avoid blocking the UI.
+    // Wait for any previous measurement to finish first.
+    if (lufsThread_.joinable())
+        lufsThread_.join();
 
-    static constexpr int kScanBlockSize = 4096;
-
-    std::vector<juce::File> filesToScan;
-    filesToScan.reserve(kMaxSlots);
-
+    // Snapshot file list under lock (lightweight — just copies juce::File paths)
+    auto filesToScan = std::make_shared<std::vector<juce::File>>();
+    filesToScan->reserve(kMaxSlots);
     {
         juce::ScopedLock sl(slotsLock);
         for (const auto& slot : slots)
-        {
-            filesToScan.push_back(slot.isLoaded ? slot.file : juce::File());
-        }
+            filesToScan->push_back(slot.isLoaded ? slot.file : juce::File());
     }
 
-    for (int i = 0; i < kMaxSlots; ++i)
+    auto aliveFlag = alive_;
+
+    lufsThread_ = std::thread([this, filesToScan, aliveFlag]()
     {
-        const auto& file = filesToScan[static_cast<size_t>(i)];
-        if (!file.existsAsFile())
-            continue;
+        static constexpr int kScanBlockSize = 4096;
 
-        std::unique_ptr<juce::AudioFormatReader> reader(formatManager.createReaderFor(file));
-        if (reader == nullptr)
-            continue;
+        // Each slot needs its own AudioFormatManager (not thread-safe to share)
+        juce::AudioFormatManager threadFmtMgr;
+        threadFmtMgr.registerBasicFormats();
 
-        double fileSampleRate = reader->sampleRate;
-        juce::int64 totalFileSamples = reader->lengthInSamples;
-
-        if (totalFileSamples <= 0)
-            continue;
-
-        int numChannels = static_cast<int>(reader->numChannels);
-        if (numChannels < 1) numChannels = 1;
-
-        // Create a stack-local LUFSMeter for this slot
-        blindcard::LUFSMeter meter;
-        meter.prepare(fileSampleRate, numChannels);
-
-        juce::AudioBuffer<float> scanBuffer(numChannels, kScanBlockSize);
-        juce::int64 pos = 0;
-
-        while (pos < totalFileSamples)
+        for (int i = 0; i < kMaxSlots; ++i)
         {
-            int toRead = static_cast<int>(std::min(static_cast<juce::int64>(kScanBlockSize),
-                                                    totalFileSamples - pos));
-            scanBuffer.clear();
-            reader->read(&scanBuffer, 0, toRead, pos, true, true);
+            if (!aliveFlag->load())
+                return;  // Engine is being destroyed, bail out
 
-            // Build channel pointer array
-            const float* channelPtrs[16];
-            int chCount = std::min(numChannels, 16);
-            for (int ch = 0; ch < chCount; ++ch)
-                channelPtrs[ch] = scanBuffer.getReadPointer(ch);
+            const auto& file = (*filesToScan)[static_cast<size_t>(i)];
+            if (!file.existsAsFile())
+                continue;
 
-            meter.process(channelPtrs, chCount, toRead);
-            pos += toRead;
+            std::unique_ptr<juce::AudioFormatReader> reader(threadFmtMgr.createReaderFor(file));
+            if (reader == nullptr)
+                continue;
+
+            double fileSampleRate = reader->sampleRate;
+            juce::int64 totalFileSamples = reader->lengthInSamples;
+
+            if (totalFileSamples <= 0)
+                continue;
+
+            int numChannels = static_cast<int>(reader->numChannels);
+            if (numChannels < 1) numChannels = 1;
+
+            blindcard::LUFSMeter meter;
+            meter.prepare(fileSampleRate, numChannels);
+
+            juce::AudioBuffer<float> scanBuffer(numChannels, kScanBlockSize);
+            juce::int64 pos = 0;
+
+            while (pos < totalFileSamples)
+            {
+                if (!aliveFlag->load())
+                    return;
+
+                int toRead = static_cast<int>(std::min(static_cast<juce::int64>(kScanBlockSize),
+                                                        totalFileSamples - pos));
+                scanBuffer.clear();
+                reader->read(&scanBuffer, 0, toRead, pos, true, true);
+
+                const float* channelPtrs[16];
+                int chCount = std::min(numChannels, 16);
+                for (int ch = 0; ch < chCount; ++ch)
+                    channelPtrs[ch] = scanBuffer.getReadPointer(ch);
+
+                meter.process(channelPtrs, chCount, toRead);
+                pos += toRead;
+            }
+
+            float lufs = meter.getIntegratedLUFS();
+
+            DBG("StandaloneAudioEngine: Slot " + juce::String(i)
+                + " LUFS = " + juce::String(lufs, 1) + " dB (EBU R128)");
+
+            // Report result on message thread (H4 pattern: alive_ guard)
+            juce::MessageManager::callAsync([aliveFlag, this, i, lufs]()
+            {
+                if (aliveFlag->load() && onLUFSMeasured)
+                    onLUFSMeasured(i, lufs);
+            });
         }
-
-        float lufs = meter.getIntegratedLUFS();
-
-        DBG("StandaloneAudioEngine: Slot " + juce::String(i)
-            + " LUFS = " + juce::String(lufs, 1) + " dB (EBU R128)");
-
-        if (onLUFSMeasured)
-            onLUFSMeasured(i, lufs);
-    }
+    });
 }
 
 //==============================================================================

@@ -1832,10 +1832,10 @@ void BlindCardEditor::setupStandaloneMode()
     {
         manager->setMeasuredLUFS(cardId, lufs);
     };
-    audioEngine->getGainForCard = [this](int cardId) -> float
+    audioEngine->setGainCallback([this](int cardId) -> float
     {
         return manager->getGainForCard(cardId);
-    };
+    });
 
     // Enable standalone mode on PokerTable, HeaderBar, and ControlPanel
     pokerTable->setStandaloneMode(true);

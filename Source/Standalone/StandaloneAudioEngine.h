@@ -27,6 +27,7 @@
 #include <memory>
 #include <functional>
 #include <optional>
+#include <thread>
 
 namespace BlindCard
 {
@@ -242,16 +243,22 @@ public:
     /** Called when LUFS measurement completes for a card (offline scan) */
     std::function<void(int cardId, float lufs)> onLUFSMeasured;
 
-    /** Query auto-gain for a card (returns gain in dB, 0.0 if disabled) */
-    std::function<float(int cardId)> getGainForCard;
+    /** Query auto-gain for a card (returns gain in dB, 0.0 if disabled).
+     *  Set once during initialization before audio starts.
+     *  Audio thread reads via atomic pointer — no std::function copy on RT thread. */
+    void setGainCallback(std::function<float(int)> callback)
+    {
+        gainCallback_ = std::move(callback);
+        gainCallbackPtr_.store(&gainCallback_);
+    }
 
     //==========================================================================
     // Level-Match support
 
     /**
      * Measure LUFS for all loaded slots (offline, non-realtime).
-     * Reads up to 10 seconds of each file, computes RMS-based LUFS,
-     * and reports via onLUFSMeasured callback.
+     * W2 fix: runs on a background thread to avoid blocking the UI.
+     * Reports results via onLUFSMeasured callback on the message thread.
      */
     void measureLUFSForAllSlots();
 
@@ -308,6 +315,13 @@ private:
 
     // H4 fix: destruction guard for MessageManager::callAsync safety
     std::shared_ptr<std::atomic<bool>> alive_ = std::make_shared<std::atomic<bool>> (true);
+
+    // W1 fix: gain callback stored on message thread, audio thread reads via atomic pointer
+    std::function<float(int)> gainCallback_;
+    std::atomic<std::function<float(int)>*> gainCallbackPtr_ { nullptr };
+
+    // W2 fix: background thread for LUFS measurement (avoid blocking message thread)
+    std::thread lufsThread_;
 
     //==========================================================================
     // Helpers
