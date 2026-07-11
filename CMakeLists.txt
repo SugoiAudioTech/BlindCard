@@ -14,7 +14,7 @@ if(APPLE)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum macOS deployment target" FORCE)
 endif()
 
-project(BlindCard VERSION 1.0.4)
+project(BlindCard VERSION 1.0.5)
 
 # Fetch JUCE automatically
 include(FetchContent)
