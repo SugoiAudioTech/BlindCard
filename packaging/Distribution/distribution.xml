@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="2">
+    <title>Blind Card Audio Plugin</title>
+    <organization>com.sugoi</organization>
+    <domains enable_anywhere="false" enable_currentUserHome="false" enable_localSystem="true"/>
+
+    <!-- 系統需求檢查 -->
+    <volume-check script="volumeCheck()"/>
+    <script>
+    function volumeCheck() {
+        if (system.compareVersions(system.version.ProductVersion, '10.15') >= 0) {
+            return true;
+        }
+        my.result.message = 'Blind Card 需要 macOS 10.15 (Catalina) 或更新版本。';
+        my.result.type = 'Fatal';
+        return false;
+    }
+    </script>
+
+    <!-- 安裝選項 - 自動安裝 AU + VST3 + Standalone -->
+    <choices-outline>
+        <line choice="default"/>
+    </choices-outline>
+
+    <choice id="default"
+            title="Blind Card Plugin"
+            description="安裝 Blind Card AU、VST3、AAX 插件和 Standalone 應用程式"
+            visible="false">
+        <pkg-ref id="com.sugoi.blindcard.au"/>
+        <pkg-ref id="com.sugoi.blindcard.vst3"/>
+        <pkg-ref id="com.sugoi.blindcard.standalone"/>
+        <pkg-ref id="com.sugoi.blindcard.aax"/>
+    </choice>
+
+    <!-- 套件參考 -->
+    <pkg-ref id="com.sugoi.blindcard.au" version="1.0.5">BlindCard-AU.pkg</pkg-ref>
+    <pkg-ref id="com.sugoi.blindcard.vst3" version="1.0.5">BlindCard-VST3.pkg</pkg-ref>
+    <pkg-ref id="com.sugoi.blindcard.standalone" version="1.0.5">BlindCard-Standalone.pkg</pkg-ref>
+    <pkg-ref id="com.sugoi.blindcard.aax" version="1.0.5">BlindCard-AAX.pkg</pkg-ref>
+</installer-gui-script>

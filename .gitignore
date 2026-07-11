@@ -4,8 +4,13 @@ build-release/
 cmake-build-*/
 
 # Packaging & installers
-Packaging/
-packaging/
+# Keep packaging scripts/config in git; exclude staged plugin binary payloads
+packaging/au/
+packaging/vst3/
+packaging/standalone/
+Packaging/au/
+Packaging/vst3/
+Packaging/standalone/
 dist/
 *.pkg
 
