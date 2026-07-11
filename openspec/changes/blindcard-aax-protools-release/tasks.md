@@ -9,7 +9,7 @@
 
 - [x] 2.1 Remove quarantine from the Validator tools (first-use, if needed)
 - [x] 2.2 Run the full AAX Validator suite against the installed `.aaxplugin`
-- [~] 2.3 Confirm core tests PASS (`describe_validation`, `load_unload`, `parameters`, `parameter_traversal.linear`, `parameter_traversal.random`)
+- [x] 2.3 Confirm core tests PASS (`describe_validation`, `load_unload`, `parameters`, `parameter_traversal.linear`, `parameter_traversal.random`)
 - [x] 2.4 Record known-ignorable ABORT/FAIL results (SysInfo probes, `page_table.load`) in the change notes
 
 ## 3. PACE Central setup (user-performed, one-time)
@@ -17,7 +17,7 @@
 - [x] 3.1 User: PACE Central → Products → New → `BlindCard` (Active)
 - [x] 3.2 User: PACE Central → Wrap Configuration → New → `BlindCard`, link the Product via Authorization Key
 - [x] 3.3 User: copy the Wrap GUID and provide it
-- [ ] 3.4 Record the Wrap GUID in `pace-signing-credentials.md` and the `sugoi-audio-aax-protools` skill per-plugin table
+- [x] 3.4 Record the Wrap GUID in `pace-signing-credentials.md` and the `sugoi-audio-aax-protools` skill per-plugin table
 
 ## 4. Extend packaging pipeline
 
@@ -44,5 +44,5 @@
 
 ## 7. Close-out
 
-- [ ] 7.1 Commit packaging changes (sign-and-package.sh + distribution.xml) with a scoped message
+- [x] 7.1 Commit packaging changes (sign-and-package.sh + distribution.xml) with a scoped message
 - [ ] 7.2 Archive the OpenSpec change

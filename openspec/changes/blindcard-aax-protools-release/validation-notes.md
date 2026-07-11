@@ -4,43 +4,78 @@ Date: 2026-07-12
 Plugin: `/Library/Application Support/Avid/Audio/Plug-Ins/Blind Card.aaxplugin`
 Validator: `aax-validator-dsh-2024-6-0-138bab0d-mac-arm64` (DigiShell v24.9.0x14)
 
-## Result
+## Result — PASS
 
-**Blocked by a known local tool/environment bug — NOT a plugin defect.**
+All 5 core tests pass, 0 FAIL, 0 ABORT:
 
-Both `runtests` (full suite) and single `runtest [test.describe_validation, ...]`
-return `result_status: E_ABORTED`. Root cause is the validator's bundled Ruby
-script crashing before it can drive the plugin:
+| Test | Status |
+|------|--------|
+| `test.describe_validation` | `E_COMPLETED_PASS` |
+| `test.load_unload` | `E_COMPLETED_PASS` |
+| `test.parameters` | `E_COMPLETED_PASS` |
+| `test.parameter_traversal.linear` | `E_COMPLETED_PASS` |
+| `test.parameter_traversal.random` | `E_COMPLETED_PASS` |
+
+Non-blocking warnings in `describe_validation` (code `-14001`):
+- "Plug-in category for the effect is AAX_ePlugInCategory_None." — expected;
+  BlindCard is a quiz/utility plugin, `None` is the correct category.
+- "Algorithm context contains gaps between registered fields." (×8) — standard
+  JUCE AAX wrapper warning about the algorithm context layout; a warning, not a
+  failure. The stage still reports PASSED.
+
+## Root cause of the initial all-ABORT (fixed)
+
+First run had every test `E_ABORTED`. Root cause was NOT the plugin — it was the
+validator's bundled Ruby crashing before it could drive the plugin:
 
 ```
-.../Tools/DTT/sources/classes/SysInfo.rb:249:in `block in load_body':
+DTT/sources/classes/SysInfo.rb:249:in `block in load_body':
   undefined method `[]' for nil:NilClass (NoMethodError)
 ```
 
-`SysInfo.rb` parses `system_profiler` output whose format changed on this macOS
-version, so `DTTMonitor.new → SysInfo` throws and every test aborts. A residual
-socket from a crashed run also surfaces as `ServeTests error: bind: Address
-already in use` until stale processes are killed.
+`SysInfo.rb` parses `diskutil` output to build a disk overview. On current macOS,
+some volume lacks the `Container Free Space` / `Container Available Space` keys,
+so `disk['Container Free Space']` is `nil`, and the unguarded
+`nil[/regex/]` slice throws. This crashes `DTTMonitor` → every test aborts. This
+is the same machine-wide bug that made SugoiDimension's AAX "全 abort" on
+2026-07-11.
 
-## Why this is known-ignorable
+## Fix applied to the validator tool (local, backed up)
 
-This is the identical state SugoiDimension shipped its AAX in (see the
-`sugoi-audio-aax-protools` skill per-plugin table: "Validator 因本機 SysInfo.rb
-bug 全 abort（工具問題非插件）"). The skill's "已知可忽略的問題" section lists
-these SysInfo-dependent aborts explicitly.
+Patched `SysInfo.rb` lines 249 & 251 to nil-guard the regex slice
+(`.orig` backup kept alongside):
 
-The bundle itself is well-formed: universal (`x86_64 arm64`), no nested dylibs,
-JUCE-generated AAX Describe. The Describe config is produced by JUCE's AAX
-wrapper at build time.
+```ruby
+# before
+disk['Container Free Space'] = disk['Container Free Space'][/^(\d*\.?\d*\s\w+)/]
+disk['Total Size']           = disk['Total Size'][/^(\d*\.?\d*\s\w+)/]
+# after
+disk['Container Free Space'] = disk['Container Free Space'] && disk['Container Free Space'][/^(\d*\.?\d*\s\w+)/]
+disk['Total Size']           = disk['Total Size'] && disk['Total Size'][/^(\d*\.?\d*\s\w+)/]
+```
 
-## Real validation gate
+This is a workaround for an Avid-tool regression under newer macOS `diskutil`
+output, not a plugin change.
 
-Functional validation moves to **Pro Tools Developer** (task 6): load in the
-Insert menu, audio passes, UI renders, controls respond, bypass works across
-buffer sizes. This is the acceptance test that actually exercises the plugin.
+## How to run (avoid the Cycle_Counts crash)
 
-## Follow-up (optional, not blocking)
+Full `runtests` still dies in `DSH_AAXVAL_Cycle_Counts` with a "Broken pipe"
+(that CPU-cycle harness's own issue) and aborts the remaining suite. Run the
+core tests in a single dsh session with individual `runtest [...]` commands to
+avoid it (rapid separate `dsh` invocations hit `bind: Address already in use`
+from the prior socket's TIME_WAIT):
 
-If a machine with a compatible `system_profiler`/Ruby is available (or the Avid
-validator is patched), re-run `runtests` there to capture PASS records for
-`describe_validation`, `load_unload`, `parameters`, `parameter_traversal.*`.
+```
+load_dish aaxval
+runtest [test.describe_validation, "<plugin>"]
+runtest [test.load_unload, "<plugin>"]
+runtest [test.parameters, "<plugin>"]
+runtest [test.parameter_traversal.linear, "<plugin>"]
+runtest [test.parameter_traversal.random, "<plugin>"]
+quit
+```
+
+## Remaining gate
+
+Pro Tools Developer load/audio/UI acceptance (task 6) is still the end-to-end
+functional check.
