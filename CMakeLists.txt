@@ -8,11 +8,13 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
 if(APPLE)
-    set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "macOS build architectures" FORCE)
+    if(NOT DEFINED CMAKE_OSX_ARCHITECTURES OR CMAKE_OSX_ARCHITECTURES STREQUAL "")
+        set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "macOS build architectures" FORCE)
+    endif()
     set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum macOS deployment target" FORCE)
 endif()
 
-project(BlindCard VERSION 1.0.4)
+project(BlindCard VERSION 1.0.5)
 
 # Fetch JUCE automatically
 include(FetchContent)
@@ -22,12 +24,20 @@ FetchContent_Declare(JUCE
     GIT_SHALLOW TRUE)
 FetchContent_MakeAvailable(JUCE)
 
+# AAX SDK 路徑
+set(AAX_SDK_PATH "/Users/Mac/SDKs/aax-sdk-2-9-0" CACHE PATH "Path to AAX SDK")
+if(EXISTS "${AAX_SDK_PATH}/Interfaces/AAX.h")
+    juce_set_aax_sdk_path("${AAX_SDK_PATH}")
+endif()
+
 juce_add_plugin(BlindCard
     COMPANY_NAME "Sugoi"
     PLUGIN_MANUFACTURER_CODE Sgoi
     PLUGIN_CODE Blcd
-    FORMATS AU VST3 Standalone
+    FORMATS AU VST3 AAX Standalone
     PRODUCT_NAME "Blind Card"
+    AAX_IDENTIFIER "com.sugoi.blindcard"
+    AAX_CATEGORY "AAX_ePlugInCategory_None"
     ICON_BIG "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon_1024.png"
     ICON_SMALL "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon_256.png"
     COPY_PLUGIN_AFTER_BUILD TRUE)
