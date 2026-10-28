@@ -341,10 +341,14 @@ void ControlPanel::paint(juce::Graphics& g)
 
     // Panel background
     g.setColour(tm.getColour(ColourId::Surface));
-    g.fillRoundedRectangle(bounds, 8.0f);
+    g.fillRoundedRectangle(bounds, 12.0f);
+
+    // Match the neighbouring results panel's frame and top inset.
+    g.setColour(tm.isDark() ? juce::Colour(0xFF737873) : juce::Colour(0xFFD4C5A9));
+    g.drawRoundedRectangle(bounds.reduced(0.5f), 12.0f, 1.0f);
 
     // Content area
-    auto contentBounds = bounds.reduced(20.0f, 16.0f);
+    auto contentBounds = bounds.reduced(20.0f);
 
     // Top info row
     auto infoRow = contentBounds.removeFromTop(32.0f);
@@ -381,7 +385,7 @@ void ControlPanel::drawInfoRow(juce::Graphics& g, juce::Rectangle<float> bounds)
     if (isCJKLanguage())
         g.setFont(fonts.getMedium(16.0f));
     else
-        g.setFont(fonts.getBebasNeue(14.0f));
+        g.setFont(fonts.getMedium(14.0f));
     auto labelBounds = leftSection.removeFromLeft(60.0f);
     g.drawText(LOCALIZE(LabelCards), labelBounds, juce::Justification::centredLeft);
 
@@ -390,7 +394,7 @@ void ControlPanel::drawInfoRow(juce::Graphics& g, juce::Rectangle<float> bounds)
     if (trackCount == 0) trackCount = 4;  // Default display
 
     g.setColour(tm.getColour(ColourId::TextPrimary));
-    g.setFont(fonts.getBebasNeue(22.0f));
+    g.setFont(fonts.getBold(22.0f));
     auto countBounds = leftSection.removeFromLeft(30.0f);
     g.drawText(juce::String(trackCount), countBounds, juce::Justification::centredLeft);
 
@@ -402,7 +406,7 @@ void ControlPanel::drawInfoRow(juce::Graphics& g, juce::Rectangle<float> bounds)
     if (isCJKLanguage())
         g.setFont(fonts.getMedium(16.0f));
     else
-        g.setFont(fonts.getBebasNeue(14.0f));
+        g.setFont(fonts.getMedium(14.0f));
     juce::String labelText = isQAModeActive ? LOCALIZE(LabelQuestions) : LOCALIZE(LabelRounds);
     g.drawText(labelText, bounds.removeFromLeft(70.0f), juce::Justification::centredLeft);
 
@@ -413,7 +417,7 @@ void ControlPanel::drawInfoRow(juce::Graphics& g, juce::Rectangle<float> bounds)
         ? static_cast<int>(qaQuestionsSlider->getValue())
         : static_cast<int>(roundsSlider->getValue());
     g.setColour(tm.getColour(ColourId::TextPrimary));
-    g.setFont(fonts.getCasinoTitle(24.0f));  // Cinzel Bold - Art Deco luxury feel
+    g.setFont(fonts.getBold(24.0f));
 
     if (isQAModeActive)
     {
@@ -453,7 +457,7 @@ void ControlPanel::drawAutoGainRow(juce::Graphics& g, juce::Rectangle<float> bou
     if (isCJKLanguage())
         g.setFont(fonts.getMedium(16.0f));
     else
-        g.setFont(fonts.getBebasNeue(14.0f));
+        g.setFont(fonts.getMedium(14.0f));
     auto labelBounds = contentBounds.removeFromLeft(110.0f);
     g.drawText(LOCALIZE(LabelAutoGain), labelBounds, juce::Justification::centredLeft);
 
@@ -477,11 +481,12 @@ void ControlPanel::drawAutoGainRow(juce::Graphics& g, juce::Rectangle<float> bou
                           dotSize, dotSize);
 
             // "Detecting..." text with time
-            g.setColour(tm.getColour(ColourId::Primary));
+            g.setColour(tm.isDark() ? tm.getColour(ColourId::TextPrimary)
+                                    : tm.getColour(ColourId::Primary));
             if (isCJKLanguage())
                 g.setFont(fonts.getMedium(16.0f));
             else
-                g.setFont(fonts.getBebasNeue(12.0f));
+                g.setFont(fonts.getMedium(12.0f));
             juce::String statusText = LOCALIZE(StatusDetecting);
             if (calibrationTimeRemaining > 0.0f)
                 statusText = juce::String::formatted("%.1fs", calibrationTimeRemaining);
@@ -494,7 +499,7 @@ void ControlPanel::drawAutoGainRow(juce::Graphics& g, juce::Rectangle<float> bou
             if (isCJKLanguage())
                 g.setFont(fonts.getMedium(16.0f));
             else
-                g.setFont(fonts.getBebasNeue(12.0f));
+                g.setFont(fonts.getMedium(12.0f));
             g.drawText(juce::String::fromUTF8("\xe2\x9c\x93 ") + LOCALIZE(StatusReady), statusArea, juce::Justification::centredLeft);
         }
         else
@@ -504,7 +509,7 @@ void ControlPanel::drawAutoGainRow(juce::Graphics& g, juce::Rectangle<float> bou
             if (isCJKLanguage())
                 g.setFont(fonts.getMedium(16.0f));
             else
-                g.setFont(fonts.getBebasNeue(12.0f));
+                g.setFont(fonts.getMedium(12.0f));
             g.drawText(LOCALIZE(StatusWaiting), statusArea, juce::Justification::centredLeft);
         }
     }
@@ -515,7 +520,7 @@ void ControlPanel::drawAutoGainRow(juce::Graphics& g, juce::Rectangle<float> bou
 void ControlPanel::resized()
 {
     auto bounds = getLocalBounds();
-    auto contentBounds = bounds.reduced(20, 16);
+    auto contentBounds = bounds.reduced(20);
 
     // Top info row
     auto infoRow = contentBounds.removeFromTop(32);

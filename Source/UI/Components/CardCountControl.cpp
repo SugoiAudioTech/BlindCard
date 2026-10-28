@@ -59,7 +59,7 @@ void CardCountControl::paint(juce::Graphics& g)
 
         juce::Colour bgColor = isHovered && canDecrement
             ? theme.getColour(ColourId::Accent).withAlpha(0.2f)
-            : (theme.isDark() ? juce::Colour(0xFF3A3A3A) : juce::Colour(0xFFE0E0E0));
+            : (theme.isDark() ? Theme::Dark::SurfaceAlt : juce::Colour(0xFFE0E0E0));
 
         g.setColour(bgColor);
         g.fillRoundedRectangle(decrementBounds.toFloat(), 4.0f);
@@ -67,7 +67,7 @@ void CardCountControl::paint(juce::Graphics& g)
         g.setColour(canDecrement
             ? (isHovered ? theme.getColour(ColourId::Accent) : theme.getColour(ColourId::TextPrimary))
             : theme.getColour(ColourId::TextPrimary).withAlpha(0.3f));
-        g.setFont(fonts.getBebasNeue(16.0f));
+        g.setFont(fonts.getMedium(16.0f));
         g.drawText(juce::String::fromUTF8("－"), decrementBounds, juce::Justification::centred);
     }
 
@@ -83,7 +83,7 @@ void CardCountControl::paint(juce::Graphics& g)
 
         juce::Colour bgColor = isHovered && canIncrement
             ? theme.getColour(ColourId::Accent).withAlpha(0.2f)
-            : (theme.isDark() ? juce::Colour(0xFF3A3A3A) : juce::Colour(0xFFE0E0E0));
+            : (theme.isDark() ? Theme::Dark::SurfaceAlt : juce::Colour(0xFFE0E0E0));
 
         g.setColour(bgColor);
         g.fillRoundedRectangle(incrementBounds.toFloat(), 4.0f);
@@ -91,7 +91,7 @@ void CardCountControl::paint(juce::Graphics& g)
         g.setColour(canIncrement
             ? (isHovered ? theme.getColour(ColourId::Accent) : theme.getColour(ColourId::TextPrimary))
             : theme.getColour(ColourId::TextPrimary).withAlpha(0.3f));
-        g.setFont(fonts.getBebasNeue(16.0f));
+        g.setFont(fonts.getMedium(16.0f));
         g.drawText(juce::String::fromUTF8("＋"), incrementBounds, juce::Justification::centred);
     }
 }

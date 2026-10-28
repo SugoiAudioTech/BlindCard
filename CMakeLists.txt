@@ -38,6 +38,7 @@ juce_add_plugin(BlindCard
     PRODUCT_NAME "Blind Card"
     AAX_IDENTIFIER "com.sugoi.blindcard"
     AAX_CATEGORY "AAX_ePlugInCategory_None"
+    DISABLE_AAX_MULTI_MONO TRUE
     ICON_BIG "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon_1024.png"
     ICON_SMALL "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon_256.png"
     COPY_PLUGIN_AFTER_BUILD TRUE)
@@ -46,10 +47,13 @@ juce_add_plugin(BlindCard
 juce_add_binary_data(BlindCardAssets SOURCES
     assets/cards/card-back.png
     assets/sugoi-logo.png
+    assets/sugoi-logo-header.png
     assets/fonts/NotoSansTC-Regular.otf
     assets/fonts/NotoSansTC-Medium.otf
     assets/fonts/NotoSansTC-Bold.otf
     assets/fonts/BebasNeue-Regular.ttf
+    assets/fonts/MuseoModerno-700.ttf
+    assets/fonts/MuseoModerno-800.ttf
     assets/fonts/Cinzel-Regular.ttf
     assets/fonts/Cinzel-Bold.ttf)
 

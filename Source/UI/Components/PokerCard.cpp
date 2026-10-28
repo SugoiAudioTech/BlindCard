@@ -67,6 +67,7 @@ namespace CardLayout
     const juce::Colour cardBackColor { 0xFF1A3D5C };          // Dark blue
     const juce::Colour cardBackPatternColor { 0xFF2A5D8C };   // Lighter pattern
     const juce::Colour positionLabelColor { 0xFFFFD700 };     // Gold
+    const juce::Colour emptyLightPositionLabelColor { 0xFF5A544B };  // Warm ink on light empty cards
 
     // Default card edge glow (subtle golden ambient glow on all cards)
     const juce::Colour cardEdgeGlowColor { 0xFFFFD700 };      // Gold
@@ -628,16 +629,17 @@ void PokerCard::drawCardBack(juce::Graphics& g, juce::Rectangle<float> bounds)
     g.drawRoundedRectangle(bounds, static_cast<float>(kCornerRadius), CardLayout::borderWidth);
 
     // Draw position label (gold number at bottom) and stars
-    drawPositionLabel(g, bounds);
+    drawPositionLabel(g, bounds, CardLayout::positionLabelColor);
 }
 
-void PokerCard::drawPositionLabel(juce::Graphics& g, juce::Rectangle<float> bounds)
+void PokerCard::drawPositionLabel(juce::Graphics& g, juce::Rectangle<float> bounds,
+                                 juce::Colour textColour)
 {
     auto& fonts = FontManager::getInstance();
 
-    // Gold position number in bottom-right corner
-    g.setColour(CardLayout::positionLabelColor);
-    g.setFont(fonts.getBebasNeue(CardLayout::positionLabelFontSize));
+    // The caller chooses the position number's contrast for its card state.
+    g.setColour(textColour);
+    g.setFont(fonts.getMedium(CardLayout::positionLabelFontSize));
 
     juce::String positionText = juce::String(cardData.position + 1);
 
@@ -1158,7 +1160,7 @@ void PokerCard::drawEmptyCardState(juce::Graphics& g, juce::Rectangle<float> bou
     g.reduceClipRegion(clipPath);
 
     // Darker background for empty state
-    g.setColour(theme.isDark() ? juce::Colour(0xFF2A2A2A) : juce::Colour(0xFFE0E0E0));
+    g.setColour(theme.isDark() ? juce::Colour(0xFF3B3E3B) : juce::Colour(0xFFE0E0E0));
     g.fillRoundedRectangle(bounds, static_cast<float>(kCornerRadius));
 
     g.restoreState();
@@ -1171,21 +1173,23 @@ void PokerCard::drawEmptyCardState(juce::Graphics& g, juce::Rectangle<float> bou
     juce::PathStrokeType strokeType(2.0f);
     strokeType.createDashedStroke(borderPath, borderPath, dashLengths, 2);
 
-    g.setColour(theme.isDark() ? juce::Colour(0xFF5A5A5A) : juce::Colour(0xFFAAAAAA));
+    g.setColour(theme.isDark() ? juce::Colour(0xFF909891) : juce::Colour(0xFFAAAAAA));
     g.strokePath(borderPath, strokeType);
 
     // Position label
-    drawPositionLabel(g, bounds);
+    drawPositionLabel(g, bounds, theme.isDark()
+                                   ? CardLayout::positionLabelColor
+                                   : CardLayout::emptyLightPositionLabelColor);
 
     // "Drop audio file" text
     auto& fonts = FontManager::getInstance();
-    g.setColour(theme.getColour(ColourId::TextPrimary).withAlpha(0.5f));
+    g.setColour(theme.getColour(ColourId::TextPrimary).withAlpha(theme.isDark() ? 0.72f : 0.5f));
 
     // Use CJK-compatible font for non-English languages
     if (isCJKLanguage())
         g.setFont(fonts.getBold(16.0f));
     else
-        g.setFont(fonts.getBebasNeue(18.0f));
+        g.setFont(fonts.getMedium(18.0f));
 
     auto textBounds = bounds.reduced(10.0f);
     g.drawFittedText(LOCALIZE(CardDragFile), textBounds.toNearestInt(),
@@ -1212,7 +1216,7 @@ void PokerCard::drawDragHoverOverlay(juce::Graphics& g, juce::Rectangle<float> b
     if (isCJKLanguage())
         g.setFont(fonts.getBold(14.0f));
     else
-        g.setFont(fonts.getBebasNeue(14.0f));
+        g.setFont(fonts.getMedium(14.0f));
 
     auto textBounds = bounds.reduced(10.0f);
     g.drawFittedText(LOCALIZE(CardDropHere) + "\n\u266B", textBounds.toNearestInt(),
@@ -1265,7 +1269,7 @@ void PokerCard::drawRemoveButton(juce::Graphics& g, juce::Rectangle<float> bound
     // X symbol
     auto& fonts = FontManager::getInstance();
     g.setColour(juce::Colours::white);
-    g.setFont(fonts.getBebasNeue(12.0f));
+    g.setFont(fonts.getMedium(12.0f));
     g.drawText(juce::String::fromUTF8("\u2715"), buttonBounds, juce::Justification::centred);
 }
 

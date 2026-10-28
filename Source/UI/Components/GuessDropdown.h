@@ -23,6 +23,7 @@
 #include <vector>
 #include <string>
 #include "../Theme/ThemeManager.h"
+#include "../Localization/LocalizationManager.h"
 
 namespace BlindCard
 {
@@ -33,11 +34,11 @@ namespace BlindCard
  *
  * Visual structure:
  * +----------------------+
- * |  Guess Track...   v  |  <- closed state (v = down arrow)
+ * |  Choose track    v  |  <- closed state (v = down arrow)
  * +----------------------+
  *
  * +----------------------+
- * |  Guess Track...   ^  |  <- open state (^ = up arrow)
+ * |  Choose track    ^  |  <- open state (^ = up arrow)
  * +----------------------+
  * |  Track A             |
  * |  Track B             |
@@ -51,7 +52,8 @@ namespace BlindCard
  *   dropdown.setSelectedIndex(-1); // No selection (shows placeholder)
  */
 class GuessDropdown : public juce::Component,
-                      public juce::ChangeListener
+                      public juce::ChangeListener,
+                      public LocalizationManager::Listener
 {
 public:
     //==========================================================================
@@ -105,6 +107,7 @@ public:
 
     // ChangeListener override (for ThemeManager)
     void changeListenerCallback(juce::ChangeBroadcaster* source) override;
+    void languageChanged() override;
 
     //==========================================================================
     /** Standard dimensions */
@@ -112,8 +115,8 @@ public:
     static constexpr int kHeight = 36;
     static constexpr int kCornerRadius = 4;
     static constexpr int kBorderWidth = 1;
-    static constexpr int kArrowPadding = 12;
-    static constexpr int kTextPadding = 12;
+    static constexpr int kArrowPadding = 8;
+    static constexpr int kTextPadding = 8;
 
 private:
     //==========================================================================
@@ -127,11 +130,7 @@ private:
     //==========================================================================
     // Visual constants
     static constexpr float kDisabledOpacity = 0.4f;
-    static constexpr float kFontSize = 14.0f;
-
-    //==========================================================================
-    // Placeholder text
-    const juce::String placeholderText = "Guess Track...";
+    static constexpr float kFontSize = 13.5f;
 
     //==========================================================================
     // Drawing helpers

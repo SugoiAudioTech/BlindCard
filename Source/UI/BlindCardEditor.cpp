@@ -34,13 +34,13 @@ void PresetUILookAndFeel::updateColours(bool isDark)
     if (isDark)
     {
         // Dark theme colors
-        setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xFF2A2A2A));
-        setColour(juce::ComboBox::textColourId, juce::Colours::white);
-        setColour(juce::ComboBox::outlineColourId, juce::Colour(0xFF3D3D3D));
-        setColour(juce::ComboBox::arrowColourId, juce::Colours::white);
-        setColour(juce::PopupMenu::backgroundColourId, juce::Colour(0xFF2A2A2A));
-        setColour(juce::PopupMenu::textColourId, juce::Colours::white);
-        setColour(juce::PopupMenu::highlightedBackgroundColourId, juce::Colour(0xFF4A4A4A));
+        setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xFF484B49));
+        setColour(juce::ComboBox::textColourId, Theme::Dark::TextPrimary);
+        setColour(juce::ComboBox::outlineColourId, juce::Colour(0xFF727772));
+        setColour(juce::ComboBox::arrowColourId, Theme::Dark::TextPrimary);
+        setColour(juce::PopupMenu::backgroundColourId, juce::Colour(0xFF484B49));
+        setColour(juce::PopupMenu::textColourId, Theme::Dark::TextPrimary);
+        setColour(juce::PopupMenu::highlightedBackgroundColourId, juce::Colour(0xFF5C5F5C));
     }
     else
     {
@@ -63,8 +63,8 @@ juce::Font PresetUILookAndFeel::getComboBoxFont(juce::ComboBox&)
 
 juce::Font PresetUILookAndFeel::getTextButtonFont(juce::TextButton&, int)
 {
-    // Display font for action buttons
-    return FontManager::getInstance().getBebasNeue(14.0f);
+    // Noto Sans TC Medium for preset action labels
+    return FontManager::getInstance().getMedium(14.0f);
 }
 
 juce::Font PresetUILookAndFeel::getPopupMenuFont()
@@ -80,40 +80,48 @@ void MasterKnobLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, in
                                               float sliderPos, float rotaryStartAngle,
                                               float rotaryEndAngle, juce::Slider& /*slider*/)
 {
-    float diameter = static_cast<float>(juce::jmin(width, height));
-    float radius = diameter * 0.5f;
-    float cx = static_cast<float>(x) + static_cast<float>(width) * 0.5f;
-    float cy = static_cast<float>(y) + static_cast<float>(height) * 0.5f;
+    const bool dark = ThemeManager::getInstance().isDark();
+    const float diameter = static_cast<float>(juce::jmin(width, height));
+    const float cx = static_cast<float>(x) + static_cast<float>(width) * 0.5f;
+    const float cy = static_cast<float>(y) + static_cast<float>(height) * 0.5f;
+    const float ringRadius = diameter * 0.5f - 2.2f;
+    const float bodyRadius = ringRadius - 3.4f;
+    const float position = juce::jlimit(0.0f, 1.0f, sliderPos);
+    const float angle = rotaryStartAngle + position * (rotaryEndAngle - rotaryStartAngle);
 
-    // --- White knob body ---
-    float bodyR = radius - 1.0f;
+    const auto track = dark ? juce::Colour(0xFF818781) : juce::Colour(0xFFAAA399);
+    const auto body = dark ? juce::Colour(0xFF535754) : juce::Colour(0xFFE6E2DA);
+    const auto bodyEdge = dark ? juce::Colour(0xFF9CA29B) : juce::Colour(0xFF9F988F);
+    const auto accent = dark ? juce::Colour(0xFFE4868B) : juce::Colour(0xFFB8414D);
+    const auto pointer = dark ? Theme::Dark::TextPrimary : juce::Colour(0xFF383633);
 
-    // Drop shadow
-    g.setColour(juce::Colours::black.withAlpha(0.15f));
-    g.fillEllipse(cx - bodyR + 0.5f, cy - bodyR + 1.0f, bodyR * 2, bodyR * 2);
+    juce::Path ring;
+    ring.addCentredArc(cx, cy, ringRadius, ringRadius, 0.0f,
+                       rotaryStartAngle, rotaryEndAngle, true);
+    g.setColour(track);
+    g.strokePath(ring, juce::PathStrokeType(1.8f));
 
-    // Main body gradient (white to light grey for depth)
-    juce::ColourGradient bodyGrad(
-        juce::Colour(0xFFFAFAFA), cx, cy - bodyR * 0.6f,
-        juce::Colour(0xFFDDDDDD), cx, cy + bodyR * 0.8f,
-        false);
-    g.setGradientFill(bodyGrad);
-    g.fillEllipse(cx - bodyR, cy - bodyR, bodyR * 2, bodyR * 2);
+    if (position > 0.001f)
+    {
+        juce::Path valueArc;
+        valueArc.addCentredArc(cx, cy, ringRadius, ringRadius, 0.0f,
+                              rotaryStartAngle, angle, true);
+        g.setColour(accent);
+        g.strokePath(valueArc, juce::PathStrokeType(2.3f));
+    }
 
-    // Thin border
-    g.setColour(juce::Colour(0xFFCCCCCC));
-    g.drawEllipse(cx - bodyR, cy - bodyR, bodyR * 2, bodyR * 2, 0.5f);
+    g.setColour(body);
+    g.fillEllipse(cx - bodyRadius, cy - bodyRadius, bodyRadius * 2.0f, bodyRadius * 2.0f);
+    g.setColour(bodyEdge);
+    g.drawEllipse(cx - bodyRadius, cy - bodyRadius, bodyRadius * 2.0f, bodyRadius * 2.0f, 0.8f);
 
-    // --- Indicator dot ---
-    // JUCE angles: 0 = 12 o'clock, clockwise. Subtract halfPi for cos/sin screen coords.
-    float angle = rotaryStartAngle + sliderPos * (rotaryEndAngle - rotaryStartAngle);
-    float drawAngle = angle - juce::MathConstants<float>::halfPi;
-    float dotR = bodyR * 0.72f;
-    float dotX = cx + std::cos(drawAngle) * dotR;
-    float dotY = cy + std::sin(drawAngle) * dotR;
-
-    g.setColour(juce::Colour(0xFFE03030));
-    g.fillEllipse(dotX - 2.0f, dotY - 2.0f, 4.0f, 4.0f);
+    // A narrow pointer retains the rotary position without a bright filled disc.
+    const float pointerAngle = angle - juce::MathConstants<float>::halfPi;
+    const float dx = std::cos(pointerAngle);
+    const float dy = std::sin(pointerAngle);
+    g.setColour(pointer);
+    g.drawLine(cx + dx * (bodyRadius * 0.45f), cy + dy * (bodyRadius * 0.45f),
+               cx + dx * (bodyRadius - 2.0f), cy + dy * (bodyRadius - 2.0f), 1.6f);
 }
 
 //==============================================================================
@@ -217,7 +225,7 @@ BlindCardEditor::BlindCardEditor(BlindCardProcessor& processorInstance)
     crossfadeSliderLnF = std::make_unique<CrossfadeSliderLookAndFeel>();
 
     crossfadeLabel = std::make_unique<juce::Label>("cfLabel", "CROSSFADE");
-    crossfadeLabel->setFont(FontManager::getInstance().getBebasNeue(14.0f));
+    crossfadeLabel->setFont(FontManager::getInstance().getMedium(14.0f));
     crossfadeLabel->setColour(juce::Label::textColourId,
         ThemeManager::getInstance().getColour(ColourId::TextMuted));
     crossfadeLabel->setJustificationType(juce::Justification::centred);
@@ -239,7 +247,7 @@ BlindCardEditor::BlindCardEditor(BlindCardProcessor& processorInstance)
     addAndMakeVisible(*crossfadeSlider);
 
     crossfadeValueLabel = std::make_unique<juce::Label>("cfVal", "10 ms");
-    crossfadeValueLabel->setFont(FontManager::getInstance().getBebasNeue(14.0f));
+    crossfadeValueLabel->setFont(FontManager::getInstance().getMedium(14.0f));
     crossfadeValueLabel->setColour(juce::Label::textColourId,
         ThemeManager::getInstance().getColour(ColourId::TextPrimary));
     crossfadeValueLabel->setJustificationType(juce::Justification::centred);
@@ -373,6 +381,7 @@ void BlindCardEditor::paint(juce::Graphics& g)
         return;
 
     auto& tm = ThemeManager::getInstance();
+    // A single dark canvas keeps the raised controls and table edges well defined.
     g.fillAll(tm.getColour(ColourId::Background));
 
     // Draw dev panel background if visible
@@ -456,8 +465,8 @@ void BlindCardEditor::resized()
     // In Standalone mode, place TransportBar in header (centered, fixed width)
     if (isStandaloneMode && transportBar)
     {
-        int knobSize = 34;
-        int transportWidth = 365;
+        constexpr int knobSize = 28;
+        int transportWidth = TransportBar::kRecommendedWidth;
         auto transportBounds = headerArea.withSizeKeepingCentre(transportWidth, headerArea.getHeight());
         transportBar->setBounds(transportBounds);
 
@@ -465,126 +474,112 @@ void BlindCardEditor::resized()
         if (masterVolumeSlider)
         {
             int volX = transportBounds.getRight() + 12;
-            int volY = headerArea.getCentreY() - knobSize / 2 + 4;
+            int volY = headerArea.getCentreY() - knobSize / 2;
+            int labelX = volX + knobSize + 8;
 
             masterVolumeSlider->setBounds(volX, volY, knobSize, knobSize);
-            masterVolumeLabel->setBounds(volX + knobSize + 2, volY, 48, knobSize);
+            masterVolumeLabel->setBounds(labelX, headerArea.getCentreY() - 1, 70, 17);
 
             if (masterVolumeTitleLabel)
-                masterVolumeTitleLabel->setBounds(volX - 2, volY - 11, knobSize + 4, 11);
+                masterVolumeTitleLabel->setBounds(labelX, headerArea.getCentreY() - 16, 70, 14);
         }
     }
 
-    // In Standalone mode, place preset controls below header (above mode selector)
+    // Standalone uses two aligned control rows below the header. The plugin
+    // keeps its original single mode-selector row below.
     if (isStandaloneMode && presetComboBox)
     {
-        // Row 1: Preset controls on left, Now Playing centered
-        auto presetRow = bounds.removeFromTop(32);
-        presetRow = presetRow.reduced(16, 2);
+        constexpr int rowHeight = 44;
+        constexpr int outerGutter = 16;
+        constexpr int groupGap = 8;
 
-        // Left side: [ComboBox] [Save] [Delete]
-        auto leftControls = presetRow.removeFromLeft(340);
+        // Row 1: preset actions, a bounded Now Playing group, and Cards.
+        auto firstRow = bounds.removeFromTop(rowHeight).reduced(outerGutter, 4);
+        auto leftControls = firstRow.removeFromLeft(336);
         presetComboBox->setBounds(leftControls.removeFromLeft(200));
-        leftControls.removeFromLeft(8);
+        leftControls.removeFromLeft(groupGap);
         savePresetButton->setBounds(leftControls.removeFromLeft(60));
-        leftControls.removeFromLeft(4);
+        leftControls.removeFromLeft(groupGap);
         deletePresetButton->setBounds(leftControls.removeFromLeft(60));
 
-        // Center: [Now Playing] [TrackName] - centered in FULL window width
+        auto cardsArea = firstRow.removeFromRight(140);
+        if (cardCountControl)
+            cardCountControl->setBounds(cardsArea);
+
+        firstRow.removeFromLeft(groupGap);
+        firstRow.removeFromRight(groupGap);
         if (nowPlayingLabel && nowPlayingTrackName)
         {
-            int nowPlayingWidth = 100 + 10 + 250;  // label + gap + track name
-            int windowCenterX = getWidth() / 2;
-            int nowPlayingX = windowCenterX - nowPlayingWidth / 2;
-
-            int minX = 360;
-            nowPlayingX = juce::jmax(nowPlayingX, minX);
-
-            auto nowPlayingArea = juce::Rectangle<int>(nowPlayingX, presetRow.getY(), nowPlayingWidth, presetRow.getHeight());
-
+            int nowPlayingWidth = juce::jmin(520, firstRow.getWidth());
+            int desiredX = (getWidth() - nowPlayingWidth) / 2;
+            int nowPlayingX = juce::jlimit(firstRow.getX(), firstRow.getRight() - nowPlayingWidth,
+                                          desiredX);
+            auto nowPlayingArea = juce::Rectangle<int>(nowPlayingX, firstRow.getY(),
+                                                       nowPlayingWidth, firstRow.getHeight());
             nowPlayingLabel->setBounds(nowPlayingArea.removeFromLeft(100));
-            nowPlayingArea.removeFromLeft(10);
+            nowPlayingArea.removeFromLeft(groupGap);
+            // A long filename is clipped inside this label before the Cards slot.
             nowPlayingTrackName->setBounds(nowPlayingArea);
         }
-        // Hide standaloneTimeLabel (time is now in TransportBar)
         if (standaloneTimeLabel)
             standaloneTimeLabel->setVisible(false);
 
-        // Row 2: Import Files + Clear All below preset combo, Crossfade on right
-        if (importFilesButton)
-        {
-            auto importRow = bounds.removeFromTop(28);
-            importRow = importRow.reduced(16, 2);
-            importFilesButton->setBounds(importRow.removeFromLeft(110));
-            if (clearAllCardsButton)
-            {
-                importRow.removeFromLeft(8);
-                clearAllCardsButton->setBounds(importRow.removeFromLeft(100));
-            }
+        // Row 2: file actions, selector centered in the full editor, Crossfade.
+        auto secondRow = bounds.removeFromTop(rowHeight);
+        auto secondContent = secondRow.reduced(outerGutter, 4);
+        modeSelector->setBounds(secondRow.withSizeKeepingCentre(280, 40));
 
-            // Crossfade control on the right side of import row (above CardCountControl)
-            if (crossfadeSlider)
-            {
-                // Layout: [CROSSFADE label 80px] [slider 120px] [value 50px]
-                int cfTotalWidth = 250;
-                int cfX = importRow.getRight() - cfTotalWidth;
-                int cfY = importRow.getY();
-                int cfH = importRow.getHeight();
+        auto fileActions = secondContent.removeFromLeft(218);
+        importFilesButton->setBounds(fileActions.removeFromLeft(110));
+        fileActions.removeFromLeft(groupGap);
+        clearAllCardsButton->setBounds(fileActions.removeFromLeft(100));
 
-                crossfadeLabel->setBounds(cfX, cfY, 80, cfH);
-                crossfadeSlider->setBounds(cfX + 80, cfY, 120, cfH);
-                crossfadeValueLabel->setBounds(cfX + 200, cfY, 50, cfH);
-            }
-        }
+        auto crossfadeArea = secondContent.removeFromRight(250);
+        crossfadeLabel->setBounds(crossfadeArea.removeFromLeft(80));
+        crossfadeSlider->setBounds(crossfadeArea.removeFromLeft(120));
+        crossfadeValueLabel->setBounds(crossfadeArea);
     }
 
     headerBar->setBounds(headerArea);
 
-    // Mode selector below header
-    auto modeSelectorArea = bounds.removeFromTop(kModeSelectorHeight);
-
-    // Mode selector always centered in FULL width (before removing CardCountControl)
-    auto selectorBounds = modeSelectorArea.withSizeKeepingCentre(280, 40);
-    modeSelector->setBounds(selectorBounds);
-
-    // In Standalone mode, place CardCountControl on the right side (after centering mode selector)
-    if (isStandaloneMode && cardCountControl)
+    if (!isStandaloneMode)
     {
-        auto cardCountArea = modeSelectorArea.removeFromRight(140);
-        cardCountControl->setBounds(cardCountArea.reduced(8, 8));
+        // Match the Standalone control rhythm while keeping the plugin's
+        // simpler, single-row set of controls.
+        bounds.removeFromTop(14);  // Air between the plugin header and controls.
+        constexpr int rowHeight = 44;
+        constexpr int outerGutter = 16;
+        auto modeSelectorArea = bounds.removeFromTop(rowHeight);
+        modeSelector->setBounds(modeSelectorArea.withSizeKeepingCentre(280, 40));
+
+        if (crossfadeSlider)
+        {
+            auto crossfadeArea = modeSelectorArea.reduced(outerGutter, 4)
+                                               .removeFromRight(250);
+            crossfadeLabel->setBounds(crossfadeArea.removeFromLeft(80));
+            crossfadeSlider->setBounds(crossfadeArea.removeFromLeft(120));
+            crossfadeValueLabel->setBounds(crossfadeArea);
+        }
     }
 
-    // Crossfade control — in non-standalone mode, right side of mode selector row
-    if (crossfadeSlider && !isStandaloneMode)
-    {
-        // Layout: [CROSSFADE label 80px] [slider 120px] [value 50px]
-        int cfTotalWidth = 250;
-        int cfX = modeSelectorArea.getRight() - cfTotalWidth - 12;
-        int cfY = modeSelectorArea.getY() + 4;
-        int cfH = modeSelectorArea.getHeight() - 8;
-
-        crossfadeLabel->setBounds(cfX, cfY, 80, cfH);
-        crossfadeSlider->setBounds(cfX + 80, cfY, 120, cfH);
-        crossfadeValueLabel->setBounds(cfX + 200, cfY, 50, cfH);
-    }
-
-    // Question banner area - always reserve space to prevent layout jumping
-    auto bannerArea = bounds.removeFromTop(kQuestionBannerHeight);
-    questionBanner->setBounds(bannerArea.reduced(100, 4));
-
-    // Only show banner in Q&A mode AND when game has started (after shuffle)
+    // Reserve a stable row within each mode so the table does not move when a
+    // round starts or the Q&A banner becomes visible.
     auto currentMode = manager->getRatingMode();
     auto currentPhase = manager->getPhase();
     bool showBanner = (currentMode == blindcard::RatingMode::QA) &&
                       (currentPhase == blindcard::GamePhase::BlindTesting ||
                        currentPhase == blindcard::GamePhase::Revealed);
+    int statusHeight = currentMode == blindcard::RatingMode::QA ? kQuestionBannerHeight : 44;
+    auto bannerArea = bounds.removeFromTop(statusHeight);
+    questionBanner->setBounds(bannerArea.reduced(100, 4));
     questionBanner->setVisible(showBanner);
 
     // Round indicator - centered in banner area, shown for Stars/Guess during BlindTesting
     roundIndicatorLabel->setBounds(bannerArea.withSizeKeepingCentre(300, 44));
 
-    // Main content area with padding
-    auto mainArea = bounds.reduced(16, 8);
+    // Use the quiet space above the felt, while preserving the bottom inset.
+    auto mainArea = bounds.reduced(16, 0);
+    mainArea.removeFromBottom(8);
 
     // Bottom panel area (Control Panel + Results Panel side by side)
     constexpr int kBottomPanelHeight = ControlPanel::kMinHeight;
@@ -638,6 +633,7 @@ void BlindCardEditor::changeListenerCallback(juce::ChangeBroadcaster* source)
             if (safeThis->presetUILookAndFeel)
             {
                 safeThis->presetUILookAndFeel->updateColours(ThemeManager::getInstance().isDark());
+                safeThis->updatePresetButtonColours();
                 if (safeThis->presetComboBox) safeThis->presetComboBox->repaint();
                 if (safeThis->savePresetButton) safeThis->savePresetButton->repaint();
                 if (safeThis->deletePresetButton) safeThis->deletePresetButton->repaint();
@@ -651,13 +647,13 @@ void BlindCardEditor::changeListenerCallback(juce::ChangeBroadcaster* source)
             {
                 bool dark = ThemeManager::getInstance().isDark();
                 safeThis->masterVolumeLabel->setColour(juce::Label::textColourId,
-                    dark ? juce::Colour(0xFFCCCCCC) : juce::Colour(0xFF555555));
+                    dark ? Theme::Dark::TextPrimary : Theme::Light::TextPrimary);
             }
             if (safeThis->masterVolumeTitleLabel)
             {
                 bool dark = ThemeManager::getInstance().isDark();
                 safeThis->masterVolumeTitleLabel->setColour(juce::Label::textColourId,
-                    dark ? juce::Colour(0xFF666666) : juce::Colour(0xFFAAAAAA));
+                    dark ? Theme::Dark::TextSecondary : juce::Colour(0xFF67635D));
             }
 
             // Update crossfade label colours for theme
@@ -672,8 +668,14 @@ void BlindCardEditor::changeListenerCallback(juce::ChangeBroadcaster* source)
             if (safeThis->standaloneTimeLabel)
             {
                 safeThis->standaloneTimeLabel->setColour(juce::Label::textColourId,
-                    juce::Colour(0xFF8E8E93));
+                    ThemeManager::getInstance().isDark()
+                        ? juce::Colour(0xFFC8C2B7) : juce::Colour(0xFF8E8E93));
             }
+
+            if (safeThis->nowPlayingLabel)
+                safeThis->nowPlayingLabel->setColour(juce::Label::textColourId,
+                    ThemeManager::getInstance().isDark()
+                        ? juce::Colour(0xFFE8C68B) : juce::Colour(0xFFD4AF37));
 
             safeThis->updateNowPlayingDisplay();
             safeThis->repaint();
@@ -762,8 +764,6 @@ void BlindCardEditor::timerCallback()
                 else
                 {
                     // Go to next round - this will shuffle and flip cards
-                    resultsPanel->setGuessResultsVisible(false);
-                    resultsPanel->setShowFinalResults(false);
                     manager->nextRound();
                 }
             }
@@ -838,7 +838,7 @@ void BlindCardEditor::updateFromManager()
                                 juce::String(currentRound) + " / " +
                                 juce::String(totalRounds);
             roundIndicatorLabel->setText(text, juce::dontSendNotification);
-            roundIndicatorLabel->setFont(fonts.getMedium(32.0f));
+            roundIndicatorLabel->setFont(fonts.getMedium(24.0f));
             roundIndicatorLabel->setColour(juce::Label::textColourId,
                                            isDark ? juce::Colour(0xFFD4D4D4) : juce::Colour(0xFF6B7280));
         }
@@ -872,6 +872,13 @@ void BlindCardEditor::updateFromManager()
     updateModeUI();
     updatePhaseUI();
     updateResultsPanel();
+
+    int statusHeight = mode == blindcard::RatingMode::QA ? kQuestionBannerHeight : 44;
+    if (statusHeight != currentStatusRowHeight)
+    {
+        currentStatusRowHeight = statusHeight;
+        resized();
+    }
 
     repaint();
 }
@@ -1119,25 +1126,16 @@ void BlindCardEditor::updateQAUI()
 void BlindCardEditor::updateResultsPanel()
 {
     auto mode = manager->getRatingMode();
-    auto phase = manager->getPhase();
-
-    // Update round info for Guess mode
-    if (mode == blindcard::RatingMode::Guess)
-    {
-        int currentRound = manager->getCurrentRound() + 1;  // 1-based for display
-        int totalRounds = manager->getTotalRounds();
-        resultsPanel->setRoundInfo(currentRound, totalRounds);
-
-        // Auto-show results when phase is Revealed
-        if (phase == blindcard::GamePhase::Revealed)
-        {
-            resultsPanel->setGuessResultsVisible(true);
-
-            // Check if this is the last round for final results display
-            bool isLastRound = (currentRound >= totalRounds);
-            resultsPanel->setShowFinalResults(isLastRound);
-        }
-    }
+    const auto guess = manager->getGuessResultsSnapshot();
+    resultsPanel->setResultsSession(guess.sessionId);
+    resultsPanel->setRoundInfo(guess.currentRound + 1, guess.totalRounds);
+    const bool revealedGuess = mode == blindcard::RatingMode::Guess &&
+                               guess.phase == blindcard::GamePhase::Revealed;
+    resultsPanel->setGuessResultsVisible(revealedGuess);
+    resultsPanel->setShowFinalResults(revealedGuess &&
+                                      guess.currentRound + 1 >= guess.totalRounds);
+    resultsPanel->setGuessScore(guess.currentCorrect, guess.currentTotal,
+                                guess.cumulativeCorrect, guess.cumulativeTotal);
 
     switch (mode)
     {
@@ -1145,7 +1143,7 @@ void BlindCardEditor::updateResultsPanel()
             buildStarsResults();
             break;
         case blindcard::RatingMode::Guess:
-            buildGuessResults();
+            buildGuessResults(guess);
             break;
         case blindcard::RatingMode::QA:
             buildQAResults();
@@ -1266,27 +1264,8 @@ void BlindCardEditor::onShuffleClicked()
 
 void BlindCardEditor::onRevealClicked()
 {
-    auto mode = manager->getRatingMode();
-
-    // Handle Guess mode - show results with scoring
-    if (mode == blindcard::RatingMode::Guess)
-    {
-        int currentRound = manager->getCurrentRound() + 1;  // 1-based for display
-        int totalRounds = manager->getTotalRounds();
-
-        resultsPanel->setRoundInfo(currentRound, totalRounds);
-        resultsPanel->setGuessResultsVisible(true);
-
-        // Build results first so we can accumulate them
-        buildGuessResults();
-        resultsPanel->accumulateGuessResults();
-
-        // Check if this is the last round
-        bool isLastRound = (currentRound >= totalRounds);
-        resultsPanel->setShowFinalResults(isLastRound);
-    }
-
     manager->reveal();
+    updateResultsPanel();
     pokerTable->revealAllCards(100);  // Staggered 100ms animation
 }
 
@@ -1301,9 +1280,7 @@ void BlindCardEditor::onResetClicked()
 
     // Reset results panel completely
     resultsPanel->clearResults();
-    resultsPanel->resetCumulativeTracking();
-    resultsPanel->setGuessResultsVisible(false);
-    resultsPanel->setShowFinalResults(false);
+    updateResultsPanel();
 
     // 重置後，如果 Level-Match 啟用，重新開始校準
     if (manager->isLevelMatchEnabled())
@@ -1339,10 +1316,8 @@ void BlindCardEditor::onNextRoundClicked()
         autoAdvanceCountdown = 0;
         resultsPanel->setCountdown(0);
 
-        resultsPanel->setGuessResultsVisible(false);
-        resultsPanel->setShowFinalResults(false);
-
         manager->nextRound();
+        updateResultsPanel();
     }
 }
 
@@ -1387,22 +1362,8 @@ void BlindCardEditor::onQAQuestionsChanged(int questions)
 
 void BlindCardEditor::onSubmitGuesses()
 {
-    // In Guess mode, submit all guesses and show results
-    int currentRound = manager->getCurrentRound() + 1;  // 1-based for display
-    int totalRounds = manager->getTotalRounds();
-
-    resultsPanel->setRoundInfo(currentRound, totalRounds);
-    resultsPanel->setGuessResultsVisible(true);
-
-    // Build results first so we can accumulate them
-    buildGuessResults();
-    resultsPanel->accumulateGuessResults();
-
-    // Check if this is the last round
-    bool isLastRound = (currentRound >= totalRounds);
-    resultsPanel->setShowFinalResults(isLastRound);
-
     manager->reveal();
+    updateResultsPanel();
     pokerTable->revealAllCards(100);  // Staggered 100ms animation
 }
 
@@ -1449,29 +1410,17 @@ void BlindCardEditor::buildStarsResults()
     resultsPanel->setStarsResults(results);
 }
 
-void BlindCardEditor::buildGuessResults()
+void BlindCardEditor::buildGuessResults(const blindcard::GuessSessionSnapshot& snapshot)
 {
     std::vector<GuessResult> results;
-    auto cards = manager->getCards();
-    int currentRound = manager->getCurrentRound();
-
-    for (int i = 0; i < cards.size(); ++i)
+    results.reserve(snapshot.currentRows.size());
+    for (const auto& row : snapshot.currentRows)
     {
-        const auto& card = cards[i];
         GuessResult result;
-        result.cardPosition = card.displayPosition;
-        result.actualTrack = card.realTrackName.toStdString();
-
-        if (currentRound < card.rounds.size())
-        {
-            int guessedId = card.rounds[currentRound].guessedTrackId;
-            if (guessedId >= 0 && guessedId < cards.size())
-            {
-                result.guessedTrack = cards[guessedId].realTrackName.toStdString();
-                result.isCorrect = (guessedId == card.id);
-            }
-        }
-
+        result.cardPosition = row.cardPosition;
+        result.actualTrack = row.actualTrack.toStdString();
+        result.guessedTrack = row.guessedTrack.toStdString();
+        result.isCorrect = row.isCorrect;
         results.push_back(result);
     }
 
@@ -1729,7 +1678,7 @@ void BlindCardEditor::setupDevPanel()
     // Title label
     trackCountLabel = std::make_unique<juce::Label>();
     trackCountLabel->setText("Track Count:", juce::dontSendNotification);
-    trackCountLabel->setFont(FontManager::getInstance().getBebasNeue(14.0f));
+    trackCountLabel->setFont(FontManager::getInstance().getMedium(14.0f));
     trackCountLabel->setColour(juce::Label::textColourId, juce::Colours::white);
     devPanel->addAndMakeVisible(*trackCountLabel);
 
@@ -1855,7 +1804,7 @@ void BlindCardEditor::setupStandaloneMode()
         }
     }
 
-    // Master volume control (metallic knob + dB label)
+    // Compact matte Master volume control with a grouped title and dB readout
     masterKnobLookAndFeel = std::make_unique<MasterKnobLookAndFeel>();
 
     masterVolumeSlider = std::make_unique<juce::Slider>(juce::Slider::RotaryHorizontalVerticalDrag, juce::Slider::NoTextBox);
@@ -1877,21 +1826,21 @@ void BlindCardEditor::setupStandaloneMode()
 
     masterVolumeLabel = std::make_unique<juce::Label>("volLabel", "0.0 dB");
     masterVolumeLabel->setJustificationType(juce::Justification::centredLeft);
-    masterVolumeLabel->setFont(FontManager::getInstance().getMedium(11.0f));
+    masterVolumeLabel->setFont(FontManager::getInstance().getBold(12.0f));
     {
         bool isDark = ThemeManager::getInstance().isDark();
         masterVolumeLabel->setColour(juce::Label::textColourId,
-            isDark ? juce::Colour(0xFFCCCCCC) : juce::Colour(0xFF555555));
+            isDark ? Theme::Dark::TextPrimary : Theme::Light::TextPrimary);
     }
     addAndMakeVisible(*masterVolumeLabel);
 
     masterVolumeTitleLabel = std::make_unique<juce::Label>("volTitle", "MASTER");
-    masterVolumeTitleLabel->setJustificationType(juce::Justification::centred);
-    masterVolumeTitleLabel->setFont(FontManager::getInstance().getBebasNeue(9.0f));
+    masterVolumeTitleLabel->setJustificationType(juce::Justification::centredLeft);
+    masterVolumeTitleLabel->setFont(FontManager::getInstance().getMedium(10.0f));
     {
         bool isDark = ThemeManager::getInstance().isDark();
         masterVolumeTitleLabel->setColour(juce::Label::textColourId,
-            isDark ? juce::Colour(0xFF666666) : juce::Colour(0xFFAAAAAA));
+            isDark ? Theme::Dark::TextSecondary : juce::Colour(0xFF67635D));
     }
     addAndMakeVisible(*masterVolumeTitleLabel);
 
@@ -2173,32 +2122,24 @@ void BlindCardEditor::setupPresetUI()
 
     // Save button
     savePresetButton = std::make_unique<juce::TextButton>("SAVE");
-    savePresetButton->setColour(juce::TextButton::buttonColourId, juce::Colour(0xFF4CAF50));
-    savePresetButton->setColour(juce::TextButton::textColourOnId, juce::Colours::white);
     savePresetButton->setLookAndFeel(presetUILookAndFeel.get());
     savePresetButton->onClick = [this]() { onSavePreset(); };
     addAndMakeVisible(*savePresetButton);
 
     // Delete button
     deletePresetButton = std::make_unique<juce::TextButton>("DELETE");
-    deletePresetButton->setColour(juce::TextButton::buttonColourId, juce::Colour(0xFFE53935));
-    deletePresetButton->setColour(juce::TextButton::textColourOnId, juce::Colours::white);
     deletePresetButton->setLookAndFeel(presetUILookAndFeel.get());
     deletePresetButton->onClick = [this]() { onDeletePreset(); };
     addAndMakeVisible(*deletePresetButton);
 
     // Import Files button (for batch import)
     importFilesButton = std::make_unique<juce::TextButton>("IMPORT FILES");
-    importFilesButton->setColour(juce::TextButton::buttonColourId, juce::Colour(0xFF2196F3));  // Blue
-    importFilesButton->setColour(juce::TextButton::textColourOnId, juce::Colours::white);
     importFilesButton->setLookAndFeel(presetUILookAndFeel.get());
     importFilesButton->onClick = [this]() { onImportFiles(); };
     addAndMakeVisible(*importFilesButton);
 
     // Clear All button
     clearAllCardsButton = std::make_unique<juce::TextButton>("CLEAR ALL");
-    clearAllCardsButton->setColour(juce::TextButton::buttonColourId, juce::Colour(0xFFFF9800));  // Orange
-    clearAllCardsButton->setColour(juce::TextButton::textColourOnId, juce::Colours::white);
     clearAllCardsButton->setLookAndFeel(presetUILookAndFeel.get());
     clearAllCardsButton->onClick = [this]() { onClearAllCards(); };
     addAndMakeVisible(*clearAllCardsButton);
@@ -2207,15 +2148,16 @@ void BlindCardEditor::setupPresetUI()
     standaloneTimeLabel = std::make_unique<juce::Label>();
     standaloneTimeLabel->setText("00:00 / 00:00", juce::dontSendNotification);
     standaloneTimeLabel->setColour(juce::Label::textColourId,
-        ThemeManager::getInstance().isDark() ? juce::Colour(0xFF8E8E93) : juce::Colour(0xFF8E8E93));
-    standaloneTimeLabel->setFont(FontManager::getInstance().getBebasNeue(18.0f));
+        ThemeManager::getInstance().isDark() ? juce::Colour(0xFFC8C2B7) : juce::Colour(0xFF8E8E93));
+    standaloneTimeLabel->setFont(FontManager::getInstance().getMedium(18.0f));
     standaloneTimeLabel->setJustificationType(juce::Justification::centred);
     addAndMakeVisible(*standaloneTimeLabel);
 
     // Now Playing label (right side of preset row)
     nowPlayingLabel = std::make_unique<juce::Label>();
     nowPlayingLabel->setText("Now Playing", juce::dontSendNotification);
-    nowPlayingLabel->setColour(juce::Label::textColourId, juce::Colour(0xFFD4AF37));  // Gold
+    nowPlayingLabel->setColour(juce::Label::textColourId,
+        ThemeManager::getInstance().isDark() ? juce::Colour(0xFFE8C68B) : juce::Colour(0xFFD4AF37));
     nowPlayingLabel->setFont(FontManager::getInstance().getMedium(15.0f));
     nowPlayingLabel->setJustificationType(juce::Justification::centredRight);
     addAndMakeVisible(*nowPlayingLabel);
@@ -2232,8 +2174,32 @@ void BlindCardEditor::setupPresetUI()
     nowPlayingTrackName->setJustificationType(juce::Justification::centredLeft);
     addAndMakeVisible(*nowPlayingTrackName);
 
+    updatePresetButtonColours();
+
     // Populate preset list
     refreshPresetList();
+}
+
+void BlindCardEditor::updatePresetButtonColours()
+{
+    const bool dark = ThemeManager::getInstance().isDark();
+    const auto primary = dark ? juce::Colour(0xFFA64B57) : juce::Colour(0xFFB92D45);
+    const auto secondary = dark ? juce::Colour(0xFF5A5D5A) : juce::Colour(0xFF596577);
+    const auto quiet = dark ? juce::Colour(0xFF484B49) : juce::Colour(0xFFE5E1DB);
+    const auto quietText = dark ? Theme::Dark::TextPrimary : juce::Colour(0xFF33363C);
+    auto apply = [](juce::TextButton* button, juce::Colour fill, juce::Colour text)
+    {
+        if (button == nullptr)
+            return;
+        button->setColour(juce::TextButton::buttonColourId, fill);
+        button->setColour(juce::TextButton::buttonOnColourId, fill);
+        button->setColour(juce::TextButton::textColourOffId, text);
+        button->setColour(juce::TextButton::textColourOnId, text);
+    };
+    apply(savePresetButton.get(), primary, juce::Colours::white);
+    apply(importFilesButton.get(), secondary, juce::Colours::white);
+    apply(deletePresetButton.get(), quiet, quietText);
+    apply(clearAllCardsButton.get(), quiet, quietText);
 }
 
 void BlindCardEditor::onSavePreset()

@@ -21,10 +21,24 @@
 namespace BlindCard
 {
 
+namespace
+{
+juce::Colour resultSuccessInk(bool dark) { return juce::Colour(dark ? 0xFFBBDDC5 : 0xFF21633F); }
+juce::Colour resultErrorInk(bool dark)   { return juce::Colour(dark ? 0xFFFAC6C7 : 0xFF9A3238); }
+juce::Colour resultScoreInk(bool dark)   { return juce::Colour(dark ? 0xFFE7CF9F : 0xFF765522); }
+}
+
 //==============================================================================
 ResultsPanel::ResultsPanel()
 {
     ThemeManager::getInstance().addChangeListener(this);
+
+    contentComponent = std::make_unique<ContentComponent>(*this);
+    viewport = std::make_unique<juce::Viewport>();
+    viewport->setViewedComponent(contentComponent.get(), false);
+    viewport->setScrollBarsShown(true, false);
+    viewport->setScrollBarThickness(8);
+    addAndMakeVisible(*viewport);
 
     // Create submit button for Guess mode
     submitButton = std::make_unique<juce::TextButton>("SUBMIT GUESSES");
@@ -33,19 +47,23 @@ ResultsPanel::ResultsPanel()
         if (onSubmitGuesses)
             onSubmitGuesses();
     };
-    addChildComponent(*submitButton);  // Hidden by default
+    contentComponent->addChildComponent(*submitButton);  // Hidden by default
+    changeListenerCallback(nullptr);
 }
 
 ResultsPanel::~ResultsPanel()
 {
     ThemeManager::getInstance().removeChangeListener(this);
+    viewport->setViewedComponent(nullptr, false);
 }
 
 //==============================================================================
 void ResultsPanel::setMode(blindcard::RatingMode mode)
 {
+    if (currentMode == mode) return;
     currentMode = mode;
     submitButton->setVisible(mode == blindcard::RatingMode::Guess && !guessResultsVisible);
+    updateContentLayout(true);
     repaint();
 }
 
@@ -66,13 +84,13 @@ void ResultsPanel::setStarsResults(const std::vector<StarsResult>& results)
                       return a.cardPosition < b.cardPosition;  // Fixed order during blind testing
               });
 
-    repaint();
+    updateContentLayout();
 }
 
 void ResultsPanel::setGuessResults(const std::vector<GuessResult>& results)
 {
     guessResults = results;
-    repaint();
+    updateContentLayout();
 }
 
 void ResultsPanel::setSubmitEnabled(bool enabled)
@@ -83,15 +101,16 @@ void ResultsPanel::setSubmitEnabled(bool enabled)
 
 void ResultsPanel::setGuessResultsVisible(bool showResults)
 {
+    if (guessResultsVisible == showResults) return;
     guessResultsVisible = showResults;
     submitButton->setVisible(!showResults && currentMode == blindcard::RatingMode::Guess);
-    repaint();
+    updateContentLayout();
 }
 
 void ResultsPanel::setQAResults(const std::vector<QAResult>& results)
 {
     qaResults = results;
-    repaint();
+    updateContentLayout();
 }
 
 void ResultsPanel::clearResults()
@@ -101,6 +120,11 @@ void ResultsPanel::clearResults()
     qaResults.clear();
     guessResultsVisible = false;
     showFinalResults = false;
+    roundCorrectGuesses = roundGuessAttempts = 0;
+    totalCorrectGuesses = totalGuessAttempts = 0;
+    countdownSeconds = 0;
+    submitButton->setVisible(currentMode == blindcard::RatingMode::Guess);
+    updateContentLayout(true);
     repaint();
 }
 
@@ -109,33 +133,34 @@ void ResultsPanel::setShowFinalResults(bool showFinal)
     if (showFinalResults != showFinal)
     {
         showFinalResults = showFinal;
-        repaint();
+        updateContentLayout();
     }
 }
 
 void ResultsPanel::setRoundInfo(int current, int total)
 {
+    const bool changed = currentRoundNumber != current || totalRounds != total;
     currentRoundNumber = current;
     totalRounds = total;
-    repaint();
+    if (changed) updateContentLayout(true);
 }
 
-void ResultsPanel::accumulateGuessResults()
+void ResultsPanel::setGuessScore(int roundCorrect, int roundTotal,
+                                 int cumulativeCorrect, int cumulativeTotal)
 {
-    for (const auto& result : guessResults)
-    {
-        totalGuessAttempts++;
-        if (result.isCorrect)
-            totalCorrectGuesses++;
-    }
+    roundCorrectGuesses = roundCorrect;
+    roundGuessAttempts = roundTotal;
+    totalCorrectGuesses = cumulativeCorrect;
+    totalGuessAttempts = cumulativeTotal;
+    contentComponent->repaint();
 }
 
-void ResultsPanel::resetCumulativeTracking()
+void ResultsPanel::setResultsSession(std::uint64_t sessionId)
 {
-    totalCorrectGuesses = 0;
-    totalGuessAttempts = 0;
-    currentRoundNumber = 0;
+    if (resultSessionId == sessionId) return;
+    resultSessionId = sessionId;
     countdownSeconds = 0;
+    updateContentLayout(true);
 }
 
 void ResultsPanel::setCountdown(int seconds)
@@ -143,7 +168,7 @@ void ResultsPanel::setCountdown(int seconds)
     if (countdownSeconds != seconds)
     {
         countdownSeconds = seconds;
-        repaint();
+        contentComponent->repaint();
     }
 }
 
@@ -152,6 +177,7 @@ void ResultsPanel::setPhase(blindcard::GamePhase phase)
     if (currentPhase != phase)
     {
         currentPhase = phase;
+        contentComponent->repaint();
         repaint();
     }
 }
@@ -163,6 +189,9 @@ void ResultsPanel::changeListenerCallback(juce::ChangeBroadcaster*)
     auto& tm = ThemeManager::getInstance();
     submitButton->setColour(juce::TextButton::buttonColourId, tm.getColour(ColourId::Primary));
     submitButton->setColour(juce::TextButton::textColourOnId, juce::Colours::white);
+    viewport->getVerticalScrollBar().setColour(juce::ScrollBar::thumbColourId,
+        tm.isDark() ? juce::Colour(0xFF858A85) : juce::Colour(0xFFB8AEA0));
+    contentComponent->repaint();
     repaint();
 }
 
@@ -173,26 +202,25 @@ void ResultsPanel::paint(juce::Graphics& g)
     auto bounds = getLocalBounds().toFloat();
     bool isDark = tm.isDark();
 
-    // Panel background - Original: bg-[#1A1A1A] (dark) / bg-[#F5F0E8] (light)
-    juce::Colour bgColor = isDark ? juce::Colour(0xFF1A1A1A) : juce::Colour(0xFFF5F0E8);
+    // Share the raised dark surface with the neighbouring control panel.
+    juce::Colour bgColor = isDark ? tm.getColour(ColourId::Surface) : juce::Colour(0xFFF5F0E8);
     g.setColour(bgColor);
     g.fillRoundedRectangle(bounds, 12.0f);  // Original: rounded-xl (~12px)
 
-    // Panel border - Original: border-[#2A2A2A] (dark) / border-[#D4C5A9] (light)
-    juce::Colour borderColor = isDark ? juce::Colour(0xFF2A2A2A) : juce::Colour(0xFFD4C5A9);
+    // Both lower panels share the same quiet charcoal edge.
+    juce::Colour borderColor = isDark ? juce::Colour(0xFF737873) : juce::Colour(0xFFD4C5A9);
     g.setColour(borderColor);
     g.drawRoundedRectangle(bounds.reduced(0.5f), 12.0f, 1.0f);
 
-    // Content area - Original: p-5 (20px)
+    // Header stays fixed while rows, score, and Submit live inside the viewport.
     auto contentBounds = bounds.reduced(20.0f);
-
-    // Header
     auto headerBounds = contentBounds.removeFromTop(28.0f);
     drawSectionHeader(g, headerBounds);
+}
 
-    contentBounds.removeFromTop(8.0f);  // Gap
-
-    // Mode-specific content
+void ResultsPanel::drawContent(juce::Graphics& g)
+{
+    auto contentBounds = contentComponent->getLocalBounds().toFloat();
     switch (currentMode)
     {
         case blindcard::RatingMode::Stars:
@@ -204,11 +232,18 @@ void ResultsPanel::paint(juce::Graphics& g)
 
         case blindcard::RatingMode::Guess:
             if (guessResults.empty())
+            {
+                if (!guessResultsVisible)
+                    contentBounds.removeFromBottom(48.0f);
                 drawEmptyState(g, contentBounds);
+            }
             else if (guessResultsVisible)
                 drawGuessResults(g, contentBounds);
             else
+            {
+                contentBounds.removeFromBottom(48.0f); // Submit has its own child hit area.
                 drawGuessPending(g, contentBounds);
+            }
             break;
 
         case blindcard::RatingMode::QA:
@@ -227,7 +262,7 @@ void ResultsPanel::drawSectionHeader(juce::Graphics& g, juce::Rectangle<float> b
     bool isDark = tm.isDark();
 
     // Gold color for Trophy icon - Original: #FFD700 (dark) / #B8860B (light)
-    juce::Colour goldColor = isDark ? juce::Colour(0xFFFFD700) : juce::Colour(0xFFB8860B);
+    juce::Colour goldColor = isDark ? Theme::Dark::Accent : juce::Colour(0xFFB8860B);
 
     // Trophy icon (🏆) - Original: w-5 h-5
     g.setColour(goldColor);
@@ -237,10 +272,10 @@ void ResultsPanel::drawSectionHeader(juce::Graphics& g, juce::Rectangle<float> b
 
     bounds.removeFromLeft(8.0f);  // gap-2
 
-    // Title text - Casino style: Cinzel Bold
-    juce::Colour titleColor = isDark ? juce::Colours::white : juce::Colour(0xFF1A1A1A);
+    // Readable Noto Sans TC Bold title
+    juce::Colour titleColor = isDark ? Theme::Dark::TextPrimary : juce::Colour(0xFF1A1A1A);
     g.setColour(titleColor);
-    g.setFont(fonts.getCinzelBold(20.0f));
+    g.setFont(fonts.getBold(19.0f));
 
     // Show "FINAL RESULTS" when revealed or when explicitly showing final results
     bool isFinal = showFinalResults || (currentPhase == blindcard::GamePhase::Revealed);
@@ -265,18 +300,18 @@ void ResultsPanel::drawEmptyState(juce::Graphics& g, juce::Rectangle<float> boun
         circleSize, circleSize
     );
 
-    juce::Colour circleBgColor = isDark ? juce::Colour(0xFF252525) : juce::Colour(0xFFE8E0D0);
+    juce::Colour circleBgColor = isDark ? juce::Colour(0xFF454846) : juce::Colour(0xFFE8E0D0);
     g.setColour(circleBgColor);
     g.fillEllipse(circleBounds);
 
     // Star icon inside circle - Original: w-6 h-6 (24px), #333 (dark) / #C4B5A0 (light)
-    juce::Colour starColor = isDark ? juce::Colour(0xFF333333) : juce::Colour(0xFFC4B5A0);
+    juce::Colour starColor = isDark ? juce::Colour(0xFFAAB2AB) : juce::Colour(0xFFC4B5A0);
     g.setColour(starColor);
     g.setFont(fonts.getRegular(28.0f));
     g.drawText(juce::String::fromUTF8("★"), circleBounds, juce::Justification::centred);
 
     // Message text below - AirCheck style: muted text
-    juce::Colour textColor = isDark ? juce::Colour(0xFF555555) : juce::Colour(0xFF888888);
+    juce::Colour textColor = isDark ? Theme::Dark::TextMuted : juce::Colour(0xFF888888);
     g.setColour(textColor);
     g.setFont(fonts.getRegular(16.0f));
 
@@ -311,7 +346,7 @@ void ResultsPanel::drawStarsResults(juce::Graphics& g, juce::Rectangle<float> bo
     auto& tm = ThemeManager::getInstance();
     bool isDark = tm.isDark();
 
-    // Dynamically calculate row height based on number of results and available space
+    // Readable rows may extend beyond the 220px panel; the viewport scrolls them.
     int numResults = static_cast<int>(starsResults.size());
     if (numResults == 0) return;
 
@@ -323,16 +358,14 @@ void ResultsPanel::drawStarsResults(juce::Graphics& g, juce::Rectangle<float> bo
     // Calculate row height to fit all results
     float totalSpacePerRow = (availableHeight - minGap) / numResults;
     float rowHeight = juce::jlimit(minRowHeight, maxRowHeight, totalSpacePerRow - minGap);
-    float rowGap = juce::jmin(minGap, (availableHeight - rowHeight * numResults) / (numResults - 1 + 0.001f));
+    float rowGap = minGap;
 
     for (size_t i = 0; i < starsResults.size(); ++i)
     {
-        if (bounds.getHeight() < rowHeight) break;  // Stop if no space left
-
         auto rowBounds = bounds.removeFromTop(rowHeight);
 
         // Row background - Original: bg-[#252525] (dark) / bg-[#E8E0D0] (light)
-        juce::Colour rowBgColor = isDark ? juce::Colour(0xFF252525) : juce::Colour(0xFFE8E0D0);
+        juce::Colour rowBgColor = isDark ? juce::Colour(0xFF454846) : juce::Colour(0xFFE8E0D0);
         g.setColour(rowBgColor);
         g.fillRoundedRectangle(rowBounds, 6.0f);  // rounded-lg
 
@@ -354,11 +387,11 @@ void ResultsPanel::drawStarsRow(juce::Graphics& g, juce::Rectangle<float> bounds
 
     // Star colors - Original: #FFD700 filled (dark) / #B8860B filled (light)
     // Empty: #333 (dark) / #C4B5A0 (light)
-    juce::Colour filledStarColor = isDark ? juce::Colour(0xFFFFD700) : juce::Colour(0xFFB8860B);
-    juce::Colour emptyStarColor = isDark ? juce::Colour(0xFF333333) : juce::Colour(0xFFC4B5A0);
+    juce::Colour filledStarColor = isDark ? Theme::Dark::Accent : juce::Colour(0xFFB8860B);
+    juce::Colour emptyStarColor = isDark ? juce::Colour(0xFFAAB2AB) : juce::Colour(0xFFC4B5A0);
 
     // Track name on left - Original: text-sm, white (dark) / #1A1A1A (light)
-    juce::Colour textColor = isDark ? juce::Colours::white : juce::Colour(0xFF1A1A1A);
+    juce::Colour textColor = isDark ? Theme::Dark::TextPrimary : juce::Colour(0xFF1A1A1A);
 
     // Always reserve space for rank indicator to maintain alignment
     auto rankArea = bounds.removeFromLeft(24.0f);
@@ -504,7 +537,7 @@ void ResultsPanel::drawGuessResults(juce::Graphics& g, juce::Rectangle<float> bo
         auto rowBounds = bounds.removeFromTop(rowHeight);
 
         // Row background
-        juce::Colour rowBgColor = isDark ? juce::Colour(0xFF252525) : juce::Colour(0xFFE8E0D0);
+        juce::Colour rowBgColor = isDark ? juce::Colour(0xFF454846) : juce::Colour(0xFFE8E0D0);
         g.setColour(rowBgColor);
         g.fillRoundedRectangle(rowBounds, 6.0f);
 
@@ -550,7 +583,7 @@ void ResultsPanel::drawGuessPending(juce::Graphics& g, juce::Rectangle<float> bo
         auto& result = guessResults[i];
 
         // Row background for better readability
-        juce::Colour rowBgColor = isDark ? juce::Colour(0xFF252525) : juce::Colour(0xFFE8E0D0);
+        juce::Colour rowBgColor = isDark ? juce::Colour(0xFF454846) : juce::Colour(0xFFE8E0D0);
         g.setColour(rowBgColor);
         g.fillRoundedRectangle(rowBounds, 6.0f);
 
@@ -595,12 +628,12 @@ void ResultsPanel::drawGuessRow(juce::Graphics& g, juce::Rectangle<float> bounds
     g.setFont(fonts.getMedium(14.0f));
     if (result.isCorrect)
     {
-        g.setColour(tm.getColour(ColourId::Success));
+        g.setColour(resultSuccessInk(tm.isDark()));
         g.drawText(juce::String::fromUTF8("✓"), iconArea, juce::Justification::centred);
     }
     else
     {
-        g.setColour(tm.getColour(ColourId::Error));
+        g.setColour(resultErrorInk(tm.isDark()));
         g.drawText(juce::String::fromUTF8("✗"), iconArea, juce::Justification::centred);
     }
 
@@ -619,13 +652,13 @@ void ResultsPanel::drawGuessRow(juce::Graphics& g, juce::Rectangle<float> bounds
     g.setFont(fonts.getMedium(12.0f));
     if (result.isCorrect)
     {
-        g.setColour(tm.getColour(ColourId::Success));
+        g.setColour(resultSuccessInk(tm.isDark()));
         g.drawText(juce::String(result.actualTrack), bounds, juce::Justification::centredLeft);
     }
     else
     {
         // Show what user guessed vs actual
-        g.setColour(tm.getColour(ColourId::Error));
+        g.setColour(resultErrorInk(tm.isDark()));
         juce::String guessText = result.guessedTrack.empty() ? "No guess" : juce::String(result.guessedTrack);
         g.drawText(guessText + " -> " + juce::String(result.actualTrack), bounds, juce::Justification::centredLeft);
     }
@@ -637,14 +670,9 @@ void ResultsPanel::drawGuessScore(juce::Graphics& g, juce::Rectangle<float> boun
     auto& fonts = FontManager::getInstance();
     bool isDark = tm.isDark();
 
-    // Calculate current round score
-    int roundCorrect = 0;
-    for (const auto& result : guessResults)
-    {
-        if (result.isCorrect)
-            roundCorrect++;
-    }
-    int roundTotal = static_cast<int>(guessResults.size());
+    // Scores come from the manager's single-lock snapshot, not panel-local clicks.
+    int roundCorrect = roundCorrectGuesses;
+    int roundTotal = roundGuessAttempts;
     int roundPercentage = roundTotal > 0 ? (roundCorrect * 100 / roundTotal) : 0;
 
     // Score box background
@@ -653,7 +681,7 @@ void ResultsPanel::drawGuessScore(juce::Graphics& g, juce::Rectangle<float> boun
     g.fillRoundedRectangle(bounds, 8.0f);
 
     // Border
-    g.setColour(tm.getColour(ColourId::Success).withAlpha(0.5f));
+    g.setColour(resultSuccessInk(isDark).withAlpha(0.5f));
     g.drawRoundedRectangle(bounds.reduced(0.5f), 8.0f, 1.0f);
 
     auto contentBounds = bounds.reduced(12.0f, 4.0f);
@@ -665,13 +693,13 @@ void ResultsPanel::drawGuessScore(juce::Graphics& g, juce::Rectangle<float> boun
 
         // Title
         auto titleRow = contentBounds.removeFromTop(20.0f);
-        g.setColour(tm.getColour(ColourId::Success));
+        g.setColour(resultSuccessInk(isDark));
         g.setFont(fonts.getBold(13.0f));
         g.drawText("Final Score", titleRow, juce::Justification::centred);
 
         // Total score
         auto scoreRow = contentBounds;
-        g.setColour(tm.getColour(ColourId::Accent));
+        g.setColour(resultScoreInk(isDark));
         g.setFont(fonts.getBold(18.0f));
         juce::String totalScoreText = juce::String(totalCorrectGuesses) + "/" + juce::String(totalGuessAttempts) +
                                       " (" + juce::String(totalPercentage) + "%)";
@@ -691,7 +719,7 @@ void ResultsPanel::drawGuessScore(juce::Graphics& g, juce::Rectangle<float> boun
         g.drawText(roundLabel, scoreRow.removeFromLeft(labelWidth), juce::Justification::centredRight);
 
         // Score
-        g.setColour(tm.getColour(ColourId::Accent));
+        g.setColour(resultScoreInk(isDark));
         g.setFont(fonts.getBold(15.0f));
         juce::String scoreText = juce::String(roundCorrect) + "/" + juce::String(roundTotal) +
                                  " (" + juce::String(roundPercentage) + "%)";
@@ -711,12 +739,13 @@ void ResultsPanel::drawGuessScore(juce::Graphics& g, juce::Rectangle<float> boun
 
 void ResultsPanel::drawQAResults(juce::Graphics& g, juce::Rectangle<float> bounds)
 {
-    float rowHeight = 24.0f;
+    float rowHeight = 28.0f;
 
     for (const auto& result : qaResults)
     {
         auto rowBounds = bounds.removeFromTop(rowHeight);
         drawQARow(g, rowBounds, result);
+        bounds.removeFromTop(4.0f);
     }
 
     bounds.removeFromTop(12.0f);  // Gap
@@ -736,12 +765,12 @@ void ResultsPanel::drawQARow(juce::Graphics& g, juce::Rectangle<float> bounds,
     g.setFont(fonts.getRegular(16.0f));
     if (result.wasCorrect)
     {
-        g.setColour(tm.getColour(ColourId::Success));
+        g.setColour(resultSuccessInk(tm.isDark()));
         g.drawText(juce::String::fromUTF8("✓"), iconArea, juce::Justification::centred);
     }
     else
     {
-        g.setColour(tm.getColour(ColourId::Error));
+        g.setColour(resultErrorInk(tm.isDark()));
         g.drawText(juce::String::fromUTF8("✗"), iconArea, juce::Justification::centred);
     }
 
@@ -776,7 +805,7 @@ void ResultsPanel::drawQAScore(juce::Graphics& g, juce::Rectangle<float> bounds)
     juce::String scoreText = "Score: " + juce::String(correct) + "/" + juce::String(total) +
                              " (" + juce::String(percentage) + "%)";
 
-    g.setColour(tm.getColour(ColourId::Accent));
+    g.setColour(resultScoreInk(tm.isDark()));
     g.setFont(fonts.getBold(16.0f));
     g.drawText(scoreText, bounds, juce::Justification::centred);
 }
@@ -785,14 +814,46 @@ void ResultsPanel::drawQAScore(juce::Graphics& g, juce::Rectangle<float> bounds)
 void ResultsPanel::resized()
 {
     auto bounds = getLocalBounds();
-    auto contentBounds = bounds.reduced(20);  // Match p-5 (20px) padding
+    auto contentBounds = bounds.reduced(20);
+    contentBounds.removeFromTop(28 + 8); // Fixed heading and gap.
+    viewport->setBounds(contentBounds);
+    updateContentLayout();
+}
 
-    // Submit button at bottom (Guess mode only)
-    if (currentMode == blindcard::RatingMode::Guess && !guessResultsVisible)
+int ResultsPanel::measuredContentHeight() const
+{
+    const auto rowHeight = [this]() -> int
     {
-        auto buttonArea = contentBounds.removeFromBottom(36);
-        submitButton->setBounds(buttonArea.reduced(0, 4));
-    }
+        switch (currentMode)
+        {
+            case blindcard::RatingMode::Stars:
+                return static_cast<int>(starsResults.size()) * 32
+                     + juce::jmax(0, static_cast<int>(starsResults.size()) - 1) * 4;
+            case blindcard::RatingMode::Guess:
+            {
+                const int rows = static_cast<int>(guessResults.size());
+                const int list = rows * 32 + juce::jmax(0, rows - 1) * 3;
+                return list + (guessResultsVisible ? 12 + (showFinalResults ? 60 : 40) : 48);
+            }
+            case blindcard::RatingMode::QA:
+                return static_cast<int>(qaResults.size()) * 28
+                     + static_cast<int>(qaResults.size()) * 4 + 12 + 32;
+        }
+        return 0;
+    }();
+    return juce::jmax(viewport->getHeight(), rowHeight);
+}
+
+void ResultsPanel::updateContentLayout(bool resetScroll)
+{
+    if (!viewport || !contentComponent || !submitButton) return;
+    const int oldScroll = viewport->getViewPositionY();
+    const int height = juce::jmax(1, measuredContentHeight());
+    contentComponent->setSize(juce::jmax(1, viewport->getWidth() - 12), height);
+    submitButton->setBounds(0, height - 40, contentComponent->getWidth(), 32);
+    submitButton->setVisible(currentMode == blindcard::RatingMode::Guess && !guessResultsVisible);
+    viewport->setViewPosition(0, resetScroll ? 0 : oldScroll);
+    contentComponent->repaint();
 }
 
 } // namespace BlindCard

@@ -11,8 +11,7 @@
     Author:  BlindCard
 
     Manages embedded custom fonts for the plugin.
-    Provides Noto Sans TC font family (Regular, Medium, Bold) for consistent
-    cross-platform typography with Chinese support.
+    Provides Noto Sans TC for UI text and MuseoModerno for Sugoi branding.
 
   ==============================================================================
 */
@@ -76,6 +75,26 @@ public:
         if (boldTypeface != nullptr)
             return juce::Font(juce::FontOptions(boldTypeface).withHeight(height));
         return juce::Font(juce::FontOptions().withHeight(height).withStyle("Bold"));
+    }
+
+    /** MuseoModerno is the shared Sugoi wordmark font used by CURVA/HQ/HC. */
+    juce::Font getMuseoModernoBold(float height) const
+    {
+        if (museoBoldTypeface != nullptr)
+            return juce::Font(juce::FontOptions(museoBoldTypeface).withHeight(height));
+        return getBold(height);
+    }
+
+    juce::Font getMuseoModernoExtraBold(float height) const
+    {
+        if (museoExtraBoldTypeface != nullptr)
+            return juce::Font(juce::FontOptions(museoExtraBoldTypeface).withHeight(height));
+        return getBold(height);
+    }
+
+    bool isMuseoModernoLoaded() const
+    {
+        return museoBoldTypeface != nullptr && museoExtraBoldTypeface != nullptr;
     }
 
     // Legacy function names for backward compatibility
@@ -256,6 +275,19 @@ private:
             BinaryData::BebasNeueRegular_ttf,
             BinaryData::BebasNeueRegular_ttfSize);
 
+        // Static wght=700/800 instances of the shared MuseoModerno WOFF2.
+        museoBoldTypeface = juce::Typeface::createSystemTypefaceFor(
+            BinaryData::MuseoModerno700_ttf,
+            BinaryData::MuseoModerno700_ttfSize);
+        museoExtraBoldTypeface = juce::Typeface::createSystemTypefaceFor(
+            BinaryData::MuseoModerno800_ttf,
+            BinaryData::MuseoModerno800_ttfSize);
+
+        DBG("FontManager: MuseoModerno brand fonts loaded - 700: " +
+            juce::String(museoBoldTypeface != nullptr ? "OK" : "FAIL") +
+            ", 800: " +
+            juce::String(museoExtraBoldTypeface != nullptr ? "OK" : "FAIL"));
+
         // Load Cinzel (Art Deco title font)
         cinzelRegularTypeface = juce::Typeface::createSystemTypefaceFor(
             BinaryData::CinzelRegular_ttf,
@@ -277,6 +309,10 @@ private:
     juce::Typeface::Ptr regularTypeface;
     juce::Typeface::Ptr mediumTypeface;
     juce::Typeface::Ptr boldTypeface;
+
+    // Sugoi house brand fonts (MuseoModerno static weights)
+    juce::Typeface::Ptr museoBoldTypeface;
+    juce::Typeface::Ptr museoExtraBoldTypeface;
 
     // Casino display fonts
     juce::Typeface::Ptr bebasNeueTypeface;

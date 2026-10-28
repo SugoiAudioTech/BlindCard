@@ -44,6 +44,11 @@ PokerTable::~PokerTable()
 void PokerTable::setCardCount(int count)
 {
     count = juce::jlimit(2, 8, count);
+    if (count != static_cast<int>(cards.size()))
+    {
+        ++revealGeneration;
+        revealPending = false;
+    }
 
     // Remove excess cards
     while (static_cast<int>(cards.size()) > count)
@@ -100,6 +105,9 @@ void PokerTable::setMode(blindcard::RatingMode mode)
 
 void PokerTable::setPhase(blindcard::GamePhase phase)
 {
+    // Even a repeated phase can represent a new round after Next/Shuffle.
+    ++revealGeneration;
+    revealPending = false;
     currentPhase = phase;
     for (auto& card : cards)
     {
@@ -119,25 +127,34 @@ void PokerTable::setTracks(const std::vector<std::string>& tracks)
 //==============================================================================
 void PokerTable::revealAllCards(int delayBetweenCardsMs)
 {
+    const auto generation = ++revealGeneration;
+    revealPending = true;
+    juce::Component::SafePointer<PokerTable> safeTable(this);
+
     // Staggered reveal animation
     for (size_t i = 0; i < cards.size(); ++i)
     {
-        auto* card = cards[i].get();
+        juce::Component::SafePointer<PokerCard> safeCard(cards[i].get());
 
         // Use a timer for staggered effect
-        juce::Timer::callAfterDelay(static_cast<int>(i) * delayBetweenCardsMs, [card]()
+        juce::Timer::callAfterDelay(static_cast<int>(i) * delayBetweenCardsMs,
+                                    [safeTable, safeCard, generation]()
         {
-            // Only reveal if not already revealed (avoid flipping back)
-            if (!card->getCardData().isRevealed)
-            {
-                card->flip();
-            }
+            if (safeTable == nullptr || safeCard == nullptr ||
+                safeTable->revealGeneration != generation ||
+                !safeTable->revealPending)
+                return;
+            // An old card must never be revealed after replacement or shrink.
+            if (!safeCard->getCardData().isRevealed)
+                safeCard->flip();
         });
     }
 }
 
 void PokerTable::hideAllCards()
 {
+    ++revealGeneration;
+    revealPending = false;
     for (auto& card : cards)
     {
         CardData data = card->getCardData();
@@ -226,7 +243,7 @@ void PokerTable::drawWoodFrame(juce::Graphics& g, juce::Rectangle<float> bounds)
     // Stadium/pill shape - corner radius is half the height for full rounded ends
     float stadiumRadius = bounds.getHeight() / 2.0f;
 
-    // Salmon/coral padded frame with subtle gradient for depth
+    // Warm, low-saturation padded frame with subtle depth
     juce::ColourGradient frameGradient(
         tm.getColour(ColourId::TableFrameOuter),
         bounds.getTopLeft(),
@@ -256,7 +273,7 @@ void PokerTable::drawTableRail(juce::Graphics& g, juce::Rectangle<float> bounds)
     // Stadium shape for rail
     float stadiumRadius = bounds.getHeight() / 2.0f;
 
-    // Darker coral rail/padding area
+    // Quiet neutral rail/padding area
     g.setColour(tm.getColour(ColourId::TableRail));
     g.fillRoundedRectangle(bounds, stadiumRadius);
 
@@ -275,32 +292,18 @@ void PokerTable::drawNeonBorder(juce::Graphics& g, juce::Rectangle<float> bounds
     // Stadium shape radius
     float stadiumRadius = bounds.getHeight() / 2.0f;
 
-    // Outer glow (multiple passes for blur effect) - more pronounced
-    for (int i = 6; i >= 1; --i)
+    // Soft perimeter tint: the cards and active state remain the focus.
+    for (int i = 3; i >= 1; --i)
     {
-        float alpha = 0.05f + (6 - i) * 0.03f;
-        float expand = static_cast<float>(i * 3);
+        float alpha = 0.02f + (3 - i) * 0.015f;
+        float expand = static_cast<float>(i * 2);
         auto expandedBounds = bounds.expanded(expand);
-        float expandedRadius = expandedBounds.getHeight() / 2.0f;
         g.setColour(neonColor.withAlpha(alpha));
-        g.drawRoundedRectangle(expandedBounds, expandedRadius, 3.0f);
+        g.drawRoundedRectangle(expandedBounds, expandedBounds.getHeight() / 2.0f, 2.0f);
     }
 
-    // Main neon line - thicker and brighter
-    g.setColour(neonColor);
-    g.drawRoundedRectangle(bounds, stadiumRadius, static_cast<float>(kNeonBorderWidth) + 1.0f);
-
-    // Inner highlight (brighter center for glow effect)
-    auto innerBounds1 = bounds.reduced(1.0f);
-    float innerRadius1 = innerBounds1.getHeight() / 2.0f;
-    g.setColour(neonColor.brighter(0.5f).withAlpha(0.9f));
-    g.drawRoundedRectangle(innerBounds1, innerRadius1, 1.5f);
-
-    // Core highlight (white center for intensity)
-    auto innerBounds2 = bounds.reduced(1.5f);
-    float innerRadius2 = innerBounds2.getHeight() / 2.0f;
-    g.setColour(juce::Colours::white.withAlpha(0.3f));
-    g.drawRoundedRectangle(innerBounds2, innerRadius2, 0.5f);
+    g.setColour(neonColor.withAlpha(0.72f));
+    g.drawRoundedRectangle(bounds, stadiumRadius, 1.5f);
 }
 
 void PokerTable::drawFeltSurface(juce::Graphics& g, juce::Rectangle<float> bounds)

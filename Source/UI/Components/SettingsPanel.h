@@ -2,117 +2,75 @@
  * Copyright (c) 2026 Sugoi Audio Tech
  * SPDX-License-Identifier: AGPL-3.0-only
  */
-
-/*
-  ==============================================================================
-
-    SettingsPanel.h
-    Created: 2026-01-21
-    Author:  BlindCard
-
-    Modal dialog showing plugin info and settings.
-    Triggered by clicking the gear icon in HeaderBar.
-
-  ==============================================================================
-*/
-
 #pragma once
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include <array>
 #include "../Localization/LocalizationManager.h"
+#include "../Theme/ThemeManager.h"
 
 namespace BlindCard
 {
 
-/**
- * SettingsPanel is a modal overlay showing version info, language settings, and links.
- * Similar to AirCheck's Settings & License panel but simplified (no license key).
- */
+/** Theme-aware information and language overlay. */
 class SettingsPanel : public juce::Component,
-                      public LocalizationManager::Listener
+                      public LocalizationManager::Listener,
+                      private juce::ChangeListener
 {
 public:
     SettingsPanel();
     ~SettingsPanel() override;
-
-    void paint(juce::Graphics& g) override;
+    void paint(juce::Graphics&) override;
     void resized() override;
-    void mouseDown(const juce::MouseEvent& event) override;
-
-    // LocalizationManager::Listener
+    void mouseDown(const juce::MouseEvent&) override;
     void languageChanged() override;
 
-    /** Callback when the dialog should be closed */
     std::function<void()> onClose;
-
-    /** Callback when language changes (for parent to refresh UI) */
     std::function<void()> onLanguageChanged;
-
-    /** Set the update check state for display */
     void setUpdateInfo(bool available, const juce::String& latestVer, const juce::String& url,
                        const juce::String& changelog = {});
-
-    /** Show the panel as an overlay on a parent component */
     void showOverlay(juce::Component* parent);
-
-    /** Hide the overlay */
     void hideOverlay();
 
 private:
-    // Layout constants
-    static constexpr int kDialogWidth = 420;
-    static constexpr int kDialogHeight = 520;  // Increased for 3 stacked link rows
-    static constexpr int kCornerRadius = 16;
+    static constexpr int kDialogWidth = 480;
+    static constexpr int kCornerRadius = 8;
     static constexpr int kPadding = 28;
-    static constexpr int kHeaderHeight = 60;
+    static constexpr int kHeaderHeight = 140;
 
-    // Colors (matching QuickStartGuide)
-    juce::Colour bgColor{ 0xFF1E2530 };
-    juce::Colour borderColor{ 0xFF3A4556 };
-    juce::Colour titleColor{ 0xFFFFFFFF };
-    juce::Colour textColor{ 0xFFD1D5DB };
-    juce::Colour accentColor{ 0xFF3B82F6 };      // Blue
-    juce::Colour badgeBgColor{ 0xFF1E3A5F };     // Dark blue for badge
-    juce::Colour linkColor{ 0xFF60A5FA };        // Light blue for links
+    juce::Colour bgColor, borderColor, titleColor, textColor, mutedColor;
+    juce::Colour accentColor, linkColor;
+    enum class AccentSvg { Header, Language, Version, Developer, Website, Manual, Update, Count };
+    std::array<std::unique_ptr<juce::Drawable>, static_cast<size_t>(AccentSvg::Count)> svgAccents;
+    juce::Colour svgAccentInk = juce::Colours::black;
+    static constexpr int kIconTextInset = 22;
+    void createSvgAccents();
+    void drawSvgAccent(juce::Graphics&, AccentSvg, juce::Rectangle<float>, float opacity) const;
+    void drawRowIcon(juce::Graphics&, AccentSvg, juce::Rectangle<int>) const;
+    juce::Rectangle<int> dialogBounds, closeButtonBounds, noticeBounds;
+    juce::Rectangle<int> languageLabelBounds, versionRowBounds, updateRowBounds;
+    juce::Rectangle<int> changelogBounds, developerRowBounds;
+    juce::Rectangle<int> websiteLinkBounds, updateLinkBounds, updatePageLinkBounds, manualLinkBounds;
+    int infoSeparatorY = 0;
 
-    // UI bounds
-    juce::Rectangle<int> dialogBounds;
-    juce::Rectangle<int> closeButtonBounds;
-    juce::Rectangle<int> versionBadgeBounds;
-    juce::Rectangle<int> websiteLinkBounds;
-
-    // Version info
     juce::String versionString;
     juce::String developerName = "Sugoi Audio";
     juce::String websiteUrl = "https://sugoiaudio.com";
     juce::String updatePageUrl = "https://sugoiaudio.com/downloads/blindcard";
     juce::String manualUrl = "https://sugoiaudio.com/products/blindcard-manual.html";
-
-    // Update check state
     bool updateAvailable = false;
-    juce::String latestVersionString;
-    juce::String downloadUrl;
-    juce::String changelogText;
-    juce::Rectangle<int> updateLinkBounds;
-    juce::Rectangle<int> updatePageLinkBounds;
-    juce::Rectangle<int> manualLinkBounds;
+    juce::String latestVersionString, downloadUrl, changelogText;
 
-    // Helper to get system font
-    juce::Font getSystemFont(float height, bool bold = false) const;
-
-    // Draw external link icon (box with arrow) next to text
-    void drawExternalLinkIcon(juce::Graphics& g, const juce::Rectangle<int>& linkBounds,
-                              const juce::String& text) const;
-
-    // Language selector (TextButtons instead of ComboBox to avoid native popup
-    // window issues in AU/Logic Pro — ComboBox popups create NSWindow that can
-    // corrupt AUHostingServiceXPC window management)
+    // Native child buttons avoid a separate ComboBox popup window in AU hosts.
+    class LanguageLookAndFeel;
+    std::unique_ptr<LanguageLookAndFeel> languageLookAndFeel;
     juce::OwnedArray<juce::TextButton> languageButtons;
-    juce::Rectangle<int> languageLabelBounds;
     void setupLanguageSelector();
-    void onLanguageSelected(int langIndex);
+    void onLanguageSelected(int);
     void updateLanguageButtonStates();
-
+    void updatePalette();
+    void changeListenerCallback(juce::ChangeBroadcaster*) override;
+    void drawExternalLinkIcon(juce::Graphics&, const juce::Rectangle<int>&) const;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SettingsPanel)
 };
 

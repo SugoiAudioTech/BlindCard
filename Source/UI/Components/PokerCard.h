@@ -346,7 +346,7 @@ private:
     //==========================================================================
     // Drawing helpers - Card Back
     void drawCardBack(juce::Graphics& g, juce::Rectangle<float> bounds);
-    void drawPositionLabel(juce::Graphics& g, juce::Rectangle<float> bounds);
+    void drawPositionLabel(juce::Graphics& g, juce::Rectangle<float> bounds, juce::Colour textColour);
 
     // Drawing helpers - Card Front
     void drawCardFront(juce::Graphics& g, juce::Rectangle<float> bounds);

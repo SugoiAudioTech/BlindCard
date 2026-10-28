@@ -61,12 +61,10 @@ namespace Colors
     // Dark theme
     namespace Dark
     {
-        const juce::Colour containerBg      { 0xFF1A1A1A };  // Dark background
-        const juce::Colour containerBorder  { 0xFF333333 };  // Subtle border
-        const juce::Colour inactiveText     { 0xFF9CA3AF };  // Gray text
-        const juce::Colour inactiveBg       { 0xFF2D2D2D };  // Subtle dark bg
-        const juce::Colour hoverBg          { 0xFF3D3D3D };  // Lighter on hover
-        const juce::Colour hoverText        { 0xFFFFFFFF };  // White on hover
+        const juce::Colour containerBorder  { 0xFF737873 };
+        const juce::Colour inactiveText     { 0xFFD4D8D3 };
+        const juce::Colour hoverBg          { 0xFF5E625E };
+        const juce::Colour hoverText        { 0xFFF2F3F1 };
     }
 
     // Light theme
@@ -80,7 +78,7 @@ namespace Colors
         const juce::Colour hoverText        { 0xFF1F2937 };  // Dark text on hover
     }
 
-    // Mode-specific colors (same for both themes)
+    // Existing light-mode fills
     const juce::Colour starsActiveBg    { 0xFFDC2626 };  // Red
     const juce::Colour starsActiveBorder{ 0xFFEF4444 };
 
@@ -92,6 +90,18 @@ namespace Colors
     const juce::Colour qaActiveBorder   { 0xFF3B82F6 };
 
     const juce::Colour activeText       { 0xFFFFFFFF };  // White text for red and blue
+
+    namespace DarkSelected
+    {
+        const juce::Colour starsBg      { 0xFFA94C56 };  // Muted red
+        const juce::Colour starsBorder  { 0xFFC36B70 };
+        const juce::Colour guessBg      { 0xFFD9BA83 };  // Cream gold
+        const juce::Colour guessBorder  { 0xFFE8CD9D };
+        const juce::Colour guessText    { 0xFF292722 };
+        const juce::Colour qaBg         { 0xFF53636B };  // Muted slate blue
+        const juce::Colour qaBorder     { 0xFF829299 };
+        const juce::Colour lightText    { 0xFFFBFAF5 };  // 生成り
+    }
 }
 
 // Mode icons (Unicode characters matching Lucide icons style)
@@ -166,7 +176,7 @@ void ModeSelector::paint(juce::Graphics& g)
     bool isDark = ThemeManager::getInstance().isDark();
 
     // Theme-aware container colors
-    auto containerBg = isDark ? Colors::Dark::containerBg : Colors::Light::containerBg;
+    auto containerBg = isDark ? ThemeManager::getInstance().getColour(ColourId::Surface) : Colors::Light::containerBg;
     auto containerBorder = isDark ? Colors::Dark::containerBorder : Colors::Light::containerBorder;
 
     // Outer container background
@@ -303,7 +313,7 @@ void ModeSelector::drawModeOption(juce::Graphics& g,
     auto& fonts = FontManager::getInstance();
 
     // Get theme-specific inactive colors
-    juce::Colour inactiveBg = isDarkTheme ? Colors::Dark::inactiveBg : Colors::Light::inactiveBg;
+    juce::Colour inactiveBg = isDarkTheme ? ThemeManager::getInstance().getColour(ColourId::SurfaceAlt) : Colors::Light::inactiveBg;
     juce::Colour inactiveText = isDarkTheme ? Colors::Dark::inactiveText : Colors::Light::inactiveText;
     juce::Colour hoverBg = isDarkTheme ? Colors::Dark::hoverBg : Colors::Light::hoverBg;
     juce::Colour hoverText = isDarkTheme ? Colors::Dark::hoverText : Colors::Light::hoverText;
@@ -313,19 +323,19 @@ void ModeSelector::drawModeOption(juce::Graphics& g,
     switch (mode)
     {
         case blindcard::RatingMode::Stars:
-            activeBg = Colors::starsActiveBg;
-            activeBorder = Colors::starsActiveBorder;
-            activeTextColour = Colors::activeText;
+            activeBg = isDarkTheme ? Colors::DarkSelected::starsBg : Colors::starsActiveBg;
+            activeBorder = isDarkTheme ? Colors::DarkSelected::starsBorder : Colors::starsActiveBorder;
+            activeTextColour = isDarkTheme ? Colors::DarkSelected::lightText : Colors::activeText;
             break;
         case blindcard::RatingMode::Guess:
-            activeBg = Colors::guessActiveBg;
-            activeBorder = Colors::guessActiveBorder;
-            activeTextColour = Colors::guessActiveText;  // Dark text for yellow
+            activeBg = isDarkTheme ? Colors::DarkSelected::guessBg : Colors::guessActiveBg;
+            activeBorder = isDarkTheme ? Colors::DarkSelected::guessBorder : Colors::guessActiveBorder;
+            activeTextColour = isDarkTheme ? Colors::DarkSelected::guessText : Colors::guessActiveText;
             break;
         case blindcard::RatingMode::QA:
-            activeBg = Colors::qaActiveBg;
-            activeBorder = Colors::qaActiveBorder;
-            activeTextColour = Colors::activeText;
+            activeBg = isDarkTheme ? Colors::DarkSelected::qaBg : Colors::qaActiveBg;
+            activeBorder = isDarkTheme ? Colors::DarkSelected::qaBorder : Colors::qaActiveBorder;
+            activeTextColour = isDarkTheme ? Colors::DarkSelected::lightText : Colors::activeText;
             break;
     }
 
@@ -465,7 +475,7 @@ void ModeSelector::drawLockOverlay(juce::Graphics& g, juce::Rectangle<float> bou
     auto& fonts = FontManager::getInstance();
     bool isDark = ThemeManager::getInstance().isDark();
 
-    auto containerBg = isDark ? Colors::Dark::containerBg : Colors::Light::containerBg;
+    auto containerBg = isDark ? ThemeManager::getInstance().getColour(ColourId::Surface) : Colors::Light::containerBg;
     auto inactiveText = isDark ? Colors::Dark::inactiveText : Colors::Light::inactiveText;
 
     // Semi-transparent overlay using container color

@@ -13,7 +13,7 @@
     Main editor component for the BlindCard plugin.
     Composes all UI components and connects to BlindCardManager.
 
-    Window size: 900×600 (min) to 1400×900 (max)
+    Editor size: 900×750 (min) to 1400×900 (max)
 
   ==============================================================================
 */
@@ -46,7 +46,7 @@ namespace BlindCard
 //==============================================================================
 // Custom LookAndFeel for Preset UI
 // - ComboBox: Noto Sans TC Medium (readable for longer text)
-// - Buttons: Bebas Neue (display font for short labels)
+// - Buttons: Noto Sans TC Medium (readable action labels)
 // - Theme-aware: Supports light/dark mode
 //==============================================================================
 class PresetUILookAndFeel : public juce::LookAndFeel_V4
@@ -64,9 +64,8 @@ public:
 
 //==============================================================================
 // Custom LookAndFeel for Master Volume knob
-// - Dark metallic body with knurled edge
-// - Red indicator line
-// - Theme-aware: dark/light mode support
+// - Compact matte body, value arc and precise pointer
+// - Theme-aware dark/light appearance
 //==============================================================================
 class MasterKnobLookAndFeel : public juce::LookAndFeel_V4
 {
@@ -80,21 +79,17 @@ public:
 /**
  * BlindCardEditor is the main UI component for the BlindCard plugin.
  *
- * Layout (900×600 to 1400×900):
+ * Layout (900×750 to 1400×900):
  * +----------------------------------------------------------+
- * | HeaderBar (56px)                                          |
+ * | HeaderBar (72px; MuseoModerno brand, Noto controls)       |
  * +----------------------------------------------------------+
- * |           ModeSelector (centered, 40px)                   |
+ * | Preset / import controls (Standalone)                     |
+ * | ModeSelector (centered in 44px row)                       |
+ * | Status row (44px Stars/Guess; 56px Q&A)                    |
  * +----------------------------------------------------------+
- * |           QuestionBanner (Q&A mode only, 48px)            |
- * +----------------------------------------------------------+
- * |                                      |                    |
- * |                                      | ControlPanel       |
- * |           PokerTable                 | (320px width)      |
- * |           (expandable)               |                    |
- * |                                      |--------------------+
- * |                                      | ResultsPanel       |
- * |                                      | (280px width)      |
+ * | PokerTable (expands with available height)               |
+ * +-----------------------------+----------------------------+
+ * | ControlPanel (220px high)   | ResultsPanel (220px high)  |
  * +----------------------------------------------------------+
  *
  * The editor connects to BlindCardManager for:
@@ -161,7 +156,6 @@ public:
 
     // Layout constants
     static constexpr int kHeaderHeight = 72;
-    static constexpr int kModeSelectorHeight = 48;
     static constexpr int kQuestionBannerHeight = 56;
     static constexpr int kSidePanelWidth = 320;
 
@@ -185,6 +179,7 @@ private:
     //==========================================================================
     // Standalone mode components
     bool isStandaloneMode = false;
+    int currentStatusRowHeight = -1;
     bool isDragOverWindow = false;  // Window-level drag hover state
     std::unique_ptr<StandaloneAudioEngine> audioEngine;
     std::unique_ptr<TransportBar> transportBar;
@@ -232,6 +227,7 @@ private:
 
     // Preset helpers
     void setupPresetUI();
+    void updatePresetButtonColours();
     void onSavePreset();
     void onLoadPreset(int presetIndex);
     void onDeletePreset();
@@ -305,7 +301,7 @@ private:
     // Helpers
     std::vector<std::string> getTrackNames() const;
     void buildStarsResults();
-    void buildGuessResults();
+    void buildGuessResults(const blindcard::GuessSessionSnapshot& snapshot);
     void buildQAResults();
     int findCardIdAtTablePosition(int tablePosition);  // Find card ID based on table position
 

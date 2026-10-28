@@ -115,7 +115,7 @@ public:
 
     //==========================================================================
     /** Recommended width for the transport bar */
-    static constexpr int kRecommendedWidth = 280;
+    static constexpr int kRecommendedWidth = 360;
     static constexpr int kHeight = 32;
 
 private:
@@ -154,8 +154,9 @@ private:
 
     //==========================================================================
     // Drawing helpers
+    enum class ButtonIcon { SkipBack, Play, Pause, SkipForward };
     void drawButton(juce::Graphics& g, juce::Rectangle<float> bounds,
-                    const juce::String& symbol, bool isHovered, bool isEnabled);
+                    ButtonIcon icon, bool isHovered, bool enabled);
     void drawTimeLabel(juce::Graphics& g, juce::Rectangle<float> bounds);
     void drawProgressBar(juce::Graphics& g, juce::Rectangle<float> bounds);
 

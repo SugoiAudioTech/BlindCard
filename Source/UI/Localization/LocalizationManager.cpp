@@ -168,7 +168,7 @@ void LocalizationManager::initializeStrings()
     stringsEn[StringKey::RatingLabel] = "Rating";
 
     // Guess Dropdown
-    stringsEn[StringKey::GuessSelect] = "Select track...";
+    stringsEn[StringKey::GuessSelect] = "Choose track";
     stringsEn[StringKey::GuessNone] = "None";
 
     //==========================================================================
@@ -329,7 +329,7 @@ void LocalizationManager::initializeStrings()
     stringsZhTw[StringKey::RatingLabel] = juce::CharPointer_UTF8("\xe8\xa9\x95\xe5\x88\x86");  // 評分
 
     // Guess Dropdown
-    stringsZhTw[StringKey::GuessSelect] = juce::CharPointer_UTF8("\xe9\x81\xb8\xe6\x93\x87\xe9\x9f\xb3\xe8\xbb\x8c...");  // 選擇音軌...
+    stringsZhTw[StringKey::GuessSelect] = juce::CharPointer_UTF8("\xe9\x81\xb8\xe6\x93\x87\xe9\x9f\xb3\xe8\xbb\x8c");  // 選擇音軌
     stringsZhTw[StringKey::GuessNone] = juce::CharPointer_UTF8("\xe7\x84\xa1");  // 無
 
     //==========================================================================
@@ -490,7 +490,7 @@ void LocalizationManager::initializeStrings()
     stringsJa[StringKey::RatingLabel] = juce::CharPointer_UTF8("\xe8\xa9\x95\xe4\xbe\xa1");  // 評価
 
     // Guess Dropdown
-    stringsJa[StringKey::GuessSelect] = juce::CharPointer_UTF8("\xe3\x83\x88\xe3\x83\xa9\xe3\x83\x83\xe3\x82\xaf\xe3\x82\x92\xe9\x81\xb8\xe6\x8a\x9e...");  // トラックを選択...
+    stringsJa[StringKey::GuessSelect] = juce::CharPointer_UTF8("\xe3\x83\x88\xe3\x83\xa9\xe3\x83\x83\xe3\x82\xaf\xe9\x81\xb8\xe6\x8a\x9e");  // トラック選択
     stringsJa[StringKey::GuessNone] = juce::CharPointer_UTF8("\xe3\x81\xaa\xe3\x81\x97");  // なし
 
     //==========================================================================
@@ -651,7 +651,7 @@ void LocalizationManager::initializeStrings()
     stringsZhCn[StringKey::RatingLabel] = juce::CharPointer_UTF8("\xe8\xaf\x84\xe5\x88\x86");  // 评分
 
     // Guess Dropdown
-    stringsZhCn[StringKey::GuessSelect] = juce::CharPointer_UTF8("\xe9\x80\x89\xe6\x8b\xa9\xe9\x9f\xb3\xe8\xbd\xa8...");  // 选择音轨...
+    stringsZhCn[StringKey::GuessSelect] = juce::CharPointer_UTF8("\xe9\x80\x89\xe6\x8b\xa9\xe9\x9f\xb3\xe8\xbd\xa8");  // 选择音轨
     stringsZhCn[StringKey::GuessNone] = juce::CharPointer_UTF8("\xe6\x97\xa0");  // 无
 
     //==========================================================================
@@ -812,7 +812,7 @@ void LocalizationManager::initializeStrings()
     stringsKo[StringKey::RatingLabel] = juce::CharPointer_UTF8("\xed\x8f\x89\xec\xa0\x90");  // 평점
 
     // Guess Dropdown
-    stringsKo[StringKey::GuessSelect] = juce::CharPointer_UTF8("\xed\x8a\xb8\xeb\x9e\x99 \xec\x84\xa0\xed\x83\x9d...");  // 트랙 선택...
+    stringsKo[StringKey::GuessSelect] = juce::CharPointer_UTF8("\xed\x8a\xb8\xeb\x9e\x99 \xec\x84\xa0\xed\x83\x9d");  // 트랙 선택
     stringsKo[StringKey::GuessNone] = juce::CharPointer_UTF8("\xec\x97\x86\xec\x9d\x8c");  // 없음
 
     //==========================================================================
@@ -973,7 +973,7 @@ void LocalizationManager::initializeStrings()
     stringsEs[StringKey::RatingLabel] = juce::CharPointer_UTF8("Calificaci\xc3\xb3n");  // Calificación
 
     // Guess Dropdown
-    stringsEs[StringKey::GuessSelect] = "Seleccionar pista...";
+    stringsEs[StringKey::GuessSelect] = "Elegir pista";
     stringsEs[StringKey::GuessNone] = "Ninguno";
 }
 

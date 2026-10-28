@@ -25,6 +25,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <vector>
 #include <memory>
+#include <cstdint>
 #include "../Theme/ThemeManager.h"
 #include "PokerCard.h"
 #include "ChipStack.h"
@@ -192,6 +193,9 @@ private:
     std::vector<std::string> trackList;
     int selectedCardIndex = -1;
     bool standaloneMode = false;
+    // Invalidates delayed flips when a round or card set changes.
+    std::uint64_t revealGeneration = 0;
+    bool revealPending = false;
 
     //==========================================================================
     // Child components

@@ -94,7 +94,7 @@ void TransportBar::paint(juce::Graphics& g)
         bool loopHovered = currentHover == HoverState::Loop;
 
         // Background
-        if (isLooping)
+        if (isLooping && isEnabled)
         {
             g.setColour(theme.getColour(ColourId::Accent).withAlpha(0.25f));
             g.fillRoundedRectangle(lb, 4.0f);
@@ -108,11 +108,11 @@ void TransportBar::paint(juce::Graphics& g)
         // Text
         juce::Colour loopColor;
         if (!isEnabled)
-            loopColor = theme.getColour(ColourId::TextPrimary).withAlpha(0.3f);
+            loopColor = theme.isDark() ? juce::Colour(0xFFA4ABA4) : juce::Colour(0xFF706C66);
         else if (isLooping)
-            loopColor = theme.getColour(ColourId::Accent);
+            loopColor = theme.isDark() ? juce::Colour(0xFFE4868B) : juce::Colour(0xFFB8414D);
         else if (loopHovered)
-            loopColor = theme.getColour(ColourId::Accent);
+            loopColor = theme.isDark() ? juce::Colour(0xFFE4868B) : juce::Colour(0xFFB8414D);
         else
             loopColor = theme.getColour(ColourId::TextPrimary);
 
@@ -141,8 +141,8 @@ void TransportBar::paint(juce::Graphics& g)
         bottomPath.addArc(cx - hw, cy + hh - cr * 2, cr * 2, cr * 2,
                            juce::MathConstants<float>::halfPi, juce::MathConstants<float>::pi, true);
 
-        g.strokePath(topPath, juce::PathStrokeType(1.4f, juce::PathStrokeType::curved));
-        g.strokePath(bottomPath, juce::PathStrokeType(1.4f, juce::PathStrokeType::curved));
+        g.strokePath(topPath, juce::PathStrokeType(1.8f, juce::PathStrokeType::curved));
+        g.strokePath(bottomPath, juce::PathStrokeType(1.8f, juce::PathStrokeType::curved));
 
         // Right arrowhead (pointing right, at top-right)
         float ax = cx + hw;
@@ -163,16 +163,14 @@ void TransportBar::paint(juce::Graphics& g)
         g.fillPath(arrowL);
     }
 
-    // Draw buttons - use simple ASCII symbols for better font compatibility
-    drawButton(g, skipBackBounds.toFloat(), "<<",
+    // The playback symbols are drawn as vectors, independent of text fonts.
+    drawButton(g, skipBackBounds.toFloat(), ButtonIcon::SkipBack,
                currentHover == HoverState::SkipBack, isEnabled);
 
-    // Play/Pause button
-    juce::String playSymbol = isPlaying ? "||" : ">";
-    drawButton(g, playPauseBounds.toFloat(), playSymbol,
+    drawButton(g, playPauseBounds.toFloat(), isPlaying ? ButtonIcon::Pause : ButtonIcon::Play,
                currentHover == HoverState::PlayPause, isEnabled);
 
-    drawButton(g, skipForwardBounds.toFloat(), ">>",
+    drawButton(g, skipForwardBounds.toFloat(), ButtonIcon::SkipForward,
                currentHover == HoverState::SkipForward, isEnabled);
 
     // Draw time label
@@ -302,33 +300,40 @@ void TransportBar::changeListenerCallback(juce::ChangeBroadcaster* /*source*/)
 
 //==============================================================================
 void TransportBar::drawButton(juce::Graphics& g, juce::Rectangle<float> bounds,
-                               const juce::String& symbol, bool isHovered, bool enabled)
+                               ButtonIcon icon, bool isHovered, bool enabled)
 {
-    auto& theme = ThemeManager::getInstance();
-
-    bool isDark = theme.isDark();
-
-    // Apple Music style: subtle circular hover background
-    juce::Colour bgColor = enabled
-        ? (isHovered ? (isDark ? juce::Colours::white.withAlpha(0.1f) : juce::Colours::black.withAlpha(0.06f))
-                     : juce::Colours::transparentBlack)
-        : juce::Colours::transparentBlack;
-
-    if (bgColor.getAlpha() > 0)
+    const bool dark = ThemeManager::getInstance().isDark();
+    if (enabled && isHovered)
     {
-        g.setColour(bgColor);
-        g.fillRoundedRectangle(bounds, bounds.getHeight() / 2.0f);  // Pill shape
+        g.setColour(dark ? juce::Colours::white.withAlpha(0.11f)
+                         : juce::Colours::black.withAlpha(0.07f));
+        g.fillRoundedRectangle(bounds, bounds.getHeight() * 0.5f);
     }
 
-    // Symbol color: dark in light mode, light in dark mode
-    juce::Colour textColor = enabled
-        ? (isHovered ? theme.getColour(ColourId::Primary)
-                     : (isDark ? juce::Colour(0xFFE5E5EA) : juce::Colour(0xFF1C1C1E)))
-        : (isDark ? juce::Colour(0xFF48484A) : juce::Colour(0xFFC7C7CC));
-
-    g.setColour(textColor);
-    g.setFont(FontManager::getInstance().getBebasNeue(14.0f));
-    g.drawText(symbol, bounds, juce::Justification::centred);
+    g.setColour(!enabled ? (dark ? juce::Colour(0xFFA4ABA4) : juce::Colour(0xFF706C66))
+                         : isHovered ? (dark ? juce::Colour(0xFFE4868B) : juce::Colour(0xFFB8414D))
+                                     : (dark ? Theme::Dark::TextPrimary : juce::Colour(0xFF292725)));
+    const float cx = bounds.getCentreX(), cy = bounds.getCentreY();
+    juce::Path glyph;
+    switch (icon)
+    {
+        case ButtonIcon::SkipBack:
+            g.fillRoundedRectangle(cx - 7.0f, cy - 5.5f, 2.0f, 11.0f, 0.6f);
+            glyph.addTriangle(cx + 5.0f, cy - 5.8f, cx - 4.0f, cy, cx + 5.0f, cy + 5.8f);
+            break;
+        case ButtonIcon::Play:
+            glyph.addTriangle(cx - 4.5f, cy - 6.0f, cx + 6.0f, cy, cx - 4.5f, cy + 6.0f);
+            break;
+        case ButtonIcon::Pause:
+            g.fillRoundedRectangle(cx - 5.0f, cy - 5.7f, 3.0f, 11.4f, 0.7f);
+            g.fillRoundedRectangle(cx + 2.0f, cy - 5.7f, 3.0f, 11.4f, 0.7f);
+            break;
+        case ButtonIcon::SkipForward:
+            glyph.addTriangle(cx - 5.0f, cy - 5.8f, cx + 4.0f, cy, cx - 5.0f, cy + 5.8f);
+            g.fillRoundedRectangle(cx + 5.0f, cy - 5.5f, 2.0f, 11.0f, 0.6f);
+            break;
+    }
+    g.fillPath(glyph);
 }
 
 void TransportBar::drawTimeLabel(juce::Graphics& g, juce::Rectangle<float> bounds)
@@ -339,10 +344,10 @@ void TransportBar::drawTimeLabel(juce::Graphics& g, juce::Rectangle<float> bound
 
     bool isDark = theme.isDark();
     juce::Colour timeColour = isEnabled
-        ? (isDark ? juce::Colour(0xFF8E8E93) : juce::Colour(0xFF8E8E93))
-        : (isDark ? juce::Colour(0xFF48484A) : juce::Colour(0xFFC7C7CC));
+        ? (isDark ? Theme::Dark::TextSecondary : juce::Colour(0xFF5F5B55))
+        : (isDark ? juce::Colour(0xFFA4ABA4) : juce::Colour(0xFF706C66));
     g.setColour(timeColour);
-    g.setFont(FontManager::getInstance().getMedium(18.0f));
+    g.setFont(FontManager::getInstance().getMedium(14.0f));
     g.drawText(timeText, bounds, juce::Justification::centredLeft);
 }
 
@@ -352,26 +357,27 @@ void TransportBar::drawProgressBar(juce::Graphics& g, juce::Rectangle<float> bou
 
     bool isDark = theme.isDark();
 
-    // Apple Music style: thin rounded track
-    g.setColour(isDark ? juce::Colour(0xFF3A3A3C) : juce::Colour(0xFFD1D1D6));
-    g.fillRoundedRectangle(bounds, bounds.getHeight() / 2);
+    // Keep the original 8px seek hit area; draw a quieter 4px track inside it.
+    auto track = bounds.withSizeKeepingCentre(bounds.getWidth(), 4.0f);
+    g.setColour(isDark ? juce::Colour(0xFF828982) : juce::Colour(0xFFA9A49C));
+    g.fillRoundedRectangle(track, 2.0f);
 
     if (!isEnabled || totalDurationSeconds <= 0)
         return;
 
-    // Progress fill — use primary/red accent like Apple Music
     double progress = isDraggingProgressBar ? dragPosition : (currentPositionSeconds / totalDurationSeconds);
     progress = juce::jlimit(0.0, 1.0, progress);
 
     float fillWidth = static_cast<float>(bounds.getWidth() * progress);
     fillWidth = juce::jmin(fillWidth, bounds.getWidth());  // Don't exceed track
-    auto fillBounds = bounds.withWidth(std::max(bounds.getHeight(), fillWidth));
+    auto fillBounds = track.withWidth(std::max(track.getHeight(), fillWidth));
 
-    g.setColour(theme.getColour(ColourId::Primary));
-    g.fillRoundedRectangle(fillBounds, bounds.getHeight() / 2);
+    g.setColour(isDark ? juce::Colour(0xFFE4868B) : juce::Colour(0xFFB8414D));
+    g.fillRoundedRectangle(fillBounds, 2.0f);
 
-    // Knob — clean white circle with subtle shadow
-    float knobSize = bounds.getHeight() + 6;
+    // Small outlined thumb makes seek available without a large white disc.
+    bool isHoveringProgressBar = currentHover == HoverState::ProgressBar || isDraggingProgressBar;
+    float knobSize = isHoveringProgressBar ? 11.0f : 9.0f;
     float knobHalf = knobSize / 2.0f;
     // Clamp knob within track bounds so it doesn't overflow
     float knobX = bounds.getX() + fillWidth;
@@ -379,25 +385,10 @@ void TransportBar::drawProgressBar(juce::Graphics& g, juce::Rectangle<float> bou
     auto knobBounds = juce::Rectangle<float>(knobX - knobSize / 2, bounds.getCentreY() - knobSize / 2,
                                               knobSize, knobSize);
 
-    bool isHoveringProgressBar = currentHover == HoverState::ProgressBar || isDraggingProgressBar;
-
-    // Shadow
-    g.setColour(juce::Colours::black.withAlpha(0.15f));
-    g.fillEllipse(knobBounds.translated(0.0f, 0.5f));
-
-    // White knob
-    g.setColour(juce::Colours::white);
+    g.setColour(isDark ? Theme::Dark::HeaderSurface : juce::Colour(0xFFF5F0E8));
     g.fillEllipse(knobBounds);
-
-    // Knob border
-    g.setColour(isDark ? juce::Colours::white.withAlpha(0.15f) : juce::Colour(0xFFD1D1D6));
-    g.drawEllipse(knobBounds, 0.5f);
-
-    if (isHoveringProgressBar)
-    {
-        g.setColour(theme.getColour(ColourId::Primary).withAlpha(0.2f));
-        g.fillEllipse(knobBounds.expanded(3));
-    }
+    g.setColour(isDark ? juce::Colour(0xFFE4868B) : juce::Colour(0xFFB8414D));
+    g.drawEllipse(knobBounds, 1.6f);
 }
 
 //==============================================================================

@@ -47,6 +47,7 @@ public:
     int getSelectedCardId() const;
     bool isCardSelected (int cardId) const;
     juce::Array<CardSlot> getCards() const;
+    GuessSessionSnapshot getGuessResultsSnapshot() const;
     int getRegisteredCount() const;
     bool canJoinGame() const;
 
@@ -113,6 +114,8 @@ private:
     bool bypassAll = false;
     bool standaloneMode = false;  // Standalone mode doesn't auto-assign track names
     RatingMode ratingMode = RatingMode::Stars;  // Default to star rating mode
+    std::vector<GuessRoundSnapshot> revealedGuessRounds;
+    std::uint64_t guessSessionId = 0;
 
     // Level Matching state
     bool levelMatchEnabled_ = false;      // Whether Level-Match is enabled (default off)

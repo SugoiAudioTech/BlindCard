@@ -150,6 +150,7 @@ private:
     // Drawing helpers
     void drawLogo(juce::Graphics& g, juce::Rectangle<float> bounds);
     void drawBrandText(juce::Graphics& g, juce::Rectangle<float> bounds);
+    void drawTrailingSpade(juce::Graphics& g, juce::Rectangle<float> bounds);
     void drawTrackInfo(juce::Graphics& g, juce::Rectangle<float> bounds);
     void drawThemeToggle(juce::Graphics& g, juce::Rectangle<float> bounds, bool isHovered);
     void drawInfoButton(juce::Graphics& g, juce::Rectangle<float> bounds, bool isHovered);

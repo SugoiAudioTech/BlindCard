@@ -16,6 +16,7 @@
 */
 
 #include "HeaderBar.h"
+#include "BinaryData.h"
 #include "../Theme/FontManager.h"
 
 namespace BlindCard
@@ -35,15 +36,14 @@ namespace
 // Layout constants
 namespace Layout
 {
-    // Logo area
-    constexpr int logoSize = 44;
+    // CURVA house-brand lockup, scaled in JUCE logical pixels.
+    constexpr int logoWidth = 44;  // 329:298 source aspect at 40px high
+    constexpr int logoHeight = 40;
     constexpr int logoLeftMargin = 16;
-    constexpr float logoCornerRadius = 10.0f;
-
-    // Brand text
-    constexpr int brandLeftMargin = 14;
-    constexpr float brandNameFontSize = 24.0f;
-    constexpr float sugoiFontSize = 16.0f;
+    constexpr int brandLeftMargin = 4;
+    constexpr float sugoiFontSize = 19.0f;
+    constexpr float productFontSize = 24.5f;
+    constexpr float trailingSpadeSize = 21.0f;
 
     // Connection status capsule
     constexpr int capsuleHeight = 36;
@@ -123,25 +123,26 @@ void HeaderBar::paint(juce::Graphics& g)
     bool isDark = theme.isDark();
     auto bounds = getLocalBounds().toFloat();
 
-    // Background - Original: #0A0A0A (dark) / #F5F0E8 (light)
-    juce::Colour bgColor = isDark ? juce::Colour(0xFF0A0A0A) : juce::Colour(0xFFF5F0E8);
+    // Relate the neutral masthead to the canvas while keeping controls distinct.
+    juce::Colour bgColor = isDark ? Theme::Dark::HeaderSurface : juce::Colour(0xFFF5F0E8);
     g.setColour(bgColor);
     g.fillRect(bounds);
 
-    // Bottom border - Original: #2A2A2A (dark) / #D4C9B8 (light)
-    juce::Colour borderColor = isDark ? juce::Colour(0xFF2A2A2A) : juce::Colour(0xFFD4C9B8);
+    // Bottom border separates the header without a bright rule.
+    juce::Colour borderColor = isDark ? juce::Colour(0xFF626762) : juce::Colour(0xFFD4C9B8);
     g.setColour(borderColor);
     g.fillRect(bounds.removeFromBottom(1.0f));
 
     // Draw components
     float logoX = static_cast<float>(Layout::logoLeftMargin);
-    float logoY = (bounds.getHeight() - Layout::logoSize) / 2.0f;
-    drawLogo(g, { logoX, logoY, static_cast<float>(Layout::logoSize), static_cast<float>(Layout::logoSize) });
+    float logoY = (bounds.getHeight() - Layout::logoHeight) / 2.0f;
+    drawLogo(g, { logoX, logoY, static_cast<float>(Layout::logoWidth), static_cast<float>(Layout::logoHeight) });
 
-    // Brand text (to the right of logo)
-    float brandX = logoX + Layout::logoSize + Layout::brandLeftMargin;
-    float brandY = logoY;
-    drawBrandText(g, { brandX, brandY, 200.0f, static_cast<float>(Layout::logoSize) });
+    // Keep the brand lockup clear of the centre status/standalone transport
+    // at the editor's 900px minimum width.
+    float brandX = logoX + Layout::logoWidth + Layout::brandLeftMargin;
+    float brandWidth = juce::jmax(0.0f, static_cast<float>(trackInfoBounds.getX()) - brandX - 12.0f);
+    drawBrandText(g, { brandX, 0.0f, brandWidth, bounds.getHeight() });
 
     // Track info (centered) - hidden in standalone mode (TransportBar shows playback info)
     if (!standaloneMode)
@@ -271,94 +272,90 @@ void HeaderBar::timerCallback()
 //==============================================================================
 void HeaderBar::drawLogo(juce::Graphics& g, juce::Rectangle<float> bounds)
 {
-    auto& theme = ThemeManager::getInstance();
-    bool isDark = theme.isDark();
-
-    // Red gradient background - Original: #FF3B4E to #B82D3A (dark) / #C41E3A to #8B1528 (light)
-    juce::Colour gradientTop = isDark ? juce::Colour(0xFFFF3B4E) : juce::Colour(0xFFC41E3A);
-    juce::Colour gradientBottom = isDark ? juce::Colour(0xFFB82D3A) : juce::Colour(0xFF8B1528);
-
-    juce::ColourGradient gradient(
-        gradientTop, bounds.getX(), bounds.getY(),
-        gradientBottom, bounds.getRight(), bounds.getBottom(),
-        false);
-
-    g.setGradientFill(gradient);
-    g.fillRoundedRectangle(bounds, Layout::logoCornerRadius);
-
-    // White spade symbol - standard SVG spade path for cross-platform consistency
-    g.setColour(juce::Colours::white);
-
-    {
-        // Use a padded inner rect so the spade doesn't touch the rounded corners
-        float pad = bounds.getWidth() * 0.18f;
-        auto inner = bounds.reduced(pad);
-        float x0 = inner.getX();
-        float y0 = inner.getY();
-        float w = inner.getWidth();
-        float h = inner.getHeight();
-
-        // Map from 0-100 SVG coordinate space to local pixel coordinates
-        auto sx = [&](float v) { return x0 + v * w / 100.0f; };
-        auto sy = [&](float v) { return y0 + v * h / 100.0f; };
-
-        // Spade body (classic playing card spade outline)
-        juce::Path spade;
-        spade.startNewSubPath(sx(50), sy(0));                                       // top tip
-        spade.cubicTo(sx(50), sy(0),  sx(0),  sy(40), sx(0),  sy(60));              // tip -> left lobe
-        spade.cubicTo(sx(0),  sy(80), sx(25), sy(85), sx(50), sy(70));              // left lobe -> bottom center
-        spade.cubicTo(sx(75), sy(85), sx(100),sy(80), sx(100),sy(60));              // bottom center -> right lobe
-        spade.cubicTo(sx(100),sy(40), sx(50), sy(0),  sx(50), sy(0));               // right lobe -> tip
-        spade.closeSubPath();
-
-        // Stem (small trapezoid at bottom)
-        juce::Path stem;
-        stem.startNewSubPath(sx(45), sy(65));
-        stem.lineTo(sx(38), sy(100));
-        stem.lineTo(sx(62), sy(100));
-        stem.lineTo(sx(55), sy(65));
-        stem.closeSubPath();
-
-        g.fillPath(spade);
-        g.fillPath(stem);
-    }
+    static const juce::Image logoImage = juce::ImageCache::getFromMemory(
+        BinaryData::sugoilogoheader_png, BinaryData::sugoilogoheader_pngSize);
+    if (logoImage.isValid())
+        g.drawImage(logoImage, bounds, juce::RectanglePlacement::centred);
 }
 
 void HeaderBar::drawBrandText(juce::Graphics& g, juce::Rectangle<float> bounds)
 {
-    auto& theme = ThemeManager::getInstance();
-    bool isDark = theme.isDark();
+    if (bounds.isEmpty())
+        return;
 
-    // Original: "Blind" in white/black, "Card" in red
-    juce::Colour textColor = isDark ? juce::Colour(0xFFF5F5F0) : juce::Colour(0xFF1A1A1A);
-    juce::Colour redColor = isDark ? juce::Colour(0xFFFF3B4E) : juce::Colour(0xFFC41E3A);
-    juce::Colour mutedColor = isDark ? juce::Colour(0xFF606060) : juce::Colour(0xFF8B8B8B);
-
-    auto nameArea = bounds.removeFromTop(bounds.getHeight() * 0.6f);
-
-    // Calculate text widths for proper positioning - Cinzel Bold for casino style
+    bool isDark = ThemeManager::getInstance().isDark();
     auto& fonts = FontManager::getInstance();
-    auto brandFont = fonts.getCinzelBold(Layout::brandNameFontSize);
-    g.setFont(brandFont);
+    auto sugoiFont = fonts.getMuseoModernoBold(Layout::sugoiFontSize)
+                           .withExtraKerningFactor(0.01f);
+    auto productFont = fonts.getMuseoModernoBold(Layout::productFontSize)
+                             .withExtraKerningFactor(-0.01f);
+    float sugoiWidth = getTextWidth(sugoiFont, "Sugoi") + 2.0f;
+    float dividerX = bounds.getX() + sugoiWidth + 7.0f;
+    float productX = dividerX + 9.0f;
 
-    // Measure actual text widths from the font for cross-platform accuracy
-    float blindWidth = getTextWidth(brandFont, "Blind ");
-    float cardWidth = getTextWidth(brandFont, "Card");
+    g.setColour(isDark ? Theme::Dark::TextPrimary : juce::Colour(0xFF2C2925));
+    g.setFont(sugoiFont);
+    g.drawText("Sugoi", bounds.withWidth(sugoiWidth), juce::Justification::centredLeft);
 
-    // Draw "Blind" in white/black
-    g.setColour(textColor);
-    auto blindArea = nameArea.withWidth(blindWidth);
-    g.drawText("Blind ", blindArea, juce::Justification::centredLeft);
+    g.setColour(isDark ? juce::Colour(0xFFB9C0B9) : juce::Colour(0xFFB5A798));
+    g.fillRect(dividerX, bounds.getCentreY() - 12.5f, 1.0f, 25.0f);
 
-    // Draw "Card" in red
-    g.setColour(redColor);
-    auto cardArea = nameArea.withX(nameArea.getX() + blindWidth).withWidth(cardWidth);
-    g.drawText("Card", cardArea, juce::Justification::centredLeft);
+    float blindWidth = getTextWidth(productFont, "Blind") + 1.0f;
+    float cardWidth = getTextWidth(productFont, "Card") + 1.0f;
+    float remaining = juce::jmax(0.0f, bounds.getRight() - productX);
+    g.setFont(productFont);
+    g.setColour(isDark ? Theme::Dark::TextPrimary : juce::Colour(0xFF25211F));
+    g.drawText("Blind", juce::Rectangle<float>(productX, bounds.getY(),
+                                                juce::jmin(blindWidth, remaining), bounds.getHeight()),
+               juce::Justification::centredLeft);
+    // The dark masthead needs a slightly lighter red for the large wordmark.
+    g.setColour(isDark ? juce::Colour(0xFFF17B80) : juce::Colour(0xFFC9363C));
+    g.drawText("Card", juce::Rectangle<float>(productX + blindWidth, bounds.getY(),
+                                               juce::jmin(cardWidth, juce::jmax(0.0f, remaining - blindWidth)), bounds.getHeight()),
+               juce::Justification::centredLeft);
 
-    // "by Sugoi Audio" in muted color - clean readable style
-    g.setColour(mutedColor);
-    g.setFont(fonts.getMedium(Layout::sugoiFontSize));
-    g.drawText("by Sugoi Audio", bounds, juce::Justification::centredLeft);
+    // The small boxed spade is the original BlindCard mark; the unboxed Sugoi
+    // animal at the far left remains the house-brand logo.
+    float tileX = productX + blindWidth + cardWidth + 5.0f;
+    if (tileX + Layout::trailingSpadeSize <= bounds.getRight())
+        drawTrailingSpade(g, { tileX, bounds.getCentreY() - Layout::trailingSpadeSize * 0.5f,
+                               Layout::trailingSpadeSize, Layout::trailingSpadeSize });
+}
+
+void HeaderBar::drawTrailingSpade(juce::Graphics& g, juce::Rectangle<float> bounds)
+{
+    const bool dark = ThemeManager::getInstance().isDark();
+    juce::ColourGradient red(
+        dark ? juce::Colour(0xFFFF3B4E) : juce::Colour(0xFFC41E3A), bounds.getX(), bounds.getY(),
+        dark ? juce::Colour(0xFFB82D3A) : juce::Colour(0xFF8B1528), bounds.getRight(), bounds.getBottom(),
+        false);
+    g.setGradientFill(red);
+    g.fillRoundedRectangle(bounds, 4.0f);
+
+    auto inner = bounds.reduced(bounds.getWidth() * 0.18f);
+    const float x0 = inner.getX(), y0 = inner.getY();
+    const float w = inner.getWidth(), h = inner.getHeight();
+    auto sx = [x0, w](float v) { return x0 + v * w / 100.0f; };
+    auto sy = [y0, h](float v) { return y0 + v * h / 100.0f; };
+
+    juce::Path spade;
+    spade.startNewSubPath(sx(50), sy(0));
+    spade.cubicTo(sx(50), sy(0), sx(0), sy(40), sx(0), sy(60));
+    spade.cubicTo(sx(0), sy(80), sx(25), sy(85), sx(50), sy(70));
+    spade.cubicTo(sx(75), sy(85), sx(100), sy(80), sx(100), sy(60));
+    spade.cubicTo(sx(100), sy(40), sx(50), sy(0), sx(50), sy(0));
+    spade.closeSubPath();
+
+    juce::Path stem;
+    stem.startNewSubPath(sx(45), sy(65));
+    stem.lineTo(sx(38), sy(100));
+    stem.lineTo(sx(62), sy(100));
+    stem.lineTo(sx(55), sy(65));
+    stem.closeSubPath();
+
+    g.setColour(juce::Colours::white);
+    g.fillPath(spade);
+    g.fillPath(stem);
 }
 
 void HeaderBar::drawTrackInfo(juce::Graphics& g, juce::Rectangle<float> bounds)
@@ -367,14 +364,14 @@ void HeaderBar::drawTrackInfo(juce::Graphics& g, juce::Rectangle<float> bounds)
     auto& fonts = FontManager::getInstance();
     bool isDark = theme.isDark();
 
-    // Capsule background - Original: #2D2815 (dark) / #FDF6E3 (light)
-    juce::Colour bgColor = isDark ? juce::Colour(0xFF2D2815) : juce::Colour(0xFFFDF6E3);
+    // Low-key charcoal capsule in the dark masthead.
+    juce::Colour bgColor = isDark ? juce::Colour(0xFF484B49) : juce::Colour(0xFFFDF6E3);
     g.setColour(bgColor);
     g.fillRoundedRectangle(bounds, Layout::capsuleCornerRadius);
 
     // Capsule border - Original: rgba(212, 175, 55, 0.3) dark / 0.5 light
     juce::Colour borderColor = isDark
-        ? juce::Colour(0xFFD4AF37).withAlpha(0.3f)
+        ? juce::Colour(0xFF727772)
         : juce::Colour(0xFFD4AF37).withAlpha(0.5f);
     g.setColour(borderColor);
     g.drawRoundedRectangle(bounds.reduced(0.5f), Layout::capsuleCornerRadius, 1.0f);
@@ -383,15 +380,15 @@ void HeaderBar::drawTrackInfo(juce::Graphics& g, juce::Rectangle<float> bounds)
     auto contentArea = bounds.reduced(12.0f, 0.0f);
 
     // Colors
-    juce::Colour goldColor = isDark ? juce::Colour(0xFFFFD700) : juce::Colour(0xFFD4AF37);
-    juce::Colour textColor = isDark ? juce::Colour(0xFFD4AF37) : juce::Colour(0xFF9C7E25);
+    juce::Colour goldColor = isDark ? Theme::Dark::Accent : juce::Colour(0xFFD4AF37);
+    juce::Colour textColor = isDark ? Theme::Dark::TextSecondary : juce::Colour(0xFF9C7E25);
 
     // Format: Now Playing | 軌道名稱 | dB
 
     // "Now Playing" section (left side)
     auto nowPlayingArea = contentArea.removeFromLeft(90.0f);
     g.setColour(goldColor);
-    g.setFont(fonts.getBebasNeue(14.0f));
+    g.setFont(fonts.getMedium(14.0f));
     g.drawText("NOW PLAYING", nowPlayingArea, juce::Justification::centred);
 
     // Vertical separator line
@@ -403,7 +400,7 @@ void HeaderBar::drawTrackInfo(juce::Graphics& g, juce::Rectangle<float> bounds)
 
     // Track name (middle section)
     auto trackNameArea = contentArea.removeFromLeft(140.0f);
-    g.setFont(fonts.getBebasNeue(14.0f));
+    g.setFont(fonts.getMedium(14.0f));
     g.setColour(textColor);
 
     if (currentTrackName.isEmpty())
@@ -433,7 +430,7 @@ void HeaderBar::drawTrackInfo(juce::Graphics& g, juce::Rectangle<float> bounds)
         rmsText = juce::String(currentRMSdB, 1) + " dB";
     }
 
-    g.setFont(fonts.getBebasNeue(14.0f));
+    g.setFont(fonts.getMedium(14.0f));
     g.setColour(goldColor);
     g.drawText(rmsText, contentArea, juce::Justification::centred);
 }
@@ -454,13 +451,13 @@ void HeaderBar::drawThemeToggle(juce::Graphics& g, juce::Rectangle<float> bounds
         g.fillRoundedRectangle(bgBounds.translated(0.0f, 2.0f), 10.0f);
 
         // Background
-        juce::Colour bgColor = isDark ? juce::Colour(0xFF2A2A2A) : juce::Colour(0xFFEEEEEE);
+        juce::Colour bgColor = isDark ? Theme::Dark::SurfaceAlt : juce::Colour(0xFFEEEEEE);
         g.setColour(bgColor);
         g.fillRoundedRectangle(bgBounds, 10.0f);
     }
 
     // Golden/yellow color for sun and moon
-    juce::Colour iconColor = juce::Colour(0xFFFFD700);  // Gold
+    juce::Colour iconColor = isDark ? Theme::Dark::Accent : juce::Colour(0xFFFFD700);
 
     // Icon size and position
     float iconSize = 22.0f;
@@ -518,7 +515,7 @@ void HeaderBar::drawThemeToggle(juce::Graphics& g, juce::Rectangle<float> bounds
         g.fillPath(moon);
 
         // Draw cutout in background color to create crescent effect
-        auto bgColor = theme.isDark() ? juce::Colour(0xFF0A0A0A) : juce::Colour(0xFFF5F0E8);
+        auto bgColor = theme.isDark() ? Theme::Dark::HeaderSurface : juce::Colour(0xFFF5F0E8);
         g.setColour(bgColor);
         g.fillPath(cutout);
     }
@@ -539,16 +536,16 @@ void HeaderBar::drawInfoButton(juce::Graphics& g, juce::Rectangle<float> bounds,
         g.fillRoundedRectangle(bgBounds.translated(0.0f, 2.0f), 10.0f);
 
         // Background
-        juce::Colour bgColor = isDark ? juce::Colour(0xFF2A2A2A) : juce::Colour(0xFFEEEEEE);
+        juce::Colour bgColor = isDark ? Theme::Dark::SurfaceAlt : juce::Colour(0xFFEEEEEE);
         g.setColour(bgColor);
         g.fillRoundedRectangle(bgBounds, 10.0f);
     }
 
     // Icon color - gray outline style
-    juce::Colour iconColor = isDark ? juce::Colour(0xFF707070) : juce::Colour(0xFF606060);
+    juce::Colour iconColor = isDark ? juce::Colour(0xFFD2CBBF) : juce::Colour(0xFF606060);
 
     if (isHovered)
-        iconColor = isDark ? juce::Colour(0xFF909090) : juce::Colour(0xFF404040);
+        iconColor = isDark ? Theme::Dark::TextPrimary : juce::Colour(0xFF404040);
 
     // Question mark icon (circle with '?')
     g.setColour(iconColor);
@@ -559,7 +556,7 @@ void HeaderBar::drawInfoButton(juce::Graphics& g, juce::Rectangle<float> bounds,
     g.drawEllipse(iconBounds, 2.0f);
 
     // Draw '?' character
-    g.setFont(FontManager::getInstance().getBebasNeue(16.0f));
+    g.setFont(FontManager::getInstance().getBold(16.0f));
     g.drawText("?", iconBounds.toNearestInt(), juce::Justification::centred);
 }
 
@@ -578,16 +575,16 @@ void HeaderBar::drawSettingsButton(juce::Graphics& g, juce::Rectangle<float> bou
         g.fillRoundedRectangle(bgBounds.translated(0.0f, 2.0f), 10.0f);
 
         // Background
-        juce::Colour bgColor = isDark ? juce::Colour(0xFF2A2A2A) : juce::Colour(0xFFEEEEEE);
+        juce::Colour bgColor = isDark ? Theme::Dark::SurfaceAlt : juce::Colour(0xFFEEEEEE);
         g.setColour(bgColor);
         g.fillRoundedRectangle(bgBounds, 10.0f);
     }
 
     // Icon color - gray outline style matching the design
-    juce::Colour iconColor = isDark ? juce::Colour(0xFF707070) : juce::Colour(0xFF606060);
+    juce::Colour iconColor = isDark ? juce::Colour(0xFFD2CBBF) : juce::Colour(0xFF606060);
 
     if (isHovered)
-        iconColor = isDark ? juce::Colour(0xFF909090) : juce::Colour(0xFF404040);
+        iconColor = isDark ? Theme::Dark::TextPrimary : juce::Colour(0xFF404040);
 
     g.setColour(iconColor);
 
@@ -666,9 +663,9 @@ void HeaderBar::drawResetButton(juce::Graphics& g, juce::Rectangle<float> bounds
     g.drawLine(innerBounds.getX() + 4.0f, innerBounds.getY(),
                innerBounds.getRight() - 4.0f, innerBounds.getY(), 1.0f);
 
-    // "RESET" text - Bebas Neue casino style
+    // "RESET" label uses Noto Sans TC Medium
     g.setColour(juce::Colours::white);
-    g.setFont(FontManager::getInstance().getBebasNeue(12.0f));
+    g.setFont(FontManager::getInstance().getMedium(12.0f));
     g.drawText("RESET", bounds.toNearestInt(), juce::Justification::centred);
 }
 

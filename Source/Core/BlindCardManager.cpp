@@ -14,6 +14,35 @@
 namespace blindcard
 {
 
+namespace
+{
+GuessRoundSnapshot makeGuessRoundSnapshot(const GameState& state)
+{
+    GuessRoundSnapshot snapshot;
+    snapshot.roundIndex = state.currentRound;
+    snapshot.rows.reserve(static_cast<size_t>(state.cards.size()));
+    for (const auto& card : state.cards)
+    {
+        GuessRowSnapshot row;
+        row.cardPosition = card.displayPosition;
+        row.actualTrack = card.realTrackName;
+        if (state.currentRound >= 0 && state.currentRound < card.rounds.size())
+        {
+            const int guessedId = card.rounds[state.currentRound].guessedTrackId;
+            if (guessedId >= 0 && guessedId < state.cards.size())
+            {
+                row.guessedTrack = state.cards[guessedId].realTrackName;
+                row.isCorrect = guessedId == card.id;
+            }
+        }
+        snapshot.correct += row.isCorrect ? 1 : 0;
+        snapshot.rows.push_back(std::move(row));
+    }
+    snapshot.total = static_cast<int>(snapshot.rows.size()); // Unanswered rows count as wrong.
+    return snapshot;
+}
+}
+
 void BlindCardManager::compactRemovedCardsUnlocked()
 {
     for (int i = state.cards.size() - 1; i >= 0; --i)
@@ -210,6 +239,9 @@ void BlindCardManager::shuffle()
         if (state.cards.size() < GameState::MinCards)
             return;
 
+        revealedGuessRounds.clear();
+        ++guessSessionId;
+
         // Initialize round data for each card
         for (auto& card : state.cards)
         {
@@ -299,6 +331,9 @@ void BlindCardManager::reveal()
         if (state.phase != GamePhase::BlindTesting)
             return;
 
+        if (ratingMode == RatingMode::Guess)
+            revealedGuessRounds.push_back(makeGuessRoundSnapshot(state));
+
         state.phase = GamePhase::Revealed;
         // Auto-select first card (ensure only one track plays)
         state.selectedCardId = state.cards.isEmpty() ? -1 : 0;
@@ -316,6 +351,8 @@ void BlindCardManager::reset()
 
         state.phase = GamePhase::Setup;
         state.currentRound = 0;
+        revealedGuessRounds.clear();
+        ++guessSessionId;
 
         compactRemovedCardsUnlocked();
 
@@ -526,6 +563,39 @@ juce::Array<CardSlot> BlindCardManager::getCards() const
 {
     juce::ScopedLock sl (lock);
     return state.cards;
+}
+
+GuessSessionSnapshot BlindCardManager::getGuessResultsSnapshot() const
+{
+    juce::ScopedLock sl(lock);
+    GuessSessionSnapshot snapshot;
+    snapshot.phase = state.phase;
+    snapshot.currentRound = state.currentRound;
+    snapshot.totalRounds = state.totalRounds;
+    snapshot.sessionId = guessSessionId;
+    snapshot.revealedRounds = revealedGuessRounds;
+
+    for (const auto& round : snapshot.revealedRounds)
+    {
+        snapshot.cumulativeCorrect += round.correct;
+        snapshot.cumulativeTotal += round.total;
+    }
+
+    const GuessRoundSnapshot* current = nullptr;
+    if (state.phase == GamePhase::Revealed)
+    {
+        const auto found = std::find_if(revealedGuessRounds.begin(), revealedGuessRounds.end(),
+            [this](const GuessRoundSnapshot& round) { return round.roundIndex == state.currentRound; });
+        if (found != revealedGuessRounds.end())
+            current = &*found;
+    }
+    const GuessRoundSnapshot live = current == nullptr ? makeGuessRoundSnapshot(state)
+                                                        : GuessRoundSnapshot{};
+    const auto& round = current != nullptr ? *current : live;
+    snapshot.currentRows = round.rows;
+    snapshot.currentCorrect = round.correct;
+    snapshot.currentTotal = round.total;
+    return snapshot;
 }
 
 int BlindCardManager::getRegisteredCount() const

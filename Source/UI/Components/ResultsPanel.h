@@ -22,6 +22,7 @@
 #include <vector>
 #include <string>
 #include <functional>
+#include <cstdint>
 #include "../Theme/ThemeManager.h"
 #include "../../Core/Types.h"
 
@@ -196,16 +197,11 @@ public:
      */
     void setRoundInfo(int current, int total);
 
-    /**
-     * Accumulates the current round's guess results into cumulative totals.
-     * Call this after revealing results each round.
-     */
-    void accumulateGuessResults();
-
-    /**
-     * Resets cumulative tracking (call when starting new game).
-     */
-    void resetCumulativeTracking();
+    /** Shared manager score values; refreshes never increment them locally. */
+    void setGuessScore(int roundCorrect, int roundTotal,
+                       int cumulativeCorrect, int cumulativeTotal);
+    /** Resets the scroll position when a new game session begins. */
+    void setResultsSession(std::uint64_t sessionId);
 
     /**
      * Sets the countdown value to display (0 = hide countdown).
@@ -240,9 +236,12 @@ private:
     bool submitEnabled = true;
     bool showFinalResults = false;
 
-    // Cumulative tracking for Guess mode
+    // Score values are supplied by one immutable manager snapshot.
+    int roundCorrectGuesses = 0;
+    int roundGuessAttempts = 0;
     int totalCorrectGuesses = 0;
     int totalGuessAttempts = 0;
+    std::uint64_t resultSessionId = 0;
     int currentRoundNumber = 0;
     int totalRounds = 1;
 
@@ -251,7 +250,20 @@ private:
 
     //==========================================================================
     // Child components
+    class ContentComponent : public juce::Component
+    {
+    public:
+        explicit ContentComponent(ResultsPanel& panel) : owner(panel) {}
+        void paint(juce::Graphics& g) override { owner.drawContent(g); }
+    private:
+        ResultsPanel& owner;
+    };
+    std::unique_ptr<ContentComponent> contentComponent;
+    std::unique_ptr<juce::Viewport> viewport;
     std::unique_ptr<juce::TextButton> submitButton;
+    void drawContent(juce::Graphics& g);
+    void updateContentLayout(bool resetScroll = false);
+    int measuredContentHeight() const;
 
     //==========================================================================
     // Drawing helpers - Stars mode

@@ -6,6 +6,8 @@
 #pragma once
 
 #include <juce_core/juce_core.h>
+#include <cstdint>
+#include <vector>
 
 namespace blindcard
 {
@@ -145,6 +147,40 @@ struct GameState
     static constexpr int MaxCards = 8;        // Maximum card count (dual row 4+4 layout limit)
     static constexpr int MinQAQuestions = 1;  // Q&A minimum questions
     static constexpr int MaxQAQuestions = 8;  // Q&A maximum questions
+};
+
+// Values copied at reveal time. They deliberately do not refer back to mutable
+// card IDs or track names, which may change when instances leave or join.
+struct GuessRowSnapshot
+{
+    int cardPosition = 0;
+    juce::String actualTrack;
+    juce::String guessedTrack;
+    bool isCorrect = false;
+};
+
+struct GuessRoundSnapshot
+{
+    int roundIndex = 0;
+    std::vector<GuessRowSnapshot> rows;
+    int correct = 0;
+    int total = 0;
+};
+
+// Returned by one manager query under one lock, including the current rows and
+// only rounds that have actually been revealed in this game session.
+struct GuessSessionSnapshot
+{
+    GamePhase phase = GamePhase::Setup;
+    int currentRound = 0;
+    int totalRounds = 1;
+    std::uint64_t sessionId = 0;
+    std::vector<GuessRowSnapshot> currentRows;
+    int currentCorrect = 0;
+    int currentTotal = 0;
+    std::vector<GuessRoundSnapshot> revealedRounds;
+    int cumulativeCorrect = 0;
+    int cumulativeTotal = 0;
 };
 
 } // namespace blindcard

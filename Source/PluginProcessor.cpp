@@ -189,12 +189,14 @@ void BlindCardProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     float localMuteGainStep = muteGainStep.load();
 
     // Apply smoothed mute gain per sample (prevent clicks when switching)
+    const float blockStartMuteGain = muteGain;
+    float blockEndMuteGain = blockStartMuteGain;
     for (int ch = 0; ch < numChannels; ++ch)
     {
         float* data = buffer.getWritePointer (ch);
 
-        // Reset muteGain to block start value for each channel (don't reset on first channel)
-        float localMuteGain = muteGain;
+        // Every channel uses the same envelope for this block.
+        float localMuteGain = blockStartMuteGain;
 
         for (int i = 0; i < numSamples; ++i)
         {
@@ -216,10 +218,11 @@ void BlindCardProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             data[i] *= gainLinear * localMuteGain;
         }
 
-        // Only update member variable on first channel
+        // Advance the shared envelope once after all channels have used it.
         if (ch == 0)
-            muteGain = localMuteGain;
+            blockEndMuteGain = localMuteGain;
     }
+    muteGain = blockEndMuteGain;
 
     // If completely muted, reset RMS
     if (muteGain < 0.0001f)

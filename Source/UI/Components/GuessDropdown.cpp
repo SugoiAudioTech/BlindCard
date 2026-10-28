@@ -16,6 +16,9 @@
 */
 
 #include "GuessDropdown.h"
+#include "../Theme/FontManager.h"
+
+#include <memory>
 
 namespace BlindCard
 {
@@ -29,7 +32,59 @@ namespace DropdownLayout
     constexpr float arrowHeight = 5.0f;
 
     // PopupMenu item height
-    constexpr int menuItemHeight = 28;
+    constexpr int menuItemHeight = 32;
+    constexpr float arrowGap = 5.0f;
+}
+
+namespace
+{
+    class GuessMenuLookAndFeel final : public juce::LookAndFeel_V4
+    {
+    public:
+        explicit GuessMenuLookAndFeel(bool darkTheme) : dark(darkTheme)
+        {
+            setColour(juce::PopupMenu::backgroundColourId,
+                      juce::Colour(dark ? 0xFF343937 : 0xFFFAF9F6));
+            setColour(juce::PopupMenu::textColourId,
+                      juce::Colour(dark ? 0xFFF5F2EA : 0xFF303431));
+            setColour(juce::PopupMenu::highlightedBackgroundColourId,
+                      juce::Colour(dark ? 0xFF506058 : 0xFFDDE5DE));
+            setColour(juce::PopupMenu::highlightedTextColourId,
+                      juce::Colour(dark ? 0xFFFFFFFF : 0xFF1F2923));
+        }
+
+        juce::Font getPopupMenuFont() override
+        {
+            return FontManager::getInstance().getMedium(13.5f);
+        }
+
+        void drawPopupMenuItem(juce::Graphics& g, const juce::Rectangle<int>& area,
+                               bool isSeparator, bool isActive, bool isHighlighted,
+                               bool isTicked, bool hasSubMenu, const juce::String& text,
+                               const juce::String& shortcutKeyText, const juce::Drawable* icon,
+                               const juce::Colour* textColour) override
+        {
+            if (!isSeparator && isTicked && !isHighlighted)
+            {
+                g.setColour(juce::Colour(dark ? 0xFF49524B : 0xFFEDE5D8));
+                g.fillRoundedRectangle(area.reduced(2).toFloat(), 4.0f);
+            }
+
+            juce::LookAndFeel_V4::drawPopupMenuItem(g, area, isSeparator, isActive,
+                isHighlighted, isTicked, hasSubMenu, text, shortcutKeyText, icon,
+                textColour);
+        }
+
+    private:
+        bool dark;
+    };
+
+    float textWidth(const juce::Font& font, const juce::String& text)
+    {
+        juce::GlyphArrangement glyphs;
+        glyphs.addLineOfText(font, text, 0.0f, 0.0f);
+        return glyphs.getBoundingBox(0, glyphs.getNumGlyphs(), true).getWidth();
+    }
 }
 
 //==============================================================================
@@ -37,6 +92,7 @@ GuessDropdown::GuessDropdown()
 {
     // Subscribe to theme changes
     ThemeManager::getInstance().addChangeListener(this);
+    LocalizationManager::getInstance().addListener(this);
 
     // Enable mouse tracking for hover effects
     setMouseCursor(juce::MouseCursor::PointingHandCursor);
@@ -45,6 +101,7 @@ GuessDropdown::GuessDropdown()
 GuessDropdown::~GuessDropdown()
 {
     ThemeManager::getInstance().removeChangeListener(this);
+    LocalizationManager::getInstance().removeListener(this);
 }
 
 //==============================================================================
@@ -103,11 +160,9 @@ void GuessDropdown::paint(juce::Graphics& g)
 {
     auto bounds = getLocalBounds().toFloat();
 
-    // Apply disabled opacity
+    // Apply opacity to the complete field, including colours set by helpers.
     if (!enabledState)
-    {
-        g.setOpacity(kDisabledOpacity);
-    }
+        g.beginTransparencyLayer(kDisabledOpacity);
 
     // Draw background
     drawBackground(g, bounds);
@@ -120,6 +175,9 @@ void GuessDropdown::paint(juce::Graphics& g)
 
     // Draw arrow
     drawArrow(g, bounds);
+
+    if (!enabledState)
+        g.endTransparencyLayer();
 }
 
 void GuessDropdown::resized()
@@ -163,10 +221,19 @@ void GuessDropdown::changeListenerCallback(juce::ChangeBroadcaster* source)
     }
 }
 
+void GuessDropdown::languageChanged()
+{
+    repaint();
+}
+
 //==============================================================================
 void GuessDropdown::drawBackground(juce::Graphics& g, juce::Rectangle<float> bounds)
 {
-    g.setColour(getBackgroundColour());
+    auto colour = getBackgroundColour();
+    if (enabledState && isHovered)
+        colour = juce::Colour(ThemeManager::getInstance().isDark()
+                                  ? 0xFF535B56 : 0xFFE8EBE6);
+    g.setColour(colour);
     g.fillRoundedRectangle(bounds, static_cast<float>(kCornerRadius));
 }
 
@@ -174,11 +241,9 @@ void GuessDropdown::drawBorder(juce::Graphics& g, juce::Rectangle<float> bounds)
 {
     auto borderColour = getBorderColour();
 
-    // Lighten border on hover
-    if (isHovered)
-    {
-        borderColour = borderColour.brighter(0.3f);
-    }
+    if (enabledState && isHovered)
+        borderColour = juce::Colour(ThemeManager::getInstance().isDark()
+                                        ? 0xFFB3BDB3 : 0xFF738B78);
 
     // Highlight border when menu is open
     if (isMenuOpen)
@@ -193,22 +258,19 @@ void GuessDropdown::drawBorder(juce::Graphics& g, juce::Rectangle<float> bounds)
 
 void GuessDropdown::drawText(juce::Graphics& g, juce::Rectangle<float> bounds)
 {
-    auto textColour = getTextColour();
-
-    // Use muted (but still light) color for placeholder
-    if (selectedIndex < 0)
-    {
-        textColour = juce::Colour(0xFF6B7280);  // Muted gray that works on dark background
-    }
+    auto textColour = selectedIndex < 0
+        ? juce::Colour(ThemeManager::getInstance().isDark()
+                           ? 0xFFD4D8D1 : 0xFF4E544E)
+        : getTextColour();
 
     g.setColour(textColour);
-    g.setFont(juce::Font(juce::FontOptions(kFontSize)));
+    g.setFont(FontManager::getInstance().getMedium(kFontSize));
 
     // Calculate text bounds (leave room for arrow)
     auto textBounds = bounds;
     textBounds.removeFromLeft(static_cast<float>(kTextPadding));
     textBounds.removeFromRight(static_cast<float>(kArrowPadding) + DropdownLayout::arrowWidth +
-                               static_cast<float>(kArrowPadding));
+                               DropdownLayout::arrowGap);
 
     // Draw text
     juce::String displayText;
@@ -218,7 +280,7 @@ void GuessDropdown::drawText(juce::Graphics& g, juce::Rectangle<float> bounds)
     }
     else
     {
-        displayText = placeholderText;
+        displayText = LOCALIZE(GuessSelect);
     }
 
     g.drawText(displayText, textBounds, juce::Justification::centredLeft, true);
@@ -263,29 +325,38 @@ void GuessDropdown::showPopupMenu()
     isMenuOpen = true;
     repaint();
 
-    // Create popup menu
+    // Keep the menu's look and feel alive through its asynchronous callback.
     juce::PopupMenu menu;
+    auto menuLookAndFeel = std::make_shared<GuessMenuLookAndFeel>(
+        ThemeManager::getInstance().isDark());
+    menu.setLookAndFeel(menuLookAndFeel.get());
 
-    // Style the popup menu with dark theme colors
-    // Add track items
+    float widestTrack = 0.0f;
+    const auto menuFont = menuLookAndFeel->getPopupMenuFont();
     for (size_t i = 0; i < tracks.size(); ++i)
     {
         int itemId = static_cast<int>(i) + 1;  // PopupMenu IDs must be > 0
         bool isTicked = (static_cast<int>(i) == selectedIndex);
-
-        menu.addItem(itemId, juce::String(tracks[i]), true, isTicked);
+        auto name = juce::String(tracks[i]);
+        widestTrack = juce::jmax(widestTrack, textWidth(menuFont, name));
+        menu.addItem(itemId, name, true, isTicked);
     }
 
-    // PopupMenu options for dark styling
+    const int menuWidth = juce::jlimit(240, 400,
+        juce::roundToInt(widestTrack) + 56);
     juce::PopupMenu::Options options;
     options = options.withTargetComponent(this)
-                     .withMinimumWidth(getWidth())
+                     .withMinimumWidth(menuWidth)
                      .withMaximumNumColumns(1)
                      .withStandardItemHeight(DropdownLayout::menuItemHeight);
+    if (selectedIndex >= 0)
+        options = options.withItemThatMustBeVisible(selectedIndex + 1);
 
-    // Show menu asynchronously
-    menu.showMenuAsync(options, [this](int result) {
-        handleMenuResult(result);
+    juce::Component::SafePointer<GuessDropdown> safeThis(this);
+    menu.showMenuAsync(options, [safeThis, menuLookAndFeel](int result) {
+        juce::ignoreUnused(menuLookAndFeel);
+        if (safeThis != nullptr)
+            safeThis->handleMenuResult(result);
     });
 }
 
@@ -298,7 +369,7 @@ void GuessDropdown::handleMenuResult(int result)
     {
         int newIndex = result - 1;  // Convert back from PopupMenu ID
 
-        if (newIndex != selectedIndex)
+        if (newIndex < static_cast<int>(tracks.size()) && newIndex != selectedIndex)
         {
             selectedIndex = newIndex;
             repaint();
@@ -318,11 +389,11 @@ juce::Colour GuessDropdown::getBackgroundColour() const
 
     if (theme.isDark())
     {
-        return juce::Colour(0xFF2A2A2A);  // Dark background for dark theme
+        return juce::Colour(0xFF484C49);
     }
     else
     {
-        return juce::Colour(0xFF4A4A4A);  // Darker background for light theme (better contrast with white text)
+        return juce::Colour(0xFFF4F2ED);
     }
 }
 
@@ -332,24 +403,24 @@ juce::Colour GuessDropdown::getBorderColour() const
 
     if (theme.isDark())
     {
-        return juce::Colour(0xFF3A3A3A);  // Subtle border for dark theme
+        return juce::Colour(0xFF868D86);
     }
     else
     {
-        return juce::Colour(0xFFD4D4D4);  // Light theme border
+        return juce::Colour(0xFFA9AAA4);
     }
 }
 
 juce::Colour GuessDropdown::getTextColour() const
 {
-    // Always use white text for good contrast on the dark dropdown background
-    return juce::Colour(0xFFF5F5F0);
+    return ThemeManager::getInstance().isDark()
+        ? juce::Colour(0xFFF5F2EA) : juce::Colour(0xFF30332F);
 }
 
 juce::Colour GuessDropdown::getArrowColour() const
 {
-    // Always use light arrow for good contrast on dark background
-    return juce::Colour(0xFF9CA3AF);
+    return ThemeManager::getInstance().isDark()
+        ? juce::Colour(0xFFE0E5DD) : juce::Colour(0xFF59605A);
 }
 
 } // namespace BlindCard
